@@ -1,0 +1,7 @@
+D:\Program\Visual_Studio\Items\Jerry Craft Launcher .NET Framework 4.5\Download Java\bin\x86\Release\Download Java.exe.config
+D:\Program\Visual_Studio\Items\Jerry Craft Launcher .NET Framework 4.5\Download Java\bin\x86\Release\Download Java.exe
+D:\Program\Visual_Studio\Items\Jerry Craft Launcher .NET Framework 4.5\Download Java\bin\x86\Release\Download Java.pdb
+D:\Program\Visual_Studio\Items\Jerry Craft Launcher .NET Framework 4.5\Download Java\obj\x86\Release\Download Java.csproj.AssemblyReference.cache
+D:\Program\Visual_Studio\Items\Jerry Craft Launcher .NET Framework 4.5\Download Java\obj\x86\Release\Download Java.csproj.CoreCompileInputs.cache
+D:\Program\Visual_Studio\Items\Jerry Craft Launcher .NET Framework 4.5\Download Java\obj\x86\Release\Download Java.exe
+D:\Program\Visual_Studio\Items\Jerry Craft Launcher .NET Framework 4.5\Download Java\obj\x86\Release\Download Java.pdb

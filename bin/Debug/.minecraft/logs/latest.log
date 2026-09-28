@@ -1,0 +1,32 @@
+[279月2026 19:33:01.184] [main/INFO] [cpw.mods.modlauncher.Launcher/MODLAUNCHER]: ModLauncher running: args [--username, Player, --version, 1.21.11-61.2.1, --gameDir, D:\Program\Visual_Studio\Items\Jerry Craft Launcher .NET Framework 4.5 WPF\bin\Debug\.minecraft, --assetsDir, D:\Program\Visual_Studio\Items\Jerry Craft Launcher .NET Framework 4.5 WPF\bin\Debug\.minecraft\assets, --assetIndex, 29, --uuid, 00000000-0000-0000-0000-000000000000, --accessToken, **********, --clientId, 0, --xuid, --versionType, release, --width, 854, --height, 480, --launchTarget, forge_client]
+[279月2026 19:33:01.187] [main/INFO] [cpw.mods.modlauncher.Launcher/MODLAUNCHER]: JVM identified as Eclipse Adoptium OpenJDK 64-Bit Server VM 21.0.12.1+1-LTS
+[279月2026 19:33:01.187] [main/INFO] [cpw.mods.modlauncher.Launcher/MODLAUNCHER]: ModLauncher 10.2.6 starting: java version 21.0.12.1 by Eclipse Adoptium; OS Windows 11 arch amd64 version 10.0
+[279月2026 19:33:01.276] [main/INFO] [net.minecraftforge.fml.loading.ImmediateWindowHandler/]: Loading ImmediateWindowProvider fmlearlywindow
+[279月2026 19:33:01.360] [main/INFO] [EARLYDISPLAY/]: Trying GL version 4.6
+[279月2026 19:33:01.611] [main/INFO] [EARLYDISPLAY/]: Requested GL version 4.6 got version 4.6
+[279月2026 19:33:01.734] [main/INFO] [mixin/]: SpongePowered MIXIN Subsystem Version=0.8.7 Source=jar:file:///D:/Program/Visual_Studio/Items/Jerry%20Craft%20Launcher%20.NET%20Framework%204.5%20WPF/bin/Debug/.minecraft/libraries/org/spongepowered/mixin/0.8.7/mixin-0.8.7.jar!/ Service=ModLauncher Env=CLIENT
+[279月2026 19:33:01.762] [EarlyDisplay/INFO] [EARLYDISPLAY/]: GL info: Intel(R) Iris(R) Xe Graphics GL version 4.6.0 - Build 32.0.101.7088, Intel
+[279月2026 19:33:02.252] [main/INFO] [net.minecraftforge.fml.loading.moddiscovery.JarInJarDependencyLocator/]: No dependencies to load found. Skipping!
+[279月2026 19:33:02.621] [main/INFO] [cpw.mods.modlauncher.LaunchServiceHandler/MODLAUNCHER]: Launching target 'forge_client' with arguments [--version, 1.21.11-61.2.1, --gameDir, D:\Program\Visual_Studio\Items\Jerry Craft Launcher .NET Framework 4.5 WPF\bin\Debug\.minecraft, --assetsDir, D:\Program\Visual_Studio\Items\Jerry Craft Launcher .NET Framework 4.5 WPF\bin\Debug\.minecraft\assets, --uuid, 00000000-0000-0000-0000-000000000000, --username, Player, --assetIndex, 29, --accessToken, **********, --clientId, 0, --xuid, --versionType, release, --width, 854, --height, 480]
+[279月2026 19:33:08.773] [modloading-worker-0/INFO] [net.minecraftforge.common.ForgeMod/FORGEMOD]: Forge mod loading, version 61.2.1, for MC 1.21.11 with MCP 20251223.124241
+[279月2026 19:33:08.777] [modloading-worker-0/INFO] [net.minecraftforge.common.MinecraftForge/FORGE]: MinecraftForge v61.2.1 Initialized
+[279月2026 19:33:08.797] [modloading-worker-0/INFO] [net.minecraftforge.common.ForgeMod/FORGEMOD]: Opening jdk.naming.dns/com.sun.jndi.dns to java.naming
+[279月2026 19:33:09.909] [Download-1/ERROR] [com.mojang.realmsclient.client.RealmsClient/]: Failed to fetch Realms feature flags
+com.mojang.realmsclient.exception.RealmsServiceException: Realms authentication error with message 'java.lang.RuntimeException: Failed to parse into SignedJWT: 0'
+	at TRANSFORMER/minecraft@1.21.11/com.mojang.realmsclient.client.RealmsClient.execute(RealmsClient.java:526) ~[forge-1.21.11-61.2.1-client.jar!/:?]
+	at TRANSFORMER/minecraft@1.21.11/com.mojang.realmsclient.client.RealmsClient.fetchFeatureFlags(RealmsClient.java:186) ~[forge-1.21.11-61.2.1-client.jar!/:?]
+	at java.base/java.util.concurrent.CompletableFuture$AsyncSupply.run(CompletableFuture.java:1768) ~[?:?]
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144) ~[?:?]
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642) ~[?:?]
+	at java.base/java.lang.Thread.run(Thread.java:1583) [?:?]
+[279月2026 19:33:10.523] [Forge Version Check/INFO] [net.minecraftforge.fml.VersionChecker/]: [forge] Starting version check at https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json
+[279月2026 19:33:12.573] [Forge Version Check/INFO] [net.minecraftforge.fml.VersionChecker/]: [forge] Found status: AHEAD Current: 61.2.1 Target: null
+[279月2026 19:33:13.171] [IO-Worker-1/ERROR] [com.mojang.realmsclient.RealmsAvailability/]: Couldn't connect to realms
+com.mojang.realmsclient.exception.RealmsServiceException: Realms authentication error with message 'java.lang.RuntimeException: Failed to parse into SignedJWT: 0'
+	at TRANSFORMER/minecraft@1.21.11/com.mojang.realmsclient.client.RealmsClient.execute(RealmsClient.java:526) ~[forge-1.21.11-61.2.1-client.jar!/:?]
+	at TRANSFORMER/minecraft@1.21.11/com.mojang.realmsclient.client.RealmsClient.clientCompatible(RealmsClient.java:307) ~[forge-1.21.11-61.2.1-client.jar!/:?]
+	at TRANSFORMER/minecraft@1.21.11/com.mojang.realmsclient.RealmsAvailability.lambda$check$0(RealmsAvailability.java:48) ~[forge-1.21.11-61.2.1-client.jar!/:?]
+	at java.base/java.util.concurrent.CompletableFuture$AsyncSupply.run(CompletableFuture.java:1768) ~[?:?]
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144) ~[?:?]
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642) ~[?:?]
+	at java.base/java.lang.Thread.run(Thread.java:1583) [?:?]

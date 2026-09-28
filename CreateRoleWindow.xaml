@@ -1,0 +1,67 @@
+﻿<Window x:Class="Jerry_Craft_Launcher.NET_Framework_4._5_WPF.CreateRoleWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:Jerry_Craft_Launcher.NET_Framework_4._5_WPF"
+        mc:Ignorable="d"
+        Title="创建角色"
+        Width="440" Height="290"
+        WindowStartupLocation="CenterOwner"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        AllowsTransparency="True"
+        Background="Transparent">
+
+    <Border Background="#F5F5F5" CornerRadius="10">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="40"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <Border Grid.Row="0"
+                    Background="#FFFFFF"
+                    BorderBrush="#E0E0E0"
+                    BorderThickness="0,0,0,1"
+                    CornerRadius="10,10,0,0"
+                    MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+                <Grid>
+                    <TextBlock Text="创建离线角色"
+                               FontSize="13" FontWeight="SemiBold"
+                               VerticalAlignment="Center"
+                               Margin="16,0,0,0"/>
+                    <Button Content="✕" Width="40" Height="40"
+                            HorizontalAlignment="Right"
+                            Style="{StaticResource TitleBarButtonStyle}"
+                            Click="Close_Click"/>
+                </Grid>
+            </Border>
+
+            <StackPanel Grid.Row="1" Margin="24,20,24,20">
+                <TextBlock Text="角色名"
+                           FontSize="12" Foreground="#666666"
+                           Margin="0,0,0,6"/>
+                <TextBox x:Name="RoleNameBox"
+                         Style="{StaticResource InputTextBoxStyle}"
+                         MaxLength="16"
+                         KeyDown="RoleNameBox_KeyDown"/>
+                <TextBlock Text="4-16 个字符，不能包含中文和空格"
+                           FontSize="11" Foreground="#999999"
+                           Margin="0,6,0,0"/>
+
+                <StackPanel Orientation="Horizontal"
+                            HorizontalAlignment="Right"
+                            Margin="0,24,0,0">
+                    <Button Content="跳过"
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            Click="Skip_Click"
+                            Margin="0,0,8,0"/>
+                    <Button Content="创建"
+                            Style="{StaticResource PrimaryButtonStyle}"
+                            Click="Create_Click"/>
+                </StackPanel>
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>

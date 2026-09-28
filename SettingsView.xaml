@@ -1,0 +1,39 @@
+﻿<UserControl x:Class="Jerry_Craft_Launcher.NET_Framework_4._5_WPF.SettingsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d"
+             d:DesignHeight="600" d:DesignWidth="900">
+    <Grid Background="White">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="200"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <Border Grid.Column="0" Background="#FAFAFA"
+                BorderBrush="#E0E0E0" BorderThickness="0,0,1,0">
+            <StackPanel Margin="8,16,8,0">
+                <RadioButton GroupName="SettingsSubNav" Content="启动器"
+                             Style="{StaticResource SubNavButtonStyle}"
+                             IsChecked="True" Margin="0,0,0,2"/>
+                <RadioButton GroupName="SettingsSubNav" Content="Java"
+                             Style="{StaticResource SubNavButtonStyle}"
+                             Margin="0,2,0,0"/>
+                <RadioButton GroupName="SettingsSubNav" Content="游戏"
+                             Style="{StaticResource SubNavButtonStyle}"
+                             Margin="0,2,0,0"/>
+                <RadioButton GroupName="SettingsSubNav" Content="关于"
+                             Style="{StaticResource SubNavButtonStyle}"
+                             Margin="0,2,0,0"/>
+            </StackPanel>
+        </Border>
+
+        <Grid Grid.Column="1" Background="White">
+            <TextBlock Text="设置"
+                       FontSize="24" Foreground="#DDDDDD"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"/>
+        </Grid>
+    </Grid>
+</UserControl>

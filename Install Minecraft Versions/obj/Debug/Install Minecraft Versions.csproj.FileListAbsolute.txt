@@ -1,0 +1,21 @@
+D:\Program\Visual_Studio\Items\Install Minecraft Versions\bin\Debug\Install Minecraft Versions.exe.config
+D:\Program\Visual_Studio\Items\Install Minecraft Versions\bin\Debug\Install Minecraft Versions.exe
+D:\Program\Visual_Studio\Items\Install Minecraft Versions\bin\Debug\Install Minecraft Versions.pdb
+D:\Program\Visual_Studio\Items\Install Minecraft Versions\obj\Debug\Install Minecraft Versions.csproj.AssemblyReference.cache
+D:\Program\Visual_Studio\Items\Install Minecraft Versions\obj\Debug\Install Minecraft Versions.csproj.CoreCompileInputs.cache
+D:\Program\Visual_Studio\Items\Install Minecraft Versions\obj\Debug\Install Minecraft Versions.exe
+D:\Program\Visual_Studio\Items\Install Minecraft Versions\obj\Debug\Install Minecraft Versions.pdb
+D:\Program\Visual_Studio\Items\Jerry Craft Launcher .NET Framework 4.5\Install Minecraft Versions\bin\Debug\Install Minecraft Versions.exe.config
+D:\Program\Visual_Studio\Items\Jerry Craft Launcher .NET Framework 4.5\Install Minecraft Versions\bin\Debug\Install Minecraft Versions.exe
+D:\Program\Visual_Studio\Items\Jerry Craft Launcher .NET Framework 4.5\Install Minecraft Versions\bin\Debug\Install Minecraft Versions.pdb
+D:\Program\Visual_Studio\Items\Jerry Craft Launcher .NET Framework 4.5\Install Minecraft Versions\obj\Debug\Install Minecraft Versions.csproj.AssemblyReference.cache
+D:\Program\Visual_Studio\Items\Jerry Craft Launcher .NET Framework 4.5\Install Minecraft Versions\obj\Debug\Install Minecraft Versions.csproj.CoreCompileInputs.cache
+D:\Program\Visual_Studio\Items\Jerry Craft Launcher .NET Framework 4.5\Install Minecraft Versions\obj\Debug\Install Minecraft Versions.exe
+D:\Program\Visual_Studio\Items\Jerry Craft Launcher .NET Framework 4.5\Install Minecraft Versions\obj\Debug\Install Minecraft Versions.pdb
+D:\Program\Visual_Studio\Items\Jerry Craft Launcher .NET Framework 4.5 WPF\Install Minecraft Versions\bin\Debug\Install Minecraft Versions.pdb
+D:\Program\Visual_Studio\Items\Jerry Craft Launcher .NET Framework 4.5 WPF\Install Minecraft Versions\obj\Debug\Install Minecraft Versions.csproj.AssemblyReference.cache
+D:\Program\Visual_Studio\Items\Jerry Craft Launcher .NET Framework 4.5 WPF\Install Minecraft Versions\obj\Debug\Install Minecraft Versions.csproj.CoreCompileInputs.cache
+D:\Program\Visual_Studio\Items\Jerry Craft Launcher .NET Framework 4.5 WPF\Install Minecraft Versions\obj\Debug\Install Minecraft Versions.pdb
+D:\Program\Visual_Studio\Items\Jerry Craft Launcher .NET Framework 4.5 WPF\Install Minecraft Versions\bin\Debug\Install Minecraft Versions.dll.config
+D:\Program\Visual_Studio\Items\Jerry Craft Launcher .NET Framework 4.5 WPF\Install Minecraft Versions\bin\Debug\Install Minecraft Versions.dll
+D:\Program\Visual_Studio\Items\Jerry Craft Launcher .NET Framework 4.5 WPF\Install Minecraft Versions\obj\Debug\Install Minecraft Versions.dll

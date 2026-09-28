@@ -1,0 +1,10 @@
+<Solution>
+  <Project Path="Download Java/Download Java.csproj" />
+  <Project Path="Install Minecraft Versions/Install Minecraft Versions.csproj" />
+  <Project Path="Jerry Craft Launcher .NET Framework 4.5 WPF.csproj">
+    <BuildDependency Project="Download Java/Download Java.csproj" />
+    <BuildDependency Project="Install Minecraft Versions/Install Minecraft Versions.csproj" />
+    <BuildDependency Project="Launch Minecraft/Launch Minecraft.csproj" />
+  </Project>
+  <Project Path="Launch Minecraft/Launch Minecraft.csproj" />
+</Solution>
