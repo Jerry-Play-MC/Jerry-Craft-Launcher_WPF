@@ -11,7 +11,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 {
     public partial class ServerView : UserControl
     {
-        // ★ scanner 提为 static，跨页面切换保持存活，保留 ServerInfo 的运行状态
         private static ServerScanner _scanner;
 
         public ServerView()
@@ -29,18 +28,14 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 _scanner.Start();
             }
 
-            // 防止重复订阅
             _scanner.ServersChanged -= OnServersChanged;
             _scanner.ServersChanged += OnServersChanged;
 
-            // 立即回填当前列表（切页回来不用等下一次 Tick）
             OnServersChanged(_scanner.Current);
         }
 
         private void ServerView_Unloaded(object sender, RoutedEventArgs e)
         {
-            // ★ 不再 Stop / 不再清空 scanner：状态由 scanner 全局持有，
-            //    页面再回来时复用同一批 ServerInfo 对象，IsRunning / Status 不丢。
             if (_scanner != null)
                 _scanner.ServersChanged -= OnServersChanged;
         }
@@ -72,6 +67,22 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             Process.Start(new ProcessStartInfo { FileName = path, UseShellExecute = true });
         }
 
+        // ---------- 安装服务器 ----------
+
+        private void InstallServer_Click(object sender, RoutedEventArgs e)
+        {
+            var win = new ServerInstallWindow
+            {
+                Owner = Window.GetWindow(this)
+            };
+
+            if (win.ShowDialog() == true)
+            {
+                _scanner?.Stop();
+                _scanner?.Start();
+            }
+        }
+
         // ---------- 从按钮拿到绑定的 ServerInfo ----------
 
         private ServerInfo GetServerFromButton(object sender)
@@ -101,7 +112,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             try
             {
-                // 1) 前置 eula 检查：只在「已存在 eula=false」时弹窗
                 var status = Launch_Minecraft.ServerLauncher.CheckEula(info.FolderPath);
                 if (status == Launch_Minecraft.ServerEulaStatus.NeedAccept)
                 {
@@ -109,13 +119,11 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     Launch_Minecraft.ServerLauncher.WriteEulaTrue(info.FolderPath);
                 }
 
-                // 2) 启动（带进度回调）
                 var result = await Task.Run(() =>
                     Launch_Minecraft.ServerLauncher.StartServer(
                         info.FolderPath, App.Config.JavaBaseDir,
                         progress => ReportProgress(info, progress)));
 
-                // 3) 服务端秒退且报 eula 未同意 → 弹窗 + 写 eula + 重启
                 if (result == Launch_Minecraft.ServerStartResult.NeedEula)
                 {
                     if (!AskAcceptEula(info.Name)) return;
@@ -134,7 +142,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             }
         }
 
-        /// <summary>把 ServerStartProgress 报告到 UI（从任意线程安全调度）</summary>
         private void ReportProgress(ServerInfo info, Launch_Minecraft.ServerStartProgress progress)
         {
             Dispatcher.BeginInvoke(new Action(() =>
@@ -153,7 +160,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     case Launch_Minecraft.ServerStartPhase.Failed:
                         info.IsRunning = false;
 
-                        // 3 秒后清空 Status → 恢复显示 Motd
                         var timer = new DispatcherTimer
                         {
                             Interval = TimeSpan.FromSeconds(3)
@@ -182,7 +188,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             };
             win.ShowDialog();
 
-            // 名称/Motd 可能变了，重新扫一遍
             _scanner?.Stop();
             _scanner?.Start();
         }
@@ -204,7 +209,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             var r = MessageBox.Show(
                 $"确定要删除服务器【{info.Name}】吗？\n\n" +
-                $"此操作会删除整个文件夹：\n{info.FolderPath}\n\n" +
+                $"此操作会删除整个文件夹：\n{info.FolderPath}\n  您的存档将会消失！\n\n" +
                 "删除后无法恢复！",
                 "删除服务器",
                 MessageBoxButton.YesNo, MessageBoxImage.Warning);
