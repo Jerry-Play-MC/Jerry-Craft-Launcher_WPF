@@ -5,14 +5,14 @@ using System.IO;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Input;
+using System.Windows.Threading;
 
 namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 {
     public partial class ServerView : UserControl
     {
-        private ServerScanner _scanner;
-        private bool _starting;
+        // ★ scanner 提为 static，跨页面切换保持存活，保留 ServerInfo 的运行状态
+        private static ServerScanner _scanner;
 
         public ServerView()
         {
@@ -26,18 +26,23 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             if (_scanner == null)
             {
                 _scanner = new ServerScanner();
-                _scanner.ServersChanged += OnServersChanged;
                 _scanner.Start();
             }
+
+            // 防止重复订阅
+            _scanner.ServersChanged -= OnServersChanged;
+            _scanner.ServersChanged += OnServersChanged;
+
+            // 立即回填当前列表（切页回来不用等下一次 Tick）
+            OnServersChanged(_scanner.Current);
         }
 
         private void ServerView_Unloaded(object sender, RoutedEventArgs e)
         {
+            // ★ 不再 Stop / 不再清空 scanner：状态由 scanner 全局持有，
+            //    页面再回来时复用同一批 ServerInfo 对象，IsRunning / Status 不丢。
             if (_scanner != null)
-            {
-                _scanner.Stop();
-                _scanner = null;
-            }
+                _scanner.ServersChanged -= OnServersChanged;
         }
 
         private void OnServersChanged(List<ServerInfo> servers)
@@ -67,24 +72,108 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             Process.Start(new ProcessStartInfo { FileName = path, UseShellExecute = true });
         }
 
-        // ---------- 双击 / 右键菜单 ----------
+        // ---------- 从按钮拿到绑定的 ServerInfo ----------
 
-        private void ServerListBox_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        private ServerInfo GetServerFromButton(object sender)
         {
-            var info = ServerListBox.SelectedItem as ServerInfo;
+            var btn = sender as Button;
+            if (btn == null) return null;
+            return btn.DataContext as ServerInfo;
+        }
+
+        // ---------- 启动 ----------
+
+        private void ServerStart_Click(object sender, RoutedEventArgs e)
+        {
+            var info = GetServerFromButton(sender);
             if (info == null) return;
             _ = StartServerAsync(info);
         }
 
-        private void ServerStart_Click(object sender, RoutedEventArgs e)
+        private async Task StartServerAsync(ServerInfo info)
         {
-            var info = GetContextMenuServer(sender);
-            if (info != null) _ = StartServerAsync(info);
+            if (info.IsRunning)
+            {
+                MessageBox.Show($"服务器【{info.Name}】已在运行中。", "提示",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            try
+            {
+                // 1) 前置 eula 检查：只在「已存在 eula=false」时弹窗
+                var status = Launch_Minecraft.ServerLauncher.CheckEula(info.FolderPath);
+                if (status == Launch_Minecraft.ServerEulaStatus.NeedAccept)
+                {
+                    if (!AskAcceptEula(info.Name)) return;
+                    Launch_Minecraft.ServerLauncher.WriteEulaTrue(info.FolderPath);
+                }
+
+                // 2) 启动（带进度回调）
+                var result = await Task.Run(() =>
+                    Launch_Minecraft.ServerLauncher.StartServer(
+                        info.FolderPath, App.Config.JavaBaseDir,
+                        progress => ReportProgress(info, progress)));
+
+                // 3) 服务端秒退且报 eula 未同意 → 弹窗 + 写 eula + 重启
+                if (result == Launch_Minecraft.ServerStartResult.NeedEula)
+                {
+                    if (!AskAcceptEula(info.Name)) return;
+                    Launch_Minecraft.ServerLauncher.WriteEulaTrue(info.FolderPath);
+
+                    await Task.Run(() =>
+                        Launch_Minecraft.ServerLauncher.StartServer(
+                            info.FolderPath, App.Config.JavaBaseDir,
+                            progress => ReportProgress(info, progress)));
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("启动服务器失败：" + ex.Message, "错误",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
+
+        /// <summary>把 ServerStartProgress 报告到 UI（从任意线程安全调度）</summary>
+        private void ReportProgress(ServerInfo info, Launch_Minecraft.ServerStartProgress progress)
+        {
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                info.Status = progress.Message;
+
+                switch (progress.Phase)
+                {
+                    case Launch_Minecraft.ServerStartPhase.Detecting:
+                    case Launch_Minecraft.ServerStartPhase.Starting:
+                    case Launch_Minecraft.ServerStartPhase.Running:
+                        info.IsRunning = true;
+                        break;
+
+                    case Launch_Minecraft.ServerStartPhase.Stopped:
+                    case Launch_Minecraft.ServerStartPhase.Failed:
+                        info.IsRunning = false;
+
+                        // 3 秒后清空 Status → 恢复显示 Motd
+                        var timer = new DispatcherTimer
+                        {
+                            Interval = TimeSpan.FromSeconds(3)
+                        };
+                        timer.Tick += (s, e) =>
+                        {
+                            timer.Stop();
+                            if (!info.IsRunning) info.Status = "";
+                        };
+                        timer.Start();
+                        break;
+                }
+            }));
+        }
+
+        // ---------- 设置 ----------
 
         private void ServerSettings_Click(object sender, RoutedEventArgs e)
         {
-            var info = GetContextMenuServer(sender);
+            var info = GetServerFromButton(sender);
             if (info == null) return;
 
             var win = new ServerSettingsWindow(info)
@@ -93,88 +182,49 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             };
             win.ShowDialog();
 
+            // 名称/Motd 可能变了，重新扫一遍
             _scanner?.Stop();
             _scanner?.Start();
         }
 
-        private void ServerOpenFolder_Click(object sender, RoutedEventArgs e)
+        // ---------- 删除 ----------
+
+        private void ServerDelete_Click(object sender, RoutedEventArgs e)
         {
-            var info = GetContextMenuServer(sender);
+            var info = GetServerFromButton(sender);
             if (info == null) return;
 
-            Process.Start(new ProcessStartInfo
+            if (info.IsRunning)
             {
-                FileName = info.FolderPath,
-                UseShellExecute = true
-            });
-        }
-
-        private ServerInfo GetContextMenuServer(object sender)
-        {
-            var mi = sender as MenuItem;
-            if (mi == null) return null;
-
-            var cm = mi.Parent as ContextMenu;
-            if (cm == null) return null;
-
-            var grid = cm.PlacementTarget as FrameworkElement;
-            if (grid == null) return null;
-
-            return grid.DataContext as ServerInfo;
-        }
-
-        // ---------- 启动 ----------
-
-        private async Task StartServerAsync(ServerInfo info)
-        {
-            if (_starting)
-            {
-                MessageBox.Show("已有服务端正在启动中，请稍候...", "提示",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show(
+                    $"服务器【{info.Name}】正在运行中，请先关闭服务端后再删除。",
+                    "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
-            _starting = true;
+            var r = MessageBox.Show(
+                $"确定要删除服务器【{info.Name}】吗？\n\n" +
+                $"此操作会删除整个文件夹：\n{info.FolderPath}\n\n" +
+                "删除后无法恢复！",
+                "删除服务器",
+                MessageBoxButton.YesNo, MessageBoxImage.Warning);
+
+            if (r != MessageBoxResult.Yes) return;
+
             try
             {
-                // 前置 eula 检查：
-                //   NoEulaFile  → 不创建任何文件，直接启动（服务端会自己生成 eula.txt 并秒退）
-                //   Accepted    → 直接启动
-                //   NeedAccept  → 已存在 eula=false，弹窗；同意才改 true，拒绝则不启动
-                var status = Launch_Minecraft.ServerLauncher.CheckEula(info.FolderPath);
-
-                if (status == Launch_Minecraft.ServerEulaStatus.NeedAccept)
-                {
-                    if (!AskAcceptEula(info.Name)) return;
-                    Launch_Minecraft.ServerLauncher.WriteEulaTrue(info.FolderPath);
-                }
-
-                int result = await Task.Run(() =>
-                    Launch_Minecraft.ServerLauncher.StartServer(
-                        info.FolderPath, App.Config.JavaBaseDir, null));
-
-                // 服务端秒退，且输出里报了 eula 未同意
-                //   → 才写 eula.txt=true 并重启一次
-                if (result == -1)
-                {
-                    if (!AskAcceptEula(info.Name)) return;
-                    Launch_Minecraft.ServerLauncher.WriteEulaTrue(info.FolderPath);
-
-                    await Task.Run(() =>
-                        Launch_Minecraft.ServerLauncher.StartServer(
-                            info.FolderPath, App.Config.JavaBaseDir, null));
-                }
+                Directory.Delete(info.FolderPath, true);
+                _scanner?.Stop();
+                _scanner?.Start();
             }
             catch (Exception ex)
             {
-                MessageBox.Show("启动服务器失败：" + ex.Message, "错误",
+                MessageBox.Show("删除失败：" + ex.Message, "错误",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
-            finally
-            {
-                _starting = false;
-            }
         }
+
+        // ---------- EULA ----------
 
         private bool AskAcceptEula(string serverName)
         {

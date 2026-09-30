@@ -7,6 +7,7 @@ using System.IO.Compression;
 using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Web.Script.Serialization;
 
 namespace Launch_Minecraft
@@ -18,11 +19,34 @@ namespace Launch_Minecraft
         NeedAccept    // eula.txt 存在且 eula=false → 需要弹窗
     }
 
+    public enum ServerStartPhase
+    {
+        Detecting,   // 获取启动信息（识别 Java 版本、组装启动命令）
+        Starting,    // 启动服务器（脚本/参数已传，等待 Done）
+        Running,     // 正在运行（Done 已出现）
+        Stopped,     // 已停止（进程退出）
+        Failed       // 启动失败
+    }
+
+    public enum ServerStartResult
+    {
+        Success,     // 已进入 Running 状态
+        NeedEula,    // 秒退且报告 eula 未同意
+        Failed       // 其它失败
+    }
+
+    public class ServerStartProgress
+    {
+        public ServerStartPhase Phase;
+        public string Message;
+        public int ExitCode;
+    }
+
     /// <summary>
     /// 服务端启动器：
-    /// · 加载器识别完全基于目录特征，不读任何 *.json，避免误读服务端生成文件
+    /// · 加载器识别基于目录特征，不读任何 *.json（避免误读 banned-ips.json 等）
     /// · Java 需求优先走 Mojang 版本清单，失败则本地读 jar / 扫 class
-    /// · eula 处理：只在「已经存在 eula=false」或「服务端秒退报 eula 未同意」时动手
+    /// · 通过 onProgress 回调上报 Detecting / Starting / Running / Stopped / Failed
     /// </summary>
     public static class ServerLauncher
     {
@@ -52,10 +76,6 @@ namespace Launch_Minecraft
             }
         }
 
-        /// <summary>
-        /// 写 eula=true。文件不存在则创建；存在则原地替换 eula 行。
-        /// 只在「用户已同意」时才调用。
-        /// </summary>
         public static void WriteEulaTrue(string serverDir)
         {
             string eulaPath = Path.Combine(serverDir, "eula.txt");
@@ -90,65 +110,187 @@ namespace Launch_Minecraft
         private static readonly List<Process> _running = new List<Process>();
 
         /// <summary>
-        /// 启动服务端。
-        /// 返回：0 = 已启动，-1 = 秒退且疑似 eula 未同意，其它 = 服务端退出码
+        /// 启动服务端。通过 onProgress 上报阶段；服务端进入 Running 后本方法返回，
+        /// 后台进程继续运行，停止时再通过 onProgress 上报 Stopped。
         /// </summary>
-        public static int StartServer(string serverDir, string javaBaseDir = null,
-                                      Action<string> onOutput = null)
+        public static ServerStartResult StartServer(string serverDir, string javaBaseDir,
+                                                    Action<ServerStartProgress> onProgress)
         {
-            var psi = BuildStartInfo(serverDir, javaBaseDir);
+            // ---------- 1) Detecting：识别启动入口 ----------
+            Report(onProgress, ServerStartPhase.Detecting, "获取启动信息...");
 
-            // onOutput 为空时，默认写到 Console，并把日志落盘到 launcher-server.log
-            string logPath = Path.Combine(serverDir, "launcher-server.log");
-            Action<string> sink = onOutput ?? Console.WriteLine;
-            Action<string> write = line =>
+            ProcessStartInfo psi;
+            try
             {
-                try { File.AppendAllText(logPath, line + Environment.NewLine); }
-                catch { }
-                sink(line);
-            };
+                psi = BuildStartInfo(serverDir, javaBaseDir);
+            }
+            catch (Exception ex)
+            {
+                Report(onProgress, ServerStartPhase.Failed, "启动失败：" + ex.Message);
+                return ServerStartResult.Failed;
+            }
 
+            // ---------- 2) Starting：启动进程 ----------
+            string logPath = Path.Combine(serverDir, "launcher-server.log");
             var proc = new Process { StartInfo = psi };
-            bool eulaDetected = false;
+
+            // ★ 不用 using：句柄必须活得比本方法长，Exited 事件可能在几分钟后才触发
+            var doneHandle = new ManualResetEvent(false);
+            var exitHandle = new ManualResetEvent(false);
+
+            // 用 ref-like 包装保证多线程可见性
+            var state = new ServerRunState();
 
             DataReceivedEventHandler onData = (s, e) =>
             {
                 if (e.Data == null) return;
-                write(e.Data);
-                if (e.Data.IndexOf("agree to the EULA",
+
+                // 落盘
+                try { File.AppendAllText(logPath, e.Data + Environment.NewLine); }
+                catch { }
+
+                // ★ 控制台实时输出（之前漏了这句，导致日志被吃）
+                try { Console.WriteLine(e.Data); } catch { }
+
+                // eula 未同意
+                if (!state.EulaDetected &&
+                    e.Data.IndexOf("agree to the EULA",
                         StringComparison.OrdinalIgnoreCase) >= 0)
-                    eulaDetected = true;
+                {
+                    state.EulaDetected = true;
+                }
+
+                // 服务端启动完成：Done (X.XXXs)! For help, type "help"
+                if (!state.DoneDetected && IsDoneLine(e.Data))
+                {
+                    state.DoneDetected = true;
+                    try { doneHandle.Set(); }
+                    catch (ObjectDisposedException) { }
+                }
             };
 
             proc.OutputDataReceived += onData;
             proc.ErrorDataReceived += onData;
             proc.EnableRaisingEvents = true;
 
-            Console.WriteLine($"[Server] 启动: {Path.GetFileName(psi.FileName)} {psi.Arguments}");
-
-            proc.Start();
-            proc.BeginOutputReadLine();
-            proc.BeginErrorReadLine();
-
-            lock (_running) _running.Add(proc);
-
             proc.Exited += (s, e) =>
             {
+                int code = 0;
+                try { code = proc.ExitCode; } catch { }
+                state.ExitCode = code;
+
                 lock (_running) _running.Remove(proc);
-                Console.WriteLine($"[Server] 服务端已退出，退出码 {proc.ExitCode}");
+
+                // 只有已经进入 Running 后才需要通知 UI 服务端停了
+                if (state.DoneDetected)
+                {
+                    Report(onProgress, ServerStartPhase.Stopped,
+                        $"已停止（退出码 {code}）", code);
+                }
+
+                try { exitHandle.Set(); }
+                catch (ObjectDisposedException) { }
+
+                // 后台线程不再需要这两个句柄，此处释放
+                try { doneHandle.Close(); } catch { }
+                try { exitHandle.Close(); } catch { }
+                try { proc.Dispose(); } catch { }
             };
 
-            // 8 秒内秒退 → 视为启动失败
-            if (proc.WaitForExit(8000))
+            Report(onProgress, ServerStartPhase.Starting, "启动服务器...");
+
+            try
             {
-                lock (_running) _running.Remove(proc);
-                if (eulaDetected) return -1;
-                return proc.ExitCode;
+                proc.Start();
+                proc.BeginOutputReadLine();
+                proc.BeginErrorReadLine();
+            }
+            catch (Exception ex)
+            {
+                Report(onProgress, ServerStartPhase.Failed, "启动失败：" + ex.Message);
+                try { doneHandle.Close(); } catch { }
+                try { exitHandle.Close(); } catch { }
+                return ServerStartResult.Failed;
             }
 
-            Console.WriteLine($"[Server] 服务端已启动，PID = {proc.Id}");
-            Console.WriteLine($"[Server] 日志文件：{logPath}");
-            return 0;
+            lock (_running) _running.Add(proc);
+            Console.WriteLine($"[Server] 已启动 PID = {proc.Id}，日志：{logPath}");
+
+            // 等待 Done 出现或进程退出，最长 180 秒
+            int idx;
+            try
+            {
+                idx = WaitHandle.WaitAny(new[] { doneHandle, exitHandle }, 180000);
+            }
+            catch (ObjectDisposedException)
+            {
+                // 极罕见：Exited 先到，句柄已释放
+                idx = 1;
+            }
+
+            // 进程已退出
+            if (idx == 1 || proc.HasExited)
+            {
+                if (state.EulaDetected)
+                {
+                    Report(onProgress, ServerStartPhase.Failed,
+                        "需要同意 EULA", state.ExitCode);
+                    return ServerStartResult.NeedEula;
+                }
+
+                Report(onProgress, ServerStartPhase.Stopped,
+                    $"已停止（退出码 {state.ExitCode}）", state.ExitCode);
+                return ServerStartResult.Failed;
+            }
+
+            // Done 出现（或超时），视为已进入运行状态
+            Report(onProgress, ServerStartPhase.Running, "正在运行...");
+            return ServerStartResult.Success;
+        }
+
+        /// <summary>进程内共享状态（跨事件线程安全）</summary>
+        private class ServerRunState
+        {
+            public volatile bool EulaDetected;
+            public volatile bool DoneDetected;
+            public volatile int ExitCode;
+        }
+
+        private static void Report(Action<ServerStartProgress> onProgress,
+                                   ServerStartPhase phase, string message,
+                                   int exitCode = 0)
+        {
+            Console.WriteLine($"[Server] {message}");
+            if (onProgress == null) return;
+            try
+            {
+                onProgress(new ServerStartProgress
+                {
+                    Phase = phase,
+                    Message = message,
+                    ExitCode = exitCode
+                });
+            }
+            catch { }
+        }
+
+        /// <summary>判断某行是否为服务端启动完成的 Done 行</summary>
+        /// <summary>判断某行是否为服务端启动完成的 Done 行</summary>
+        private static bool IsDoneLine(string line)
+        {
+            if (string.IsNullOrEmpty(line)) return false;
+
+            // 标准：Done (X.XXXs)! For help, type "help"
+            int idx = line.IndexOf("Done (", StringComparison.OrdinalIgnoreCase);
+            if (idx >= 0 &&
+                line.IndexOf("s)!", idx + 6, StringComparison.OrdinalIgnoreCase) > 0)
+                return true;
+
+            // 兜底：任意位置出现 "Done!" 也算
+            if (line.IndexOf("Done!", StringComparison.OrdinalIgnoreCase) >= 0)
+                return true;
+
+            return false;
         }
 
         // ============================================================
@@ -172,7 +314,7 @@ namespace Launch_Minecraft
             if (File.Exists(quiltJar))
                 return BuildJavaStartInfo(serverDir, quiltJar, javaBaseDir);
 
-            // 4) 通用 server.jar（原版 / 老版本 Forge / 部分整合包）
+            // 4) 通用 server.jar
             string serverJar = Path.Combine(serverDir, "server.jar");
             if (File.Exists(serverJar))
                 return BuildJavaStartInfo(serverDir, serverJar, javaBaseDir);
@@ -202,7 +344,6 @@ namespace Launch_Minecraft
                 StandardErrorEncoding = Encoding.GetEncoding(936),
             };
 
-            // 把用户指定的 Java 注入 PATH/JAVA_HOME，脚本里的 "java" 会优先用它
             string bin = ResolveJavaBinDir(javaBaseDir);
             if (!string.IsNullOrEmpty(bin))
             {
@@ -222,16 +363,9 @@ namespace Launch_Minecraft
         private static ProcessStartInfo BuildJavaStartInfo(string workDir, string jarPath,
                                                            string javaBaseDir)
         {
-            // 优先走 Mojang 清单识别 Java 需求
             int required = GetRequiredJavaFromManifest(jarPath);
-
-            // 清单拿不到 → 回退到本地 jar 检测
-            if (required <= 0)
-                required = DetectRequiredJavaFromJar(jarPath);
-
-            // 还是拿不到 → 兜底 17
-            if (required <= 0)
-                required = 17;
+            if (required <= 0) required = DetectRequiredJavaFromJar(jarPath);
+            if (required <= 0) required = 17;
 
             Console.WriteLine($"[Server] {Path.GetFileName(jarPath)} 要求 Java {required}");
 
@@ -296,25 +430,14 @@ namespace Launch_Minecraft
         private const string MOJANG_MANIFEST_URL =
             "https://piston-meta.mojang.com/mc/game/version_manifest.json";
 
-        // 进程内缓存：版本号 → Java 主版本
         private static readonly Dictionary<string, int> _manifestJavaCache =
             new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
-        /// <summary>
-        /// 从 Mojang 版本清单获取该 jar 对应的 Java 主版本。
-        /// 拿不到返回 0。
-        /// </summary>
         private static int GetRequiredJavaFromManifest(string jarPath)
         {
-            // 1) 先拿到 jar 里声明的版本号（version.json 的 id 字段）
             string versionId = ReadVersionIdFromJar(jarPath);
-            if (string.IsNullOrEmpty(versionId))
-            {
-                Console.WriteLine("[Server] 无法从 jar 读取版本号，跳过 Mojang 清单");
-                return 0;
-            }
+            if (string.IsNullOrEmpty(versionId)) return 0;
 
-            // 2) 查缓存
             lock (_manifestJavaCache)
             {
                 if (_manifestJavaCache.ContainsKey(versionId))
@@ -324,38 +447,19 @@ namespace Launch_Minecraft
             try
             {
                 Console.WriteLine($"[Server] 查询 Mojang 清单：{versionId}");
-
-                // 3) 下载 version_manifest.json
                 string manifestJson = DownloadString(MOJANG_MANIFEST_URL);
-                if (string.IsNullOrEmpty(manifestJson))
-                {
-                    Console.WriteLine("[Server] 下载版本清单失败");
-                    return 0;
-                }
+                if (string.IsNullOrEmpty(manifestJson)) return 0;
 
-                // 4) 在清单里找该版本，拿到它的 url
                 string versionUrl = FindVersionUrlInManifest(manifestJson, versionId);
-                if (string.IsNullOrEmpty(versionUrl))
-                {
-                    Console.WriteLine($"[Server] 清单中未找到版本 {versionId}");
-                    return 0;
-                }
+                if (string.IsNullOrEmpty(versionUrl)) return 0;
 
-                // 5) 下载版本详情 JSON
                 string versionJson = DownloadString(versionUrl);
-                if (string.IsNullOrEmpty(versionJson))
-                {
-                    Console.WriteLine("[Server] 下载版本 JSON 失败");
-                    return 0;
-                }
+                if (string.IsNullOrEmpty(versionJson)) return 0;
 
-                // 6) 读 javaVersion.majorVersion
                 int required = ParseJavaMajorVersion(versionJson);
                 if (required > 0)
                 {
-                    lock (_manifestJavaCache)
-                        _manifestJavaCache[versionId] = required;
-
+                    lock (_manifestJavaCache) _manifestJavaCache[versionId] = required;
                     Console.WriteLine($"[Server] Mojang 清单声明需要 Java {required}");
                 }
                 return required;
@@ -367,7 +471,6 @@ namespace Launch_Minecraft
             }
         }
 
-        /// <summary>从 jar 里读取 version.json 的 id 字段</summary>
         private static string ReadVersionIdFromJar(string jarPath)
         {
             try
@@ -389,7 +492,6 @@ namespace Launch_Minecraft
             catch { return null; }
         }
 
-        /// <summary>在 version_manifest.json 里找到对应版本的 url 字段</summary>
         private static string FindVersionUrlInManifest(string manifestJson, string versionId)
         {
             try
@@ -408,18 +510,13 @@ namespace Launch_Minecraft
 
                     string id = dict.ContainsKey("id") ? Convert.ToString(dict["id"]) : null;
                     if (string.Equals(id, versionId, StringComparison.OrdinalIgnoreCase))
-                    {
-                        return dict.ContainsKey("url")
-                            ? Convert.ToString(dict["url"])
-                            : null;
-                    }
+                        return dict.ContainsKey("url") ? Convert.ToString(dict["url"]) : null;
                 }
             }
             catch { }
             return null;
         }
 
-        /// <summary>从版本 JSON 里读 javaVersion.majorVersion</summary>
         private static int ParseJavaMajorVersion(string versionJson)
         {
             try
@@ -465,12 +562,6 @@ namespace Launch_Minecraft
         //        本地 jar 检测（Mojang 清单失败时的回退）
         // ============================================================
 
-        /// <summary>
-        /// 从 server.jar 本地推断 Java 主版本：
-        ///   1) 先看 version.json 的 javaVersion.majorVersion
-        ///   2) 扫所有 class 的 major version 换算
-        ///   3) 都拿不到返回 0
-        /// </summary>
         private static int DetectRequiredJavaFromJar(string jarPath)
         {
             try
@@ -478,7 +569,6 @@ namespace Launch_Minecraft
                 using (var fs = File.OpenRead(jarPath))
                 using (var zip = new ZipArchive(fs, ZipArchiveMode.Read))
                 {
-                    // ---------- 1) version.json 的 javaVersion ----------
                     var vj = zip.GetEntry("version.json");
                     if (vj != null)
                     {
@@ -486,7 +576,6 @@ namespace Launch_Minecraft
                         {
                             string json = sr.ReadToEnd();
 
-                            // 优先匹配 javaVersion 对象里的 majorVersion
                             var m = Regex.Match(json,
                                 @"""javaVersion""\s*:\s*\{[^}]*""majorVersion""\s*:\s*(\d+)");
                             if (m.Success)
@@ -495,7 +584,6 @@ namespace Launch_Minecraft
                                 if (v > 0) return v;
                             }
 
-                            // 退而求其次：任意位置的 "majorVersion": N
                             m = Regex.Match(json, @"""majorVersion""\s*:\s*(\d+)");
                             if (m.Success)
                             {
@@ -505,7 +593,6 @@ namespace Launch_Minecraft
                         }
                     }
 
-                    // ---------- 2) 扫 class 文件的 major version ----------
                     int maxClassMajor = 0;
                     foreach (var entry in zip.Entries)
                     {
@@ -532,7 +619,6 @@ namespace Launch_Minecraft
                         catch { }
                     }
 
-                    // class major → Java 主版本（>= Java 8 时 major - 44 = Java 版本）
                     if (maxClassMajor >= 52)
                         return maxClassMajor - 44;
                 }

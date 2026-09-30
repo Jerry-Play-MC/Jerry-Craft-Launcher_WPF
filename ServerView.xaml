@@ -39,8 +39,7 @@
                  Margin="24,16,24,24"
                  BorderThickness="0"
                  Background="Transparent"
-                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                 MouseDoubleClick="ServerListBox_MouseDoubleClick">
+                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
             <ListBox.ItemContainerStyle>
                 <Style TargetType="ListBoxItem">
                     <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
@@ -71,18 +70,10 @@
             <ListBox.ItemTemplate>
                 <DataTemplate>
                     <Grid>
-                        <Grid.ContextMenu>
-                            <ContextMenu>
-                                <MenuItem Header="启动" Click="ServerStart_Click"/>
-                                <MenuItem Header="设置" Click="ServerSettings_Click"/>
-                                <Separator/>
-                                <MenuItem Header="打开文件夹" Click="ServerOpenFolder_Click"/>
-                            </ContextMenu>
-                        </Grid.ContextMenu>
-
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
 
                         <Border Grid.Column="0"
@@ -98,14 +89,35 @@
 
                         <StackPanel Grid.Column="1"
                                     VerticalAlignment="Center"
-                                    Margin="12,0,0,0">
+                                    Margin="12,0,12,0">
                             <TextBlock Text="{Binding Name}"
                                        FontSize="14" FontWeight="SemiBold"
-                                       Foreground="#333333"/>
-                            <TextBlock Text="{Binding Motd}"
+                                       Foreground="#333333"
+                                       TextTrimming="CharacterEllipsis"/>
+                            <TextBlock Text="{Binding DisplayText}"
                                        FontSize="11"
                                        Foreground="#999999"
                                        TextTrimming="CharacterEllipsis"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="2"
+                                    Orientation="Horizontal"
+                                    VerticalAlignment="Center">
+                            <Button Content="启动"
+                                    Style="{StaticResource SecondaryButtonStyle}"
+                                    Height="28" Padding="12,0"
+                                    Margin="0,0,6,0"
+                                    Click="ServerStart_Click"/>
+                            <Button Content="设置"
+                                    Style="{StaticResource SecondaryButtonStyle}"
+                                    Height="28" Padding="12,0"
+                                    Margin="0,0,6,0"
+                                    Click="ServerSettings_Click"/>
+                            <Button Content="删除"
+                                    Style="{StaticResource SecondaryButtonStyle}"
+                                    Height="28" Padding="12,0"
+                                    Foreground="#E53935"
+                                    Click="ServerDelete_Click"/>
                         </StackPanel>
                     </Grid>
                 </DataTemplate>
@@ -114,10 +126,13 @@
 
         <TextBlock x:Name="EmptyHint"
                    Grid.Row="1"
-                   Text="把服务端放到 程序目录\Server\自定义服务器名\server.jar 即可自动扫描到"
+                   Text="把服务端放到 程序目录\Server\自定义服务器名\ 下（支持 server.jar / run.bat / fabric-server-launch.jar / quilt-server-launch.jar）"
                    FontSize="12" Foreground="#BBBBBB"
                    HorizontalAlignment="Center"
                    VerticalAlignment="Center"
+                   TextWrapping="Wrap"
+                   TextAlignment="Center"
+                   MaxWidth="600"
                    Visibility="Collapsed"/>
     </Grid>
 </UserControl>

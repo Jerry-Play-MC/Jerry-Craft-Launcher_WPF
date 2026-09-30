@@ -113,6 +113,9 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 ServerProperties.WriteProperty(p, "simulation-distance",
                     SimDistanceBox.Text ?? "10");
 
+                // ★ 新增：把新 Motd 写回内存模型
+                _info.Motd = MotdBox.Text ?? "";
+
                 DialogResult = true;
                 Close();
             }

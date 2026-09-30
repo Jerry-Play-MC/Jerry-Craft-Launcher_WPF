@@ -14,6 +14,12 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
         public event Action<List<ServerInfo>> ServersChanged;
 
+        /// <summary>当前扫描到的服务器列表（含运行状态）</summary>
+        public List<ServerInfo> Current
+        {
+            get { return _current; }
+        }
+
         public ServerScanner()
         {
             _serverRoot = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Server");
@@ -26,7 +32,16 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
         private void Scan()
         {
-            var list = new List<ServerInfo>();
+            // 旧对象按 FolderPath 索引，便于复用（保留 Status / IsRunning）
+            var oldMap = new Dictionary<string, ServerInfo>(StringComparer.OrdinalIgnoreCase);
+            foreach (var s in _current)
+            {
+                if (!string.IsNullOrEmpty(s.FolderPath))
+                    oldMap[s.FolderPath] = s;
+            }
+
+            var newList = new List<ServerInfo>();
+
             try
             {
                 if (Directory.Exists(_serverRoot))
@@ -45,30 +60,43 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                             File.Exists(quiltJar);
                         if (!hasEntry) continue;
 
-                        var info = new ServerInfo
+                        ServerInfo info;
+                        if (!oldMap.TryGetValue(dir, out info))
                         {
-                            Name = Path.GetFileName(dir),
-                            FolderPath = dir,
-                            JarPath = File.Exists(jar) ? jar : null,
-                            PropertiesPath = Path.Combine(dir, "server.properties"),
-                        };
+                            info = new ServerInfo
+                            {
+                                Name = Path.GetFileName(dir),
+                                FolderPath = dir,
+                                JarPath = File.Exists(jar) ? jar : null,
+                                PropertiesPath = Path.Combine(dir, "server.properties"),
+                            };
+                        }
+                        else
+                        {
+                            info.Name = Path.GetFileName(dir);
+                            info.JarPath = File.Exists(jar) ? jar : null;
+                            info.PropertiesPath = Path.Combine(dir, "server.properties");
+                        }
+
                         try
                         {
-                            info.Motd = ServerProperties.ReadProperty(info.PropertiesPath, "motd");
+                            info.Motd = ServerProperties.ReadProperty(
+                                info.PropertiesPath, "motd");
                         }
                         catch { }
 
-                        list.Add(info);
+                        newList.Add(info);
                     }
                 }
             }
             catch { }
 
-            list = list.OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase).ToList();
+            newList = newList.OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase).ToList();
 
-            if (SameList(list, _current)) return;
-            _current = list;
-            ServersChanged?.Invoke(list);
+            if (SameList(newList, _current)) return;
+            _current = newList;
+            var h = ServersChanged;
+            if (h != null) h(newList);
         }
 
         private bool SameList(List<ServerInfo> a, List<ServerInfo> b)
