@@ -67,7 +67,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             Process.Start(new ProcessStartInfo { FileName = path, UseShellExecute = true });
         }
 
-        // ---------- 双击启动 ----------
+        // ---------- 双击 / 右键菜单 ----------
 
         private void ServerListBox_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
@@ -93,7 +93,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             };
             win.ShowDialog();
 
-            // 设置改完了，立即刷新一次（尤其是 Name / Motd 会变）
             _scanner?.Stop();
             _scanner?.Start();
         }
@@ -124,7 +123,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             return grid.DataContext as ServerInfo;
         }
 
-        // ---------- 启动逻辑 ----------
+        // ---------- 启动 ----------
 
         private async Task StartServerAsync(ServerInfo info)
         {
@@ -138,24 +137,28 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             _starting = true;
             try
             {
-                // 1) 启动前：eula.txt 已存在且 eula=false
-                string eulaPath;
-                if (Launch_Minecraft.ServerLauncher.NeedsAcceptEula(info.FolderPath, out eulaPath))
+                // 前置 eula 检查：
+                //   NoEulaFile  → 不创建任何文件，直接启动（服务端会自己生成 eula.txt 并秒退）
+                //   Accepted    → 直接启动
+                //   NeedAccept  → 已存在 eula=false，弹窗；同意才改 true，拒绝则不启动
+                var status = Launch_Minecraft.ServerLauncher.CheckEula(info.FolderPath);
+
+                if (status == Launch_Minecraft.ServerEulaStatus.NeedAccept)
                 {
                     if (!AskAcceptEula(info.Name)) return;
-                    Launch_Minecraft.ServerLauncher.AcceptEula(info.FolderPath);
+                    Launch_Minecraft.ServerLauncher.WriteEulaTrue(info.FolderPath);
                 }
 
-                // 2) 后台启动
                 int result = await Task.Run(() =>
                     Launch_Minecraft.ServerLauncher.StartServer(
                         info.FolderPath, App.Config.JavaBaseDir, null));
 
-                // 3) 服务端秒退，且原因疑似 eula 未同意
+                // 服务端秒退，且输出里报了 eula 未同意
+                //   → 才写 eula.txt=true 并重启一次
                 if (result == -1)
                 {
                     if (!AskAcceptEula(info.Name)) return;
-                    Launch_Minecraft.ServerLauncher.AcceptEula(info.FolderPath);
+                    Launch_Minecraft.ServerLauncher.WriteEulaTrue(info.FolderPath);
 
                     await Task.Run(() =>
                         Launch_Minecraft.ServerLauncher.StartServer(

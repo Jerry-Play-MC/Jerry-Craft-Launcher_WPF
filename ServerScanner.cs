@@ -6,10 +6,6 @@ using System.Windows.Threading;
 
 namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 {
-    /// <summary>
-    /// 扫描 程序目录\Server\*\server.jar
-    /// 每 2 秒比对一次，只有真正变化才触发 ServersChanged。
-    /// </summary>
     public class ServerScanner
     {
         private readonly string _serverRoot;
@@ -38,13 +34,22 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     foreach (var dir in Directory.GetDirectories(_serverRoot))
                     {
                         string jar = Path.Combine(dir, "server.jar");
-                        if (!File.Exists(jar)) continue;
+                        string bat = Path.Combine(dir, "run.bat");
+                        string fabricJar = Path.Combine(dir, "fabric-server-launch.jar");
+                        string quiltJar = Path.Combine(dir, "quilt-server-launch.jar");
+
+                        bool hasEntry =
+                            File.Exists(jar) ||
+                            File.Exists(bat) ||
+                            File.Exists(fabricJar) ||
+                            File.Exists(quiltJar);
+                        if (!hasEntry) continue;
 
                         var info = new ServerInfo
                         {
                             Name = Path.GetFileName(dir),
                             FolderPath = dir,
-                            JarPath = jar,
+                            JarPath = File.Exists(jar) ? jar : null,
                             PropertiesPath = Path.Combine(dir, "server.properties"),
                         };
                         try
