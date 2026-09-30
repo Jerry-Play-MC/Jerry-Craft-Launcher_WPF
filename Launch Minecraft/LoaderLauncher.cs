@@ -1122,6 +1122,171 @@ namespace Launch_Minecraft
                 i--;
             }
         }
+
+        // ============================================================
+        //                服务端 run.bat 无窗口启动
+        // ============================================================
+
+        /// <summary>
+        /// 无窗口运行 .bat 脚本（服务端启动用）。
+        /// 通过 cmd.exe /c 调用 + CreateNoWindow + WindowStyle.Hidden 隐藏黑框。
+        /// 若传入 javaBaseDir，会把该 Java 的 bin 目录注入脚本进程的 PATH / JAVA_HOME，
+        /// 让脚本里的 "java" 优先使用启动器指定的 Java。
+        /// </summary>
+        protected static void RunBatHidden(
+            string workingDir, string batPath, string javaBaseDir = null)
+        {
+            var psi = new ProcessStartInfo
+            {
+                FileName = "cmd.exe",
+                Arguments = "/c \"" + batPath + "\"",
+                WorkingDirectory = workingDir,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                WindowStyle = ProcessWindowStyle.Hidden,
+                RedirectStandardOutput = false,
+                RedirectStandardError = false,
+                RedirectStandardInput = false,
+            };
+
+            string javaBin = ResolveJavaBinDir(javaBaseDir);
+            if (!string.IsNullOrEmpty(javaBin))
+            {
+                string oldPath = psi.EnvironmentVariables.ContainsKey("PATH")
+                    ? psi.EnvironmentVariables["PATH"]
+                    : (Environment.GetEnvironmentVariable("PATH") ?? "");
+
+                psi.EnvironmentVariables["PATH"] = javaBin + ";" + oldPath;
+
+                string javaHome = Path.GetDirectoryName(javaBin);
+                if (!string.IsNullOrEmpty(javaHome))
+                    psi.EnvironmentVariables["JAVA_HOME"] = javaHome;
+
+                Console.WriteLine($"[Java] run.bat 使用 Java bin: {javaBin}");
+            }
+
+            try
+            {
+                var proc = Process.Start(psi);
+                Console.WriteLine($"[run.bat] 已启动 PID = {proc?.Id}，脚本: {batPath}");
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"运行启动脚本失败：{batPath} - {ex.Message}", ex);
+            }
+        }
+
+        /// <summary>
+        /// 从 javaBaseDir 解析 Java 的 bin 目录。
+        /// 支持：Java Home（下有 bin\java.exe）或包含多个 JDK 的父目录。
+        /// 找不到返回 null。
+        /// </summary>
+        private static string ResolveJavaBinDir(string javaBaseDir)
+        {
+            if (string.IsNullOrEmpty(javaBaseDir) || !Directory.Exists(javaBaseDir))
+                return null;
+
+            // 情况 1：本身是 Java Home
+            if (File.Exists(Path.Combine(javaBaseDir, "bin", "java.exe")))
+                return Path.Combine(javaBaseDir, "bin");
+
+            // 情况 2：是父目录，子目录里找
+            try
+            {
+                foreach (var sub in Directory.GetDirectories(javaBaseDir))
+                {
+                    if (File.Exists(Path.Combine(sub, "bin", "java.exe")))
+                        return Path.Combine(sub, "bin");
+                }
+            }
+            catch { }
+
+            return null;
+        }
+
+        /// <summary>
+        /// 判断指定 run.bat 是否是 Forge / NeoForge 官方安装器生成的启动脚本。
+        /// 原版、Fabric、Quilt 不生成该脚本；即使碰巧存在同名文件也不应误用。
+        ///
+        /// Forge 1.17+ / NeoForge 的 run.bat 内容特征：
+        ///   java @user_jvm_args.txt @libraries/net/minecraftforge/forge/<ver>/win_args.txt %*
+        ///   java @user_jvm_args.txt @libraries/net/neoforged/neoforge/<ver>/win_args.txt %*
+        /// 因此同时校验「user_jvm_args.txt」+「minecraftforge/neoforged/forge-」两个特征。
+        /// </summary>
+        protected static bool IsForgeOrNeoForgeRunBat(string batPath)
+        {
+            if (string.IsNullOrEmpty(batPath) || !File.Exists(batPath))
+                return false;
+
+            try
+            {
+                string content = File.ReadAllText(batPath);
+
+                bool hasUserJvm =
+                    content.IndexOf("user_jvm_args.txt", StringComparison.OrdinalIgnoreCase) >= 0;
+
+                bool hasForgeOrNeo =
+                    content.IndexOf("minecraftforge", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    content.IndexOf("neoforged", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    content.IndexOf("forge-", StringComparison.OrdinalIgnoreCase) >= 0;
+
+                return hasUserJvm && hasForgeOrNeo;
+            }
+            catch
+            {
+                // 读不出来就当作不是有效脚本，走兜底流程更安全
+                return false;
+            }
+        }
+
+        // ============================================================
+        //              服务端启动（供 WPF 服务器页调用）
+        // ============================================================
+
+        /// <summary>
+        /// 检测是否需要弹窗询问 EULA。
+        /// true  = eula.txt 存在且 eula=false → 需要询问
+        /// false = eula.txt 不存在 / eula=true → 直接启动
+        /// </summary>
+        public static bool NeedsAcceptEula(string serverDir, out string eulaPath)
+        {
+            eulaPath = Path.Combine(serverDir, "eula.txt");
+            if (!File.Exists(eulaPath)) return false;
+
+            try
+            {
+                string content = File.ReadAllText(eulaPath);
+                var m = Regex.Match(content, @"^\s*eula\s*=\s*(true|false)\s*$",
+                                    RegexOptions.IgnoreCase | RegexOptions.Multiline);
+                if (!m.Success) return false;
+                return m.Groups[1].Value.Equals("false", StringComparison.OrdinalIgnoreCase);
+            }
+            catch { return false; }
+        }
+
+        /// <summary>把 eula.txt 里的 eula 改成 true；文件不存在则创建</summary>
+        public static void AcceptEula(string serverDir)
+        {
+            string eulaPath = Path.Combine(serverDir, "eula.txt");
+            var sb = new StringBuilder();
+            bool found = false;
+
+            if (File.Exists(eulaPath))
+            {
+                foreach (var raw in File.ReadAllLines(eulaPath))
+                {
+                    if (Regex.IsMatch(raw, @"^\s*eula\s*=", RegexOptions.IgnoreCase))
+                    {
+                        sb.AppendLine("eula=true");
+                        found = true;
+                    }
+                    else sb.AppendLine(raw);
+                }
+            }
+
+            if (!found) sb.AppendLine("eula=true");
+            File.WriteAllText(eulaPath, sb.ToString(), new UTF8Encoding(false));
+        }
     }
 
     // ============================================================

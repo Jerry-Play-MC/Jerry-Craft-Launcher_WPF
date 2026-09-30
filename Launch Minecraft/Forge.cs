@@ -19,6 +19,13 @@ namespace Launch_Minecraft
         public static void LaunchServer(string serverDir, string versionName,
                                         string javaBaseDir = null)
         {
+            string batPath = Path.Combine(serverDir, "run.bat");
+            if (IsForgeOrNeoForgeRunBat(batPath))
+            {
+                RunBatHidden(serverDir, batPath, javaBaseDir);
+                return;
+            }
+
             new Forge().Launch(
                 CreateServerContext(serverDir, versionName, javaBaseDir));
         }
@@ -27,20 +34,15 @@ namespace Launch_Minecraft
         protected override List<Dictionary<string, object>> FilterLibraries(
             List<Dictionary<string, object>> libs, LaunchContext context)
         {
-            // 1. 剔除 NeoForge / Fabric 的库，避免继承链混入
             libs.RemoveAll(l =>
                 l.ContainsKey("name") &&
                 (l["name"].ToString().Contains("neoforged") ||
                  l["name"].ToString().Contains("fabricmc")));
 
-            // 2. ★ 按 groupId:artifactId 去重，保留最高版本
-            //    解决 Log4j 2.8.1 vs 2.15.0 冲突
             libs = DeduplicateLibrariesByGA(libs);
-
             return libs;
         }
 
-        /// <summary>Forge 专属 JVM 参数</summary>
         protected override void AppendLoaderJvmArgs(
             List<string> cmd, LaunchContext context, Dictionary<string, object> root)
         {
@@ -67,7 +69,6 @@ namespace Launch_Minecraft
             }
         }
 
-        /// <summary>核心 jar 提前 + LaunchWrapper 时加父版本 client.jar</summary>
         protected override List<string> ReorderClasspath(
             List<string> entries, LaunchContext context,
             Dictionary<string, object> root, string mainClass)
@@ -128,7 +129,6 @@ namespace Launch_Minecraft
             cmd.Add("--height"); cmd.Add(context.Height.ToString());
         }
 
-        /// <summary>加 -DignoreList / 移除 --demo</summary>
         protected override void PostProcessCommand(
             List<string> cmd, LaunchContext context, Dictionary<string, object> root)
         {
@@ -154,7 +154,6 @@ namespace Launch_Minecraft
                 }
                 if (!has)
                 {
-                    // ★ 关键：必须插入到 -cp 之前（JVM 参数区）
                     int cpIdx = cmd.IndexOf("-cp");
                     if (cpIdx >= 0)
                         cmd.Insert(cpIdx, "-DignoreList=" + ignoreList);

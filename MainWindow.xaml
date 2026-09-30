@@ -41,20 +41,24 @@
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal"
-            VerticalAlignment="Center"
-            HorizontalAlignment="Left" Margin="32,0,0,0">
+                            VerticalAlignment="Center"
+                            HorizontalAlignment="Left" Margin="32,0,0,0">
                     <RadioButton GroupName="TopNav" Content="启动"
-                 Style="{StaticResource TopNavButtonStyle}"
-                 IsChecked="True" Tag="Launch"
-                 Checked="TopNav_Checked"/>
+                                 Style="{StaticResource TopNavButtonStyle}"
+                                 IsChecked="True" Tag="Launch"
+                                 Checked="TopNav_Checked"/>
                     <RadioButton GroupName="TopNav" Content="下载"
-                 Style="{StaticResource TopNavButtonStyle}"
-                 Tag="Download"
-                 Checked="TopNav_Checked"/>
+                                 Style="{StaticResource TopNavButtonStyle}"
+                                 Tag="Download"
+                                 Checked="TopNav_Checked"/>
+                    <RadioButton GroupName="TopNav" Content="服务器"
+                                 Style="{StaticResource TopNavButtonStyle}"
+                                 Tag="Server"
+                                 Checked="TopNav_Checked"/>
                     <RadioButton GroupName="TopNav" Content="设置"
-                 Style="{StaticResource TopNavButtonStyle}"
-                 Tag="Settings"
-                 Checked="TopNav_Checked"/>
+                                 Style="{StaticResource TopNavButtonStyle}"
+                                 Tag="Settings"
+                                 Checked="TopNav_Checked"/>
                 </StackPanel>
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal"

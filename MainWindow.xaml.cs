@@ -17,6 +17,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
         private readonly LaunchView _launchView = new LaunchView();
         private readonly DownloadView _downloadView = new DownloadView();
+        private readonly ServerView _serverView = new ServerView();
         private readonly SettingsView _settingsView = new SettingsView();
 
         public MainWindow()
@@ -70,6 +71,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             {
                 case "Launch": MainContent.Content = _launchView; break;
                 case "Download": MainContent.Content = _downloadView; break;
+                case "Server": MainContent.Content = _serverView; break;
                 case "Settings": MainContent.Content = _settingsView; break;
             }
         }

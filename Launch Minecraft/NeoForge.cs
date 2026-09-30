@@ -19,6 +19,15 @@ namespace Launch_Minecraft
         public static void LaunchServer(string serverDir, string versionName,
                                         string javaBaseDir = null)
         {
+            // ★ 仅当 run.bat 确实是 Forge/NeoForge 官方脚本时才直接跑它
+            string batPath = Path.Combine(serverDir, "run.bat");
+            if (IsForgeOrNeoForgeRunBat(batPath))
+            {
+                RunBatHidden(serverDir, batPath, javaBaseDir);
+                return;
+            }
+
+            // 兜底：没有有效脚本 → 手动拼
             new NeoForge().Launch(
                 CreateServerContext(serverDir, versionName, javaBaseDir));
         }
@@ -34,7 +43,6 @@ namespace Launch_Minecraft
             List<string> cmd, LaunchContext context, Dictionary<string, object> root)
         {
             cmd.Add("-Dfml.environment=client");
-            // ★ 修复：不要手动加引号，交给 BuildArgumentString 统一处理
             cmd.Add($"-DlibraryDirectory={Path.Combine(context.MinecraftDir, "libraries")}");
             cmd.Add("-Dneoforge.logging.mojang.level=OFF");
             cmd.Add("-Dfml.ignorePatchDiscrepancies=true");
