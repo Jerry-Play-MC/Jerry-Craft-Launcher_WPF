@@ -120,15 +120,18 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         private static bool IsAprilFoolsTime(string releaseTime)
         {
             if (string.IsNullOrEmpty(releaseTime)) return false;
+
             try
             {
-                var dt = DateTime.Parse(releaseTime).ToUniversalTime();
-                // 3月31日 ~ 4月2日，覆盖时区偏移
-                if (dt.Month == 3 && dt.Day == 31) return true;
-                if (dt.Month == 4 && (dt.Day == 1 || dt.Day == 2)) return true;
+                var dt = DateTimeOffset.Parse(releaseTime).UtcDateTime;
+
+                // 只认 UTC 4 月 1 日，不再把 3 月 31 日全部当成愚人节
+                return dt.Month == 4 && dt.Day == 1;
             }
-            catch { }
-            return false;
+            catch
+            {
+                return false;
+            }
         }
 
         private static string DownloadString(string url)
