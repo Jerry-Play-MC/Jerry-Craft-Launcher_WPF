@@ -1,7 +1,0 @@
-D:\Program\Visual_Studio\Items\Jerry Craft Launcher .NET Framework 4.5\Install Minecraft Versions\bin\x86\Release\Install Minecraft Versions.exe.config
-D:\Program\Visual_Studio\Items\Jerry Craft Launcher .NET Framework 4.5\Install Minecraft Versions\bin\x86\Release\Install Minecraft Versions.exe
-D:\Program\Visual_Studio\Items\Jerry Craft Launcher .NET Framework 4.5\Install Minecraft Versions\bin\x86\Release\Install Minecraft Versions.pdb
-D:\Program\Visual_Studio\Items\Jerry Craft Launcher .NET Framework 4.5\Install Minecraft Versions\obj\x86\Release\Install Minecraft Versions.csproj.AssemblyReference.cache
-D:\Program\Visual_Studio\Items\Jerry Craft Launcher .NET Framework 4.5\Install Minecraft Versions\obj\x86\Release\Install Minecraft Versions.csproj.CoreCompileInputs.cache
-D:\Program\Visual_Studio\Items\Jerry Craft Launcher .NET Framework 4.5\Install Minecraft Versions\obj\x86\Release\Install Minecraft Versions.exe
-D:\Program\Visual_Studio\Items\Jerry Craft Launcher .NET Framework 4.5\Install Minecraft Versions\obj\x86\Release\Install Minecraft Versions.pdb
