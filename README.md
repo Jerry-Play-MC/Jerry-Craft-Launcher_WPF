@@ -1,4 +1,5 @@
 ﻿[English](README.md) | [简体中文](README-zh.md)
+
 # Jerry Craft Launcher
 
 > An ultra-lightweight Minecraft launcher built on C# .NET Framework 4.5
@@ -8,15 +9,15 @@
 - Manage your Minecraft instances
 - Support version isolation and non-isolation
 - Currently supports Forge, NeoForge, Fabric, Quilt loaders, and OptiFine
+- Fully portable: no installer, no registry, no AppData. Delete the folder to uninstall.
 
 ## 🚀 How to Use
 
-- Windows 7 users: Please make sure the following two system updates are installed, otherwise the launcher will not be able to access network services:
-  - Install .NET Framework 4.5 ([official download link](https://dotnet.microsoft.com/en-us/download/dotnet-framework/net45))
-  - Restart your computer
-  - Run directly
-- Windows 8.1 / Windows 10 / Windows 11 users:
-  - Double-click to run. No additional components are required.
+### Windows 7 users
+Please make sure .NET Framework 4.5 is installed ([official download link](https://dotnet.microsoft.com/en-us/download/dotnet-framework/net45)), then restart your computer and run the launcher directly.
+
+### Windows 8.1 / Windows 10 / Windows 11 users
+Double-click to run. No additional components are required.
 
 ### Option 1: Run directly (recommended for regular users)
 1. This project is currently unfinished and no official release will be published for now.
@@ -28,6 +29,7 @@
 4. Build it.
 
 ## ⚠️ Current Status and Notes
+
 > **Development background**: This project is a personal practice work independently completed by the author within two months during summer vacation, aiming to learn C# and .NET development. Since the author is still in the learning stage, there may be shortcomings in code style and architecture design. **Please use it with caution in production environments or for important saves.**
 
 ## 🔐 Microsoft Authentication Compliance
@@ -39,7 +41,7 @@
 
 ## 🛠️ Tech Stack and Dependencies
 - Target framework: .NET Framework 4.5
-- Development environment: Visual Studio 2026
+- Development environment: Visual Studio 2022 (or later)
 - Core libraries:
   - Fody 6.0.0
   - Costura.Fody 4.1.0
