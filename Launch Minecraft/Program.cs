@@ -165,9 +165,14 @@ namespace Launch_Minecraft
         }
     }
 
-    internal static class LoaderDetector
+    public static class LoaderDetector
     {
         public static LoaderInfo Detect(string versionJsonPath)
+        {
+            return DetectInternal(versionJsonPath, 0);
+        }
+
+        private static LoaderInfo DetectInternal(string versionJsonPath, int depth)
         {
             var result = new LoaderInfo
             {
@@ -180,6 +185,8 @@ namespace Launch_Minecraft
                 result.Type = LoaderType.Unknown;
                 return result;
             }
+
+            if (depth > 5) return result;   // 防环
 
             Dictionary<string, object> root;
             try
@@ -198,128 +205,169 @@ namespace Launch_Minecraft
             if (root.ContainsKey("mainClass"))
                 result.MainClass = root["mainClass"] as string;
 
-            string idField = root.ContainsKey("id") ? Convert.ToString(root["id"]) : "";
-
-            if (idField.IndexOf("neoforge", StringComparison.OrdinalIgnoreCase) >= 0)
+            // ============================================================
+            // 优先级 1：libraries 里的加载器指纹坐标（最可靠）
+            // ============================================================
+            var info = DetectFromLibraries(root);
+            if (info != null)
             {
-                result.Type = LoaderType.NeoForge;
-                var m = Regex.Match(idField, @"neoforge[-_]?([\d\.]+)", RegexOptions.IgnoreCase);
-                if (m.Success) result.Version = m.Groups[1].Value;
-            }
-            else if (idField.IndexOf("forge", StringComparison.OrdinalIgnoreCase) >= 0)
-            {
-                result.Type = LoaderType.Forge;
-                var m = Regex.Match(idField, @"forge[-_]?([\d\.]+)", RegexOptions.IgnoreCase);
-                if (m.Success) result.Version = m.Groups[1].Value;
-            }
-            else if (idField.IndexOf("fabric", StringComparison.OrdinalIgnoreCase) >= 0)
-            {
-                result.Type = LoaderType.Fabric;
-            }
-            else if (idField.IndexOf("quilt", StringComparison.OrdinalIgnoreCase) >= 0)
-            {
-                result.Type = LoaderType.Quilt;
+                info.JsonPath = versionJsonPath;
+                return info;
             }
 
-            var libraries = root.ContainsKey("libraries")
-                ? root["libraries"] as ArrayList : null;
-
-            bool sawForgeLib = false;
-            bool sawNeoForgeLib = false;
-            string forgeVerFromLib = null;
-            string neoVerFromLib = null;
-
-            if (libraries != null)
+            // ============================================================
+            // 优先级 2：从 mainClass 判断（区分大类，Forge/NeoForge 可能混淆）
+            // ============================================================
+            if (!string.IsNullOrEmpty(result.MainClass))
             {
-                foreach (var libObj in libraries)
+                string mc = result.MainClass;
+                if (mc.IndexOf("net.fabricmc", StringComparison.OrdinalIgnoreCase) >= 0)
+                { result.Type = LoaderType.Fabric; return result; }
+                if (mc.IndexOf("org.quiltmc", StringComparison.OrdinalIgnoreCase) >= 0)
+                { result.Type = LoaderType.Quilt; return result; }
+                // 注意：新版 Forge 和 NeoForge 都用 BootstrapLauncher，mainClass 无法区分，
+                // 只能靠 inheritsFrom / 目录名兜底。这里暂标 Forge，交给下面递归修正。
+                if (mc.IndexOf("net.neoforged", StringComparison.OrdinalIgnoreCase) >= 0)
+                { result.Type = LoaderType.NeoForge; return result; }
+                if (mc.IndexOf("net.minecraftforge", StringComparison.OrdinalIgnoreCase) >= 0)
+                { result.Type = LoaderType.Forge; return result; }
+            }
+
+            // ============================================================
+            // 优先级 3：递归 inheritsFrom（覆盖库散在父版本 JSON 的情况）
+            // ============================================================
+            if (root.ContainsKey("inheritsFrom"))
+            {
+                string parentId = Convert.ToString(root["inheritsFrom"]);
+                if (!string.IsNullOrEmpty(parentId))
                 {
-                    var lib = libObj as Dictionary<string, object>;
-                    if (lib == null) continue;
-                    string name = lib.ContainsKey("name") ? Convert.ToString(lib["name"]) : null;
-                    if (string.IsNullOrEmpty(name)) continue;
-
-                    MavenCoord coord = ParseMavenCoord(name);
-                    if (coord == null) continue;
-
-                    if (coord.Group == "net.fabricmc" && coord.Artifact == "fabric-loader")
+                    string dir = Path.GetDirectoryName(versionJsonPath);
+                    string versionsDir = Path.GetDirectoryName(dir);
+                    if (!string.IsNullOrEmpty(versionsDir))
                     {
-                        result.Type = LoaderType.Fabric;
-                        result.Version = coord.Version;
-                        result.Coordinates = coord.Group + ":" + coord.Artifact;
-                        return result;
-                    }
-                    if (coord.Group == "org.quiltmc" && coord.Artifact == "quilt-loader")
-                    {
-                        result.Type = LoaderType.Quilt;
-                        result.Version = coord.Version;
-                        result.Coordinates = coord.Group + ":" + coord.Artifact;
-                        return result;
-                    }
-
-                    if (coord.Group.StartsWith("net.neoforged", StringComparison.OrdinalIgnoreCase))
-                    {
-                        sawNeoForgeLib = true;
-                        if (string.IsNullOrEmpty(neoVerFromLib) &&
-                            (coord.Artifact == "neoforge" || coord.Artifact == "forge"))
+                        string parentPath = Path.Combine(
+                            versionsDir, parentId, parentId + ".json");
+                        if (File.Exists(parentPath))
                         {
-                            neoVerFromLib = coord.Version;
-                        }
-                    }
-
-                    if (coord.Group == "net.minecraftforge")
-                    {
-                        if (coord.Artifact == "forge" ||
-                            coord.Artifact == "fmlloader" ||
-                            coord.Artifact == "fmlearlydisplay" ||
-                            coord.Artifact == "forgespi" ||
-                            coord.Artifact == "coremods")
-                        {
-                            sawForgeLib = true;
-
-                            if (string.IsNullOrEmpty(forgeVerFromLib) &&
-                                (coord.Artifact == "fmlloader" ||
-                                 coord.Artifact == "fmlearlydisplay" ||
-                                 coord.Artifact == "forge"))
+                            var p = DetectInternal(parentPath, depth + 1);
+                            if (p.Type != LoaderType.Vanilla && p.Type != LoaderType.Unknown)
                             {
-                                string v = coord.Version;
-                                int dash = v.IndexOf('-');
-                                if (dash > 0 && dash < v.Length - 1)
-                                    v = v.Substring(dash + 1);
-                                forgeVerFromLib = v;
+                                p.JsonPath = versionJsonPath;
+                                return p;
                             }
                         }
                     }
                 }
             }
 
-            if (result.Type == LoaderType.Vanilla)
-            {
-                if (sawNeoForgeLib)
-                {
-                    result.Type = LoaderType.NeoForge;
-                    result.Version = neoVerFromLib;
-                }
-                else if (sawForgeLib)
-                {
-                    result.Type = LoaderType.Forge;
-                    result.Version = forgeVerFromLib;
-                }
-            }
-
-            if (result.Type == LoaderType.Vanilla && !string.IsNullOrEmpty(result.MainClass))
-            {
-                string mc = result.MainClass;
-                if (mc.IndexOf("net.fabricmc", StringComparison.OrdinalIgnoreCase) >= 0)
-                    result.Type = LoaderType.Fabric;
-                else if (mc.IndexOf("org.quiltmc", StringComparison.OrdinalIgnoreCase) >= 0)
-                    result.Type = LoaderType.Quilt;
-                else if (mc.IndexOf("net.neoforged", StringComparison.OrdinalIgnoreCase) >= 0)
-                    result.Type = LoaderType.NeoForge;
-                else if (mc.IndexOf("net.minecraftforge", StringComparison.OrdinalIgnoreCase) >= 0)
-                    result.Type = LoaderType.Forge;
-            }
-
             return result;
+        }
+
+        // ================================================================
+        //  从 libraries 提取加载器类型和版本
+        // ================================================================
+        private static LoaderInfo DetectFromLibraries(Dictionary<string, object> root)
+        {
+            if (!root.ContainsKey("libraries")) return null;
+            var libraries = root["libraries"] as ArrayList;
+            if (libraries == null) return null;
+
+            string fabricVer = null;
+            string quiltVer = null;
+            string forgeVer = null;      // 已去掉 MC 前缀
+            string neoVer = null;
+
+            bool sawForge = false;
+            bool sawNeo = false;
+
+            foreach (var libObj in libraries)
+            {
+                var lib = libObj as Dictionary<string, object>;
+                if (lib == null) continue;
+                string name = lib.ContainsKey("name") ? Convert.ToString(lib["name"]) : null;
+                if (string.IsNullOrEmpty(name)) continue;
+
+                var coord = ParseMavenCoord(name);
+                if (coord == null) continue;
+
+                // ---- Fabric ----
+                if (coord.Group == "net.fabricmc" && coord.Artifact == "fabric-loader")
+                {
+                    fabricVer = coord.Version;
+                }
+                // ---- Quilt ----
+                else if (coord.Group == "org.quiltmc" && coord.Artifact == "quilt-loader")
+                {
+                    quiltVer = coord.Version;
+                }
+                // ---- NeoForge：可能出现在多个 group 下 ----
+                else if (coord.Group.StartsWith("net.neoforged",
+                            StringComparison.OrdinalIgnoreCase))
+                {
+                    sawNeo = true;
+                    if (string.IsNullOrEmpty(neoVer) &&
+                        (coord.Artifact == "neoforge" || coord.Artifact == "forge"))
+                    {
+                        neoVer = coord.Version;
+                    }
+                }
+                // ---- Forge ----
+                else if (coord.Group == "net.minecraftforge")
+                {
+                    if (coord.Artifact == "forge" ||
+                        coord.Artifact == "fmlloader" ||
+                        coord.Artifact == "fmlearlydisplay" ||
+                        coord.Artifact == "forgespi" ||
+                        coord.Artifact == "coremods")
+                    {
+                        sawForge = true;
+                        if (string.IsNullOrEmpty(forgeVer) &&
+                            (coord.Artifact == "fmlloader" ||
+                             coord.Artifact == "fmlearlydisplay" ||
+                             coord.Artifact == "forge"))
+                        {
+                            // forge 库版本形如 "1.20.1-47.2.0"，取 - 后的部分
+                            string v = coord.Version;
+                            int dash = v.IndexOf('-');
+                            if (dash > 0 && dash < v.Length - 1)
+                                v = v.Substring(dash + 1);
+                            forgeVer = v;
+                        }
+                    }
+                }
+            }
+
+            // 优先级：Fabric > Quilt > NeoForge > Forge（同时出现两个加载器的可能性极小）
+            if (!string.IsNullOrEmpty(fabricVer))
+                return new LoaderInfo
+                {
+                    Type = LoaderType.Fabric,
+                    Version = fabricVer,
+                    Coordinates = "net.fabricmc:fabric-loader"
+                };
+            if (!string.IsNullOrEmpty(quiltVer))
+                return new LoaderInfo
+                {
+                    Type = LoaderType.Quilt,
+                    Version = quiltVer,
+                    Coordinates = "org.quiltmc:quilt-loader"
+                };
+            if (sawNeo)
+                return new LoaderInfo
+                {
+                    Type = LoaderType.NeoForge,
+                    Version = neoVer,
+                    Coordinates = "net.neoforged:neoforge"
+                };
+            if (sawForge)
+                return new LoaderInfo
+                {
+                    Type = LoaderType.Forge,
+                    Version = forgeVer,
+                    Coordinates = "net.minecraftforge:forge"
+                };
+
+            return null;
         }
 
         private static MavenCoord ParseMavenCoord(string name)

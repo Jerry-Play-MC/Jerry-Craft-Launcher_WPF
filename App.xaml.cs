@@ -15,6 +15,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             TryLoadWebPDll();
 
             RoleManager.Initialize();
+            SettingsManager.Initialize();
 
             var main = new MainWindow();
             MainWindow = main;

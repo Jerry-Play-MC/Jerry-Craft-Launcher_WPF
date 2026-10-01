@@ -94,12 +94,16 @@
       <DependentUpon>CreateRoleWindow.xaml</DependentUpon>
     </Compile>
     <Compile Include="JsonHelper.cs" />
+    <Compile Include="LocalVersionScanner.cs" />
     <Compile Include="MicrosoftLoginWindow.xaml.cs">
       <DependentUpon>MicrosoftLoginWindow.xaml</DependentUpon>
     </Compile>
     <Compile Include="MinecraftAuthenticator.cs" />
     <Compile Include="MinecraftCore.cs" />
     <Compile Include="ModApiService.cs" />
+    <Compile Include="ModInstallTargetWindow.xaml.cs">
+      <DependentUpon>ModInstallTargetWindow.xaml</DependentUpon>
+    </Compile>
     <Compile Include="ModrinthModels.cs" />
     <Compile Include="ModSearchView.xaml.cs">
       <DependentUpon>ModSearchView.xaml</DependentUpon>
@@ -169,6 +173,10 @@
       <SubType>Code</SubType>
     </Compile>
     <Page Include="MicrosoftLoginWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="ModInstallTargetWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

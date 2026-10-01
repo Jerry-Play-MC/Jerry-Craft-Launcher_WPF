@@ -229,7 +229,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             switch (_projectType)
             {
                 case ModProjectType.Mod:
-                    HandleSimpleDownload(version, url, defaultFileName, GetModTargetDirectory());
+                    HandleModDownload(version, url, defaultFileName);
                     break;
                 case ModProjectType.ResourcePack:
                     HandleSimpleDownload(version, url, defaultFileName, GetResourcePackTargetDirectory());
@@ -248,6 +248,110 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                         Path.Combine(_minecraftDir, "mods"));
                     break;
             }
+        }
+
+        /// <summary>
+        /// Mod 下载入口：
+        ///   · 未开启版本隔离 → 直接下载到 .minecraft\mods
+        ///   · 开启版本隔离   → 扫描本地版本，列出所有符合该 Mod 要求的实例，让用户选择
+        /// </summary>
+        private void HandleModDownload(ModVersion version, string url, string fileName)
+        {
+            // 实时读设置，避免用户中途改设置导致判断过时
+            bool isolated = SettingsManager.GetIsolationGameData();
+
+            // ---------- 未隔离：直接下到 .minecraft\mods ----------
+            if (!isolated)
+            {
+                string targetDir = Path.Combine(_minecraftDir, "mods");
+                HandleSimpleDownload(version, url, fileName, targetDir);
+                return;
+            }
+
+            // ---------- 已隔离：找出所有符合要求的版本实例 ----------
+            var all = LocalVersionScanner.Scan();
+            var matched = new List<LocalVersionInfo>();
+
+            foreach (var lv in all)
+            {
+                if (MatchModRequirements(lv, version))
+                    matched.Add(lv);
+            }
+
+            // 没有任何匹配 → 询问是否直接下到 .minecraft\mods
+            if (matched.Count == 0)
+            {
+                string gameReq = version.GameVersions != null && version.GameVersions.Count > 0
+                    ? string.Join(" / ", version.GameVersions.ToArray()) : "不限";
+                string loaderReq = version.Loaders != null && version.Loaders.Count > 0
+                    ? string.Join(" / ", version.Loaders.ToArray()) : "不限";
+
+                var r = MessageBox.Show(
+                    "没有找到符合此 Mod 要求的版本实例。\n\n" +
+                    "Mod 要求游戏版本：" + gameReq + "\n" +
+                    "Mod 要求加载器：" + loaderReq + "\n\n" +
+                    "是否改为直接下载到 .minecraft\\mods 目录？\n" +
+                    "（注意：开启版本隔离时，该目录下的 Mod 默认不会被加载）",
+                    "未找到匹配版本",
+                    MessageBoxButton.YesNo, MessageBoxImage.Question);
+
+                if (r != MessageBoxResult.Yes) return;
+
+                HandleSimpleDownload(version, url, fileName,
+                    Path.Combine(_minecraftDir, "mods"));
+                return;
+            }
+
+            // ---------- 弹出选择窗口 ----------
+            var dlg = new ModInstallTargetWindow(matched, version)
+            {
+                Owner = this
+            };
+
+            if (dlg.ShowDialog() != true) return;
+            var sel = dlg.SelectedVersion;
+            if (sel == null) return;
+
+            string target = Path.Combine(sel.FolderPath, "mods");
+            HandleSimpleDownload(version, url, fileName, target);
+        }
+
+        /// <summary>
+        /// 判断本地版本是否满足 Mod 的 GameVersions / Loaders 要求。
+        /// · GameVersions 为空 → 视为不限，匹配通过
+        /// · Loaders 为空     → 视为不限，匹配通过
+        /// </summary>
+        private static bool MatchModRequirements(LocalVersionInfo local, ModVersion mod)
+        {
+            if (local == null || mod == null) return false;
+
+            // 游戏版本
+            if (mod.GameVersions != null && mod.GameVersions.Count > 0)
+            {
+                bool hit = false;
+                foreach (var g in mod.GameVersions)
+                {
+                    if (string.Equals(g, local.MinecraftVersion,
+                            StringComparison.OrdinalIgnoreCase))
+                    { hit = true; break; }
+                }
+                if (!hit) return false;
+            }
+
+            // 加载器
+            if (mod.Loaders != null && mod.Loaders.Count > 0)
+            {
+                string loaderLower = (local.LoaderType ?? "vanilla").ToLowerInvariant();
+                bool hit = false;
+                foreach (var l in mod.Loaders)
+                {
+                    if (string.Equals(l, loaderLower, StringComparison.OrdinalIgnoreCase))
+                    { hit = true; break; }
+                }
+                if (!hit) return false;
+            }
+
+            return true;
         }
 
         private void HandleSimpleDownload(ModVersion version, string url,
@@ -333,29 +437,19 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
         private async Task DownloadFileAsync(string url, string savePath, string versionNumber)
         {
-            StatusText.Text = "正在下载 " + versionNumber + "...";
+            StatusText.Text = "正在准备下载 " + versionNumber + "...";
+
             try
             {
-                await Task.Run(() =>
+                // 先镜像，失败回退原 URL
+                bool ok = await DownloadWithProgressAsync(
+                    ModApiService.GetMirrorUrl(url), savePath, versionNumber);
+
+                if (!ok)
                 {
-                    string mirror = ModApiService.GetMirrorUrl(url);
-                    try
-                    {
-                        using (var wc = new WebClient())
-                        {
-                            wc.Headers.Add("User-Agent", "JerryStudioLauncher/1.0");
-                            wc.DownloadFile(mirror, savePath);
-                        }
-                    }
-                    catch
-                    {
-                        using (var wc = new WebClient())
-                        {
-                            wc.Headers.Add("User-Agent", "JerryStudioLauncher/1.0");
-                            wc.DownloadFile(url, savePath);
-                        }
-                    }
-                });
+                    ok = await DownloadWithProgressAsync(url, savePath, versionNumber);
+                    if (!ok) throw new Exception("所有下载源均不可用");
+                }
 
                 StatusText.Text = "下载完成：" + Path.GetFileName(savePath);
                 MessageBox.Show("下载完成：\n" + savePath, "成功",
@@ -367,6 +461,61 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 MessageBox.Show("下载失败：" + ex.Message, "错误",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        /// <summary>
+        /// 带进度回调的下载：状态栏显示"已下载 / 总大小"。
+        /// 返回 true 表示成功，false 表示失败（会清理半截文件）。
+        /// </summary>
+        private async Task<bool> DownloadWithProgressAsync(
+            string url, string savePath, string versionNumber)
+        {
+            try
+            {
+                using (var wc = new WebClient())
+                {
+                    wc.Headers.Add("User-Agent", "JerryStudioLauncher/1.0");
+
+                    wc.DownloadProgressChanged += (s, e) =>
+                    {
+                        long total = e.TotalBytesToReceive;
+                        long received = e.BytesReceived;
+                        int pct = total > 0 ? (int)(received * 100 / total) : 0;
+
+                        Dispatcher.BeginInvoke(new Action(() =>
+                        {
+                            if (total > 0)
+                            {
+                                StatusText.Text = "正在下载 " + versionNumber + "：" +
+                                    pct + "%  (" + FormatSize(received) +
+                                    " / " + FormatSize(total) + ")";
+                            }
+                            else
+                            {
+                                StatusText.Text = "正在下载 " + versionNumber + "：" +
+                                    FormatSize(received);
+                            }
+                        }));
+                    };
+
+                    await wc.DownloadFileTaskAsync(url, savePath);
+                    return true;
+                }
+            }
+            catch
+            {
+                try { if (File.Exists(savePath)) File.Delete(savePath); } catch { }
+                return false;
+            }
+        }
+
+        private static string FormatSize(long bytes)
+        {
+            if (bytes < 1024) return bytes + " B";
+            if (bytes < 1024 * 1024) return (bytes / 1024.0).ToString("F1") + " KB";
+            if (bytes < 1024L * 1024 * 1024)
+                return (bytes / 1024.0 / 1024).ToString("F1") + " MB";
+            return (bytes / 1024.0 / 1024 / 1024).ToString("F2") + " GB";
         }
 
         // ============================================================

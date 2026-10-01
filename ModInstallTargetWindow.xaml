@@ -1,0 +1,143 @@
+﻿<Window x:Class="Jerry_Craft_Launcher.NET_Framework_4._5_WPF.ModInstallTargetWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="选择安装目标"
+        Width="520" Height="480"
+        WindowStartupLocation="CenterOwner"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        AllowsTransparency="True"
+        Background="Transparent">
+
+    <Border Background="#F5F5F5" CornerRadius="10">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="40"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="60"/>
+            </Grid.RowDefinitions>
+
+            <Border Grid.Row="0" Background="White"
+                    BorderBrush="#E0E0E0" BorderThickness="0,0,0,1"
+                    CornerRadius="10,10,0,0"
+                    MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+                <Grid>
+                    <TextBlock Text="选择安装目标版本"
+                               FontSize="13" FontWeight="SemiBold"
+                               VerticalAlignment="Center"
+                               Margin="16,0,0,0"/>
+                    <Button Content="✕" Width="40" Height="40"
+                            HorizontalAlignment="Right"
+                            Style="{StaticResource TitleBarButtonStyle}"
+                            Click="Close_Click"/>
+                </Grid>
+            </Border>
+
+            <Grid Grid.Row="1">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <StackPanel Grid.Row="0" Margin="24,16,24,8">
+                    <TextBlock x:Name="HintText"
+                               Text="找到以下符合要求的版本实例，请选择要安装到哪个："
+                               FontSize="12" Foreground="#666666"
+                               TextWrapping="Wrap"/>
+                    <TextBlock x:Name="RequirementText"
+                               FontSize="11" Foreground="#999999"
+                               Margin="0,4,0,0"
+                               TextWrapping="Wrap"/>
+                </StackPanel>
+
+                <ListBox Grid.Row="1"
+                         x:Name="TargetList"
+                         Margin="24,0,24,12"
+                         BorderThickness="0"
+                         Background="Transparent"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                         MouseDoubleClick="TargetList_MouseDoubleClick">
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="ListBoxItem">
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                            <Setter Property="Padding" Value="0"/>
+                            <Setter Property="Margin" Value="0,2"/>
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="ListBoxItem">
+                                        <Border x:Name="bd"
+                                                Background="#F7F7F7"
+                                                CornerRadius="8"
+                                                Padding="12">
+                                            <ContentPresenter/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="bd" Property="Background" Value="#F0F0F0"/>
+                                            </Trigger>
+                                            <Trigger Property="IsSelected" Value="True">
+                                                <Setter TargetName="bd" Property="Background" Value="#EEF0FF"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </ListBox.ItemContainerStyle>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Grid.Column="0"
+                                        Width="38" Height="38"
+                                        CornerRadius="8"
+                                        Background="#4F46E5">
+                                    <TextBlock Text="V"
+                                               FontSize="16" FontWeight="Bold"
+                                               Foreground="White"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"/>
+                                </Border>
+                                <StackPanel Grid.Column="1"
+                                            Margin="12,0,0,0"
+                                            VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding Name}"
+                                               FontSize="13" FontWeight="SemiBold"
+                                               Foreground="#333333"
+                                               TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Text="{Binding DisplayText}"
+                                               FontSize="11" Foreground="#999999"
+                                               TextTrimming="CharacterEllipsis"
+                                               Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </Grid>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </Grid>
+
+            <Border Grid.Row="2"
+                    Background="White"
+                    BorderBrush="#E0E0E0"
+                    BorderThickness="0,1,0,0"
+                    CornerRadius="0,0,10,10">
+                <StackPanel Orientation="Horizontal"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Center"
+                            Margin="0,0,16,0">
+                    <Button Content="取消"
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            Click="Cancel_Click"
+                            Margin="0,0,8,0"/>
+                    <Button x:Name="InstallButton"
+                            Content="安装到此版本"
+                            Style="{StaticResource PrimaryButtonStyle}"
+                            Click="Install_Click"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Border>
+</Window>
