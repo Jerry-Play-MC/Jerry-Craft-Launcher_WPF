@@ -42,10 +42,53 @@
         <!-- 内容区 -->
         <Grid Grid.Column="1" Background="White">
 
-            <!-- 启动器（占位） -->
-            <TextBlock x:Name="LauncherPanel" Text="启动器设置"
-                       FontSize="20" Foreground="#DDDDDD"
-                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            <!-- 启动器 -->
+            <Grid x:Name="LauncherPanel">
+                <StackPanel Margin="32,24,32,0">
+
+                    <TextBlock Text="启动器"
+                   FontSize="22" FontWeight="SemiBold"
+                   Foreground="#333333"
+                   Margin="0,0,0,20"/>
+
+                    <!-- 检查更新卡片 -->
+                    <Border Background="#F7F7F7"
+                CornerRadius="8"
+                Padding="16">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                                <TextBlock Text="检查更新"
+                               FontSize="14" FontWeight="SemiBold"
+                               Foreground="#333333"/>
+                                <TextBlock x:Name="CurrentVersionText"
+                               Text="当前版本：1.0.0"
+                               FontSize="11" Foreground="#999999"
+                               Margin="0,4,0,0"
+                               TextWrapping="Wrap"/>
+                                <TextBlock x:Name="UpdateStatusText"
+                               FontSize="11" Foreground="#4F46E5"
+                               Margin="0,4,0,0"
+                               TextWrapping="Wrap"/>
+                            </StackPanel>
+
+                            <Button Grid.Column="1"
+                        x:Name="CheckUpdateButton"
+                        Content="检查更新"
+                        Style="{StaticResource PrimaryButtonStyle}"
+                        Height="34"
+                        Padding="16,0"
+                        VerticalAlignment="Center"
+                        Click="CheckUpdate_Click"/>
+                        </Grid>
+                    </Border>
+
+                </StackPanel>
+            </Grid>
 
             <!-- Java（占位） -->
             <TextBlock x:Name="JavaPanel" Text="Java 设置"

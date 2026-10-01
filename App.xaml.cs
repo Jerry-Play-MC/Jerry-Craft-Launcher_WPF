@@ -21,8 +21,41 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             MainWindow = main;
             main.Show();
 
+            // ★ 后台静默检查更新，不阻塞启动流程
+            _ = CheckUpdateAtStartupAsync(main);
+
             if (!RoleManager.HasAnyRole())
                 PromptCreateRole(main, isFirstUse: true);
+        }
+
+        /// <summary>
+        /// 启动后延迟一小段时间再检查更新，避免和启动动画抢占 UI 线程。
+        /// 检查失败静默忽略，不打扰用户。
+        /// </summary>
+        private async System.Threading.Tasks.Task CheckUpdateAtStartupAsync(Window owner)
+        {
+            try
+            {
+                // 等启动动画走完
+                await System.Threading.Tasks.Task.Delay(1500);
+
+                var result = await Updater.UpdateService.CheckAsync();
+
+                if (!result.Success || !result.HasUpdate) return;
+
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    var win = new Updater.UpdateWindow(result.Info)
+                    {
+                        Owner = owner
+                    };
+                    win.ShowDialog();
+                });
+            }
+            catch
+            {
+                // 静默失败：断网 / GitHub 不可达等情况不打扰用户
+            }
         }
 
         private static void TryLoadWebPDll()
