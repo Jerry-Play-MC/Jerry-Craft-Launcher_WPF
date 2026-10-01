@@ -212,7 +212,10 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             {
                 string gameDir = App.Config.GameDir;
                 string javaBaseDir = App.Config.JavaBaseDir;
-                bool isolated = App.Config.Isolated;
+
+                // ★ 每次启动都从 Settings.json 重新读版本隔离，保证与文件一致
+                bool isolated = SettingsManager.GetIsolationGameData();
+                App.Config.Isolated = isolated;
 
                 string userType = role.Type == "Microsoft" ? "msa" : "legacy";
                 string accessToken = role.AccessToken;

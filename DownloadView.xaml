@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:local="clr-namespace:Jerry_Craft_Launcher.NET_Framework_4._5_WPF"
              mc:Ignorable="d"
              d:DesignHeight="600" d:DesignWidth="900">
 
@@ -157,6 +158,10 @@
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>
+            </Grid>
+
+            <Grid x:Name="ModPanel" Background="White" Visibility="Collapsed">
+                <local:ModSearchView />
             </Grid>
 
             <!-- 其他占位页 -->

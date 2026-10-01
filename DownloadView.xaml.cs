@@ -31,14 +31,21 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             if (rb == null) return;
             if (MinecraftPanel == null || PlaceholderPanel == null) return;
 
-            switch (rb.Tag as string)
+            string tag = rb.Tag as string;
+
+            MinecraftPanel.Visibility = Visibility.Collapsed;
+            ModPanel.Visibility = Visibility.Collapsed;
+            PlaceholderPanel.Visibility = Visibility.Collapsed;
+
+            switch (tag)
             {
                 case "Minecraft":
                     MinecraftPanel.Visibility = Visibility.Visible;
-                    PlaceholderPanel.Visibility = Visibility.Collapsed;
+                    break;
+                case "Mod":
+                    ModPanel.Visibility = Visibility.Visible;
                     break;
                 default:
-                    MinecraftPanel.Visibility = Visibility.Collapsed;
                     PlaceholderPanel.Visibility = Visibility.Visible;
                     PlaceholderText.Text = rb.Content as string;
                     break;

@@ -11,29 +11,127 @@
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
+        <!-- 子侧边栏 -->
         <Border Grid.Column="0" Background="#FAFAFA"
                 BorderBrush="#E0E0E0" BorderThickness="0,0,1,0">
             <StackPanel Margin="8,16,8,0">
                 <RadioButton GroupName="SettingsSubNav" Content="启动器"
                              Style="{StaticResource SubNavButtonStyle}"
-                             IsChecked="True" Margin="0,0,0,2"/>
+                             Tag="Launcher"
+                             IsChecked="True"
+                             Checked="SubNav_Checked"
+                             Margin="0,0,0,2"/>
                 <RadioButton GroupName="SettingsSubNav" Content="Java"
                              Style="{StaticResource SubNavButtonStyle}"
+                             Tag="Java"
+                             Checked="SubNav_Checked"
                              Margin="0,2,0,0"/>
                 <RadioButton GroupName="SettingsSubNav" Content="游戏"
                              Style="{StaticResource SubNavButtonStyle}"
+                             Tag="Game"
+                             Checked="SubNav_Checked"
                              Margin="0,2,0,0"/>
                 <RadioButton GroupName="SettingsSubNav" Content="关于"
                              Style="{StaticResource SubNavButtonStyle}"
+                             Tag="About"
+                             Checked="SubNav_Checked"
                              Margin="0,2,0,0"/>
             </StackPanel>
         </Border>
 
+        <!-- 内容区 -->
         <Grid Grid.Column="1" Background="White">
-            <TextBlock Text="设置"
-                       FontSize="24" Foreground="#DDDDDD"
-                       HorizontalAlignment="Center"
-                       VerticalAlignment="Center"/>
+
+            <!-- 启动器（占位） -->
+            <TextBlock x:Name="LauncherPanel" Text="启动器设置"
+                       FontSize="20" Foreground="#DDDDDD"
+                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+            <!-- Java（占位） -->
+            <TextBlock x:Name="JavaPanel" Text="Java 设置"
+                       FontSize="20" Foreground="#DDDDDD"
+                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                       Visibility="Collapsed"/>
+
+            <!-- 游戏 -->
+            <Grid x:Name="GamePanel" Visibility="Collapsed">
+                <StackPanel Margin="32,24,32,0">
+
+                    <TextBlock Text="游戏"
+                               FontSize="22" FontWeight="SemiBold"
+                               Foreground="#333333"
+                               Margin="0,0,0,20"/>
+
+                    <!-- 版本隔离卡片 -->
+                    <Border Background="#F7F7F7"
+                            CornerRadius="8"
+                            Padding="16">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                                <TextBlock Text="版本隔离"
+                                           FontSize="14" FontWeight="SemiBold"
+                                           Foreground="#333333"/>
+                                <TextBlock Text="开启后，游戏数据（存档、资源、配置等）会保存在 versions\版本名 目录下，各版本互不干扰。"
+                                           FontSize="11" Foreground="#999999"
+                                           Margin="0,4,0,0"
+                                           TextWrapping="Wrap"/>
+                            </StackPanel>
+
+                            <CheckBox Grid.Column="1"
+                                      x:Name="IsolationCheck"
+                                      VerticalAlignment="Center"
+                                      Width="44" Height="24"
+                                      Checked="IsolationCheck_Changed"
+                                      Unchecked="IsolationCheck_Changed">
+                                <CheckBox.Template>
+                                    <ControlTemplate TargetType="CheckBox">
+                                        <Border x:Name="track"
+                                                Width="44" Height="24"
+                                                CornerRadius="12"
+                                                Background="#DDDDDD">
+                                            <Border x:Name="thumb"
+                                                    Width="18" Height="18"
+                                                    CornerRadius="9"
+                                                    Background="White"
+                                                    HorizontalAlignment="Left"
+                                                    Margin="3,0,0,0">
+                                                <Border.Effect>
+                                                    <DropShadowEffect Color="Black"
+                                                                      BlurRadius="4"
+                                                                      ShadowDepth="0"
+                                                                      Opacity="0.2"/>
+                                                </Border.Effect>
+                                            </Border>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsChecked" Value="True">
+                                                <Setter TargetName="track" Property="Background" Value="#4F46E5"/>
+                                                <Setter TargetName="thumb" Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter TargetName="thumb" Property="Margin" Value="0,0,3,0"/>
+                                            </Trigger>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="track" Property="Opacity" Value="0.9"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </CheckBox.Template>
+                            </CheckBox>
+                        </Grid>
+                    </Border>
+
+                </StackPanel>
+            </Grid>
+
+            <!-- 关于（占位） -->
+            <TextBlock x:Name="AboutPanel" Text="关于"
+                       FontSize="20" Foreground="#DDDDDD"
+                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                       Visibility="Collapsed"/>
         </Grid>
     </Grid>
 </UserControl>
