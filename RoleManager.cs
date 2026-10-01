@@ -34,15 +34,31 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             {
                 if (Directory.Exists(_roleDir))
                 {
-                    foreach (var f in Directory.GetFiles(_roleDir, "*.json"))
+                    // ★ 递归扫描：兼容 Roles\ 根（离线）和 Roles\Microsoft\（正版）
+                    foreach (var f in Directory.GetFiles(_roleDir, "*.json",
+                                                          SearchOption.AllDirectories))
                     {
                         try
                         {
-                            var json = File.ReadAllText(f);
+                            string json = File.ReadAllText(f);
                             var role = new JavaScriptSerializer().Deserialize<Role>(json);
                             if (role != null && !string.IsNullOrEmpty(role.Uuid))
                             {
-                                if (string.IsNullOrEmpty(role.Type)) role.Type = "Offline";
+                                if (string.IsNullOrEmpty(role.Type))
+                                {
+                                    // 兜底：JSON 里有 accessToken/refreshToken 字段 → 正版
+                                    if (json.IndexOf("\"accessToken\"",
+                                            StringComparison.OrdinalIgnoreCase) >= 0 ||
+                                        json.IndexOf("\"refreshToken\"",
+                                            StringComparison.OrdinalIgnoreCase) >= 0)
+                                    {
+                                        role.Type = "Microsoft";
+                                    }
+                                    else
+                                    {
+                                        role.Type = "Offline";
+                                    }
+                                }
                                 _roles.Add(role);
                             }
                         }
@@ -105,7 +121,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             foreach (char c in username)
             {
                 if (c == ' ') return false;
-                if (c >= 0x4E00 && c <= 0x9FFF) return false; // 中文
+                if (c >= 0x4E00 && c <= 0x9FFF) return false;
             }
             return true;
         }

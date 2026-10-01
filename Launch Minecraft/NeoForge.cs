@@ -10,16 +10,19 @@ namespace Launch_Minecraft
         public override string LoaderName { get { return "NeoForge"; } }
 
         public static void LaunchClient(string minecraftDir, string versionName,
-                                        bool isolated = false, string javaBaseDir = null)
+                                        bool isolated = false, string javaBaseDir = null,
+                                        string username = null, string uuid = null,
+                                        string accessToken = null, string userType = null,
+                                        Action<LaunchProgress> onProgress = null)
         {
             new NeoForge().Launch(
-                CreateClientContext(minecraftDir, versionName, isolated, javaBaseDir));
+                CreateClientContext(minecraftDir, versionName, isolated, javaBaseDir,
+                                    username, uuid, accessToken, userType, onProgress));
         }
 
         public static void LaunchServer(string serverDir, string versionName,
                                         string javaBaseDir = null)
         {
-            // ★ 仅当 run.bat 确实是 Forge/NeoForge 官方脚本时才直接跑它
             string batPath = Path.Combine(serverDir, "run.bat");
             if (IsForgeOrNeoForgeRunBat(batPath))
             {
@@ -27,7 +30,6 @@ namespace Launch_Minecraft
                 return;
             }
 
-            // 兜底：没有有效脚本 → 手动拼
             new NeoForge().Launch(
                 CreateServerContext(serverDir, versionName, javaBaseDir));
         }

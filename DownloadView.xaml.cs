@@ -62,7 +62,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 var list = VersionManifestScanner.Fetch();
                 _allVersions = list ?? new List<ManifestVersion>();
 
-                // ★ 保底：分类为空时默认正式版
                 if (string.IsNullOrEmpty(_currentCategory))
                     _currentCategory = "Release";
 
@@ -86,7 +85,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             string tag = rb.Tag as string;
 
-            // 回退：Tag 没读到，用 Content 推断
             if (string.IsNullOrEmpty(tag))
             {
                 string content = rb.Content as string;
@@ -102,7 +100,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             _currentCategory = tag;
 
-            // 防止初始化时 ManifestVersionList 还没创建
             if (ManifestVersionList != null)
                 ApplyCategoryFilter();
         }
@@ -141,7 +138,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     break;
             }
 
-            // 全部按发布时间倒序：新的在上面
             filtered = filtered
                 .OrderByDescending(v => ParseTime(v.ReleaseTime))
                 .ToList();
@@ -155,7 +151,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             catch { return DateTime.MinValue; }
         }
 
-        // ---------- 选中版本 → 加载器选择页 ----------
+        // ---------- 选中版本 → 打开客户端安装窗口 ----------
 
         private void ManifestVersionList_SelectionChanged(
             object sender, SelectionChangedEventArgs e)
@@ -163,18 +159,14 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             var item = ManifestVersionList.SelectedItem as ManifestVersion;
             if (item == null) return;
 
-            // 这里就是你要求的：选中一个版本后，进入 Mod 加载器选择页面。
-            // 暂时用 MessageBox 占位，下一步换成真正的页面跳转。
-            MessageBox.Show(
-                $"已选中版本：{item.Id}\n" +
-                $"类型：{item.DisplayType}\n" +
-                $"发布时间：{item.ReleaseTime}\n\n" +
-                $"下一步将进入 Mod 加载器选择页面。",
-                "版本已选择",
-                MessageBoxButton.OK, MessageBoxImage.Information);
-
             // 清除选中状态，避免重复触发
             ManifestVersionList.SelectedItem = null;
+
+            var win = new ClientInstallWindow(item.Id)
+            {
+                Owner = Window.GetWindow(this)
+            };
+            win.ShowDialog();
         }
     }
 }

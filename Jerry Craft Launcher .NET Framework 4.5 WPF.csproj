@@ -62,11 +62,21 @@
       <SubType>Designer</SubType>
     </ApplicationDefinition>
     <Compile Include="AppConfig.cs" />
+    <Compile Include="ClientInstallWindow.xaml.cs">
+      <DependentUpon>ClientInstallWindow.xaml</DependentUpon>
+    </Compile>
     <Compile Include="CreateRoleWindow.xaml.cs">
       <DependentUpon>CreateRoleWindow.xaml</DependentUpon>
     </Compile>
+    <Compile Include="MicrosoftLoginWindow.xaml.cs">
+      <DependentUpon>MicrosoftLoginWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="MinecraftAuthenticator.cs" />
     <Compile Include="Role.cs" />
     <Compile Include="RoleManager.cs" />
+    <Compile Include="SelectLoginTypeWindow.xaml.cs">
+      <DependentUpon>SelectLoginTypeWindow.xaml</DependentUpon>
+    </Compile>
     <Compile Include="ServerInfo.cs" />
     <Compile Include="ServerInstallWindow.xaml.cs">
       <DependentUpon>ServerInstallWindow.xaml</DependentUpon>
@@ -84,6 +94,10 @@
     </Compile>
     <Compile Include="VersionManifestScanner.cs" />
     <Compile Include="VersionScanner.cs" />
+    <Page Include="ClientInstallWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="CreateRoleWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
@@ -114,6 +128,14 @@
       <DependentUpon>MainWindow.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
+    <Page Include="MicrosoftLoginWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="SelectLoginTypeWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="ServerInstallWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>

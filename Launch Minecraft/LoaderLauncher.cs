@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
+using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Web.Script.Serialization;
@@ -12,18 +13,34 @@ using Microsoft.Win32;
 namespace Launch_Minecraft
 {
     // ============================================================
-    //                        启动上下文
+    //   启动阶段 / 进度
     // ============================================================
+    public enum LaunchPhase
+    {
+        Preparing,
+        CheckingFiles,
+        StartingProcess,
+        WaitingWindow,
+        Running,
+        Stopped,
+        Failed,
+    }
+
+    public class LaunchProgress
+    {
+        public LaunchPhase Phase;
+        public string Message;
+    }
+
     public class LaunchContext
     {
         public string MinecraftDir { get; set; }
         public string VersionName { get; set; }
         public bool IsServer { get; set; }
         public bool IsVersionIsolated { get; set; }
+        public bool IsModernNativeLayout { get; set; }
 
         public string JavaPath { get; set; }
-        /// <summary>用户指定的 Java 基准目录（可选）。
-        /// 两种格式：父目录（下含多个 jdk-xxx）或 Java home（根目录直接有 bin）。</summary>
         public string JavaBaseDir { get; set; }
 
         public string Username { get; set; }
@@ -35,6 +52,9 @@ namespace Launch_Minecraft
         public int Height { get; set; }
         public string InitMemory { get; set; }
         public string MaxMemory { get; set; }
+
+        /// <summary>启动进度回调（可空）</summary>
+        public Action<LaunchProgress> OnProgress { get; set; }
 
         public LaunchContext()
         {
@@ -64,19 +84,18 @@ namespace Launch_Minecraft
         }
     }
 
-    // ============================================================
-    //                  加载器 Launcher 抽象基类
-    // ============================================================
     public abstract class BaseLoaderLauncher
     {
         public abstract string LoaderName { get; }
 
-        // ---------- 静态便捷工厂 ----------
         protected static LaunchContext CreateClientContext(
             string minecraftDir, string versionName, bool isolated,
-            string javaBaseDir = null)
+            string javaBaseDir = null,
+            string username = null, string uuid = null,
+            string accessToken = null, string userType = null,
+            Action<LaunchProgress> onProgress = null)
         {
-            return new LaunchContext
+            var ctx = new LaunchContext
             {
                 MinecraftDir = Path.GetFullPath(minecraftDir),
                 VersionName = versionName,
@@ -84,6 +103,14 @@ namespace Launch_Minecraft
                 IsVersionIsolated = isolated,
                 JavaBaseDir = javaBaseDir,
             };
+
+            if (!string.IsNullOrEmpty(username)) ctx.Username = username;
+            if (!string.IsNullOrEmpty(uuid)) ctx.Uuid = uuid;
+            if (!string.IsNullOrEmpty(accessToken)) ctx.AccessToken = accessToken;
+            if (!string.IsNullOrEmpty(userType)) ctx.UserType = userType;
+            if (onProgress != null) ctx.OnProgress = onProgress;
+
+            return ctx;
         }
 
         protected static LaunchContext CreateServerContext(
@@ -99,107 +126,280 @@ namespace Launch_Minecraft
             };
         }
 
-        // ============================================================
-        //                        模板方法
-        // ============================================================
         public void Launch(LaunchContext context)
         {
-            Console.WriteLine($"[{LoaderName}] 开始构建启动命令...");
-            Console.WriteLine($"[{LoaderName}] 目录: {context.MinecraftDir}");
-            Console.WriteLine($"[{LoaderName}] 版本: {context.VersionName}");
-
-            var cmd = new List<string>();
-
-            // 1. 先加载版本 JSON
-            var root = LoadRootJson(context);
-            if (root == null)
-                throw new Exception($"[{LoaderName}] 无法加载版本 JSON：{context.VersionName}");
-
-            // 2. 从 JSON 读取需要的 Java 主版本号
-            int requiredJava = GetRequiredJavaMajorVersion(root, context.VersionName);
-            Console.WriteLine($"[{LoaderName}] 版本要求 Java 主版本: {requiredJava}");
-
-            // 3. 选择 Java
-            string javaPath = context.JavaPath;
-            if (string.IsNullOrEmpty(javaPath) || !File.Exists(javaPath))
-                javaPath = JavaLocator.Find(requiredJava, context.JavaBaseDir);
-            cmd.Add(javaPath);
-            Console.WriteLine($"[{LoaderName}] Java: {javaPath}");
-
-            // 4. 启动前修复
-            PreLaunchFix(context, root);
-
-            // 5. 收集 libraries
-            string os = GetOsName();
-            var libs = CollectLibraries(root, context, os);
-            libs = FilterLibraries(libs, context);
-            Console.WriteLine($"[{LoaderName}] 库数量: {libs.Count}");
-
-            // 6. Natives（仅客户端）
-            string nativesDir = null;
-            if (!context.IsServer)
+            try
             {
-                nativesDir = context.GetNativesDir();
-                PrepareNatives(libs, context.MinecraftDir, nativesDir);
+                Report(context, LaunchPhase.Preparing, "准备启动...");
+
+                Console.WriteLine($"[{LoaderName}] 开始构建启动命令...");
+                Console.WriteLine($"[{LoaderName}] 目录: {context.MinecraftDir}");
+                Console.WriteLine($"[{LoaderName}] 版本: {context.VersionName}");
+                Console.WriteLine($"[{LoaderName}] 账号: {context.Username} ({context.UserType})");
+
+                var cmd = new List<string>();
+
+                var root = LoadRootJson(context);
+                if (root == null)
+                    throw new Exception($"[{LoaderName}] 无法加载版本 JSON：{context.VersionName}");
+
+                context.IsModernNativeLayout = HasModernNativeLayout(root);
+                Console.WriteLine($"[{LoaderName}] natives 布局: {(context.IsModernNativeLayout ? "modern (1.19+)" : "legacy (1.18-)")}");
+
+                int requiredJava = GetRequiredJavaMajorVersion(root, context.VersionName);
+                Console.WriteLine($"[{LoaderName}] 版本要求 Java 主版本: {requiredJava}");
+
+                string javaPath = context.JavaPath;
+                if (string.IsNullOrEmpty(javaPath) || !File.Exists(javaPath))
+                    javaPath = JavaLocator.Find(requiredJava, context.JavaBaseDir);
+                cmd.Add(javaPath);
+                Console.WriteLine($"[{LoaderName}] Java: {javaPath}");
+
+                PreLaunchFix(context, root);
+
+                string os = GetOsName();
+                var libs = CollectLibraries(root, context, os);
+                libs = FilterLibraries(libs, context);
+                Console.WriteLine($"[{LoaderName}] 库数量: {libs.Count}");
+
+                // ★ 检查文件资源完整性
+                CheckAndDownloadFiles(context, os, libs);
+
+                string nativesDir = null;
+                if (!context.IsServer)
+                {
+                    nativesDir = context.GetNativesDir();
+                    PrepareNatives(libs, context.MinecraftDir, nativesDir);
+                }
+
+                var entries = BuildClasspathEntries(libs, context);
+                string mainClass = GetMainClass(root);
+                entries = ReorderClasspath(entries, context, root, mainClass);
+
+                cmd.Add($"-Xms{context.InitMemory}");
+                cmd.Add($"-Xmx{context.MaxMemory}");
+                cmd.Add("-Dfile.encoding=GBK");
+                cmd.Add("-Dstdout.encoding=GBK");
+                cmd.Add("-Dstderr.encoding=GBK");
+
+                AppendLoaderJvmArgs(cmd, context, root);
+                AddJvmArgsFromJson(cmd, root, context, nativesDir);
+
+                // ★ 启动器统一加 -Djava.library.path
+                if (!string.IsNullOrEmpty(nativesDir))
+                    cmd.Add($"-Djava.library.path={nativesDir}");
+
+                cmd.Add("-cp");
+                cmd.Add(string.Join(";", entries));
+                cmd.Add(mainClass);
+
+                if (context.IsServer)
+                    AppendServerGameArgs(cmd, context, root);
+                else if (UseLaunchWrapperArgs(root))
+                    AppendLaunchWrapperArgs(cmd, context, root);
+                else
+                    AddGameArgs(cmd, context, root);
+
+                PostProcessCommand(cmd, context, root);
+
+                cmd.RemoveAll(a => a == "--demo");
+                RemoveQuickPlayArgs(cmd);
+
+                Console.WriteLine($"[{LoaderName}] 完整命令行:");
+                Console.WriteLine(string.Join(" ",
+                    cmd.ConvertAll(a => a.Contains(" ") ? "\"" + a + "\"" : a).ToArray()));
+
+                StartProcess(cmd, context);
             }
-
-            // 7. classpath
-            var entries = BuildClasspathEntries(libs, context);
-            string mainClass = GetMainClass(root);
-            entries = ReorderClasspath(entries, context, root, mainClass);
-
-            // 8. 基础 JVM
-            cmd.Add($"-Xms{context.InitMemory}");
-            cmd.Add($"-Xmx{context.MaxMemory}");
-            cmd.Add("-Dfile.encoding=GBK");
-            cmd.Add("-Dstdout.encoding=GBK");
-            cmd.Add("-Dstderr.encoding=GBK");
-
-            // ★ 修复：不要手动加引号，交给 BuildArgumentString 统一处理
-            if (!string.IsNullOrEmpty(nativesDir))
-                cmd.Add($"-Djava.library.path={nativesDir}");
-
-            // 9. 加载器专属 JVM
-            AppendLoaderJvmArgs(cmd, context, root);
-
-            // 10. 版本 JSON 中的 JVM 参数
-            AddJvmArgsFromJson(cmd, root, context, nativesDir);
-
-            // 11. classpath + 主类
-            cmd.Add("-cp");
-            cmd.Add(string.Join(";", entries));
-            cmd.Add(mainClass);
-
-            // 12. 游戏参数
-            if (context.IsServer)
-                AppendServerGameArgs(cmd, context, root);
-            else if (UseLaunchWrapperArgs(root))
-                AppendLaunchWrapperArgs(cmd, context, root);
-            else
-                AddGameArgs(cmd, context, root);
-
-            // 13. 收尾
-            PostProcessCommand(cmd, context, root);
-
-            // 14. 移除 --demo
-            cmd.RemoveAll(a => a == "--demo");
-
-            // 15. 移除 quickPlay 参数
-            RemoveQuickPlayArgs(cmd);
-
-            // 16. 输出完整命令
-            Console.WriteLine($"[{LoaderName}] 完整命令行:");
-            Console.WriteLine(string.Join(" ",
-                cmd.ConvertAll(a => a.Contains(" ") ? "\"" + a + "\"" : a).ToArray()));
-
-            // 17. 启动进程
-            StartProcess(cmd, context);
+            catch (Exception ex)
+            {
+                Report(context, LaunchPhase.Failed, "启动失败：" + ex.Message);
+                throw;
+            }
         }
 
         // ============================================================
-        //                  Java 主版本推断
+        //   文件资源完整性检查（只检查存在性 + 0 字节，不校验 SHA1）
         // ============================================================
+        protected void CheckAndDownloadFiles(
+            LaunchContext context, string os, List<Dictionary<string, object>> libs)
+        {
+            Report(context, LaunchPhase.CheckingFiles, "检查文件资源完整性...");
+            Console.WriteLine($"[{LoaderName}] 检查文件资源完整性...");
 
+            string libDir = Path.Combine(context.MinecraftDir, "libraries");
+            int missing = 0, downloaded = 0, skippedNoUrl = 0, failed = 0;
+            var failedNames = new List<string>();
+
+            foreach (var lib in libs)
+            {
+                string relPath = ResolveLibraryPath(lib);
+                if (string.IsNullOrEmpty(relPath)) continue;
+
+                string url = null;
+                if (lib.ContainsKey("downloads"))
+                {
+                    var dl = lib["downloads"] as Dictionary<string, object>;
+                    if (dl != null && dl.ContainsKey("artifact"))
+                    {
+                        var art = dl["artifact"] as Dictionary<string, object>;
+                        if (art != null && art.ContainsKey("url"))
+                            url = Convert.ToString(art["url"]);
+                    }
+                }
+                if (string.IsNullOrEmpty(url) && lib.ContainsKey("url"))
+                {
+                    string baseUrl = Convert.ToString(lib["url"]);
+                    if (!string.IsNullOrEmpty(baseUrl))
+                    {
+                        if (!baseUrl.EndsWith("/")) baseUrl += "/";
+                        url = baseUrl + relPath;
+                    }
+                }
+
+                string full = Path.Combine(libDir, relPath);
+                bool exists = false;
+                try
+                {
+                    if (File.Exists(full) && new FileInfo(full).Length > 0)
+                        exists = true;
+                }
+                catch { }
+
+                if (exists) continue;
+
+                missing++;
+
+                if (string.IsNullOrEmpty(url))
+                {
+                    Console.WriteLine($"[{LoaderName}] [Files] 缺少且无 URL，跳过：{relPath}");
+                    skippedNoUrl++;
+                    continue;
+                }
+
+                try
+                {
+                    Console.WriteLine($"[{LoaderName}] [Files] 补全：{relPath}");
+                    DownloadFileSimple(url, full);
+                    downloaded++;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[{LoaderName}] [Files] 下载失败：{url} - {ex.Message}");
+                    failedNames.Add(relPath);
+                    failed++;
+                }
+            }
+
+            Console.WriteLine($"[{LoaderName}] [Files] 检查完成：缺失 {missing}，" +
+                              $"下载 {downloaded}，无 URL 跳过 {skippedNoUrl}，失败 {failed}");
+
+            if (failed > 0)
+            {
+                int show = Math.Min(3, failedNames.Count);
+                string names = string.Join("、", failedNames.GetRange(0, show).ToArray());
+                throw new Exception(
+                    $"有 {failed} 个文件下载失败（网络原因），请检查网络后重试。\n例如：{names}");
+            }
+        }
+
+        private static void DownloadFileSimple(string url, string dest)
+        {
+            string dir = Path.GetDirectoryName(dest);
+            if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                Directory.CreateDirectory(dir);
+
+            ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072;
+            var req = (HttpWebRequest)WebRequest.Create(url);
+            req.UserAgent = "Mozilla/5.0";
+            req.Timeout = 30000;
+            req.ReadWriteTimeout = 60000;
+            req.AllowAutoRedirect = true;
+
+            using (var resp = (HttpWebResponse)req.GetResponse())
+            using (var netStream = resp.GetResponseStream())
+            using (var fs = File.Create(dest))
+            {
+                byte[] buf = new byte[81920];
+                int read;
+                while ((read = netStream.Read(buf, 0, buf.Length)) > 0)
+                    fs.Write(buf, 0, read);
+            }
+        }
+
+        private void Report(LaunchContext ctx, LaunchPhase phase, string message)
+        {
+            try { Console.WriteLine($"[{LoaderName}] [{phase}] {message}"); }
+            catch { }
+
+            var h = ctx != null ? ctx.OnProgress : null;
+            if (h == null) return;
+            try
+            {
+                h(new LaunchProgress { Phase = phase, Message = message });
+            }
+            catch { }
+        }
+
+        private static bool IsRunningSignal(string line)
+        {
+            if (string.IsNullOrEmpty(line)) return false;
+
+            string[] keys = {
+                "Backend library:",
+                "LWJGL Version:",
+                "Created window using",
+                "Reloading ResourceManager",
+                "Sound engine started",
+            };
+
+            foreach (var k in keys)
+            {
+                if (line.IndexOf(k, StringComparison.OrdinalIgnoreCase) >= 0)
+                    return true;
+            }
+            return false;
+        }
+
+        // ============================================================
+        //   判断是否为 1.19+ natives 布局
+        // ============================================================
+        private static bool HasModernNativeLayout(Dictionary<string, object> root)
+        {
+            if (!root.ContainsKey("arguments")) return false;
+            var argsObj = root["arguments"] as Dictionary<string, object>;
+            if (argsObj == null || !argsObj.ContainsKey("jvm")) return false;
+            var jvmList = argsObj["jvm"] as ArrayList;
+            if (jvmList == null) return false;
+
+            foreach (var item in jvmList)
+            {
+                string s = item as string;
+                if (s != null)
+                {
+                    if (s.IndexOf("${natives_directory}/java", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        s.IndexOf("${natives_directory}/lwjgl", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        s.IndexOf("-Djna.tmpdir", StringComparison.OrdinalIgnoreCase) >= 0)
+                        return true;
+                }
+                else if (item is Dictionary<string, object> dict && dict.ContainsKey("value"))
+                {
+                    string vs = dict["value"] as string;
+                    if (vs != null)
+                    {
+                        if (vs.IndexOf("${natives_directory}/java", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                            vs.IndexOf("${natives_directory}/lwjgl", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                            vs.IndexOf("-Djna.tmpdir", StringComparison.OrdinalIgnoreCase) >= 0)
+                            return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        // ============================================================
+        //   Java 主版本推断
+        // ============================================================
         protected static int GetRequiredJavaMajorVersion(
             Dictionary<string, object> root, string fallbackVersionName)
         {
@@ -252,10 +452,6 @@ namespace Launch_Minecraft
             }
             return 21;
         }
-
-        // ============================================================
-        //                        可覆盖钩子
-        // ============================================================
 
         protected virtual void PreLaunchFix(LaunchContext context, Dictionary<string, object> root) { }
 
@@ -313,10 +509,6 @@ namespace Launch_Minecraft
             List<string> cmd, LaunchContext context, Dictionary<string, object> root)
         { }
 
-        // ============================================================
-        //                    GA 去重
-        // ============================================================
-
         protected static List<Dictionary<string, object>> DeduplicateLibrariesByGA(
             List<Dictionary<string, object>> libs)
         {
@@ -337,7 +529,6 @@ namespace Launch_Minecraft
                 {
                     bool hasCls = HasClassifiers(lib);
                     bool existingHasCls = HasClassifiers(byName[name]);
-
                     if (hasCls && !existingHasCls)
                         byName[name] = lib;
                 }
@@ -374,7 +565,6 @@ namespace Launch_Minecraft
                         string existingVer = Convert.ToString(log4jBest[key]["name"]).Split(':')[2];
                         int eAt = existingVer.IndexOf('@');
                         if (eAt >= 0) existingVer = existingVer.Substring(0, eAt);
-
                         if (CompareVersionStrings(version, existingVer) > 0)
                             log4jBest[key] = lib;
                     }
@@ -403,10 +593,6 @@ namespace Launch_Minecraft
             catch { return string.Compare(v1, v2, StringComparison.Ordinal); }
         }
 
-        // ============================================================
-        //                        通用逻辑
-        // ============================================================
-
         protected Dictionary<string, object> LoadVersionJsonWithInheritance(
             string versionId, string minecraftDir)
         {
@@ -417,8 +603,7 @@ namespace Launch_Minecraft
         private Dictionary<string, object> LoadVersionJsonWithInheritance(
             string versionId, string minecraftDir, HashSet<string> visited)
         {
-            if (!visited.Add(versionId))
-                return null;
+            if (!visited.Add(versionId)) return null;
 
             string jsonPath = Path.Combine(
                 Path.Combine(Path.Combine(minecraftDir, "versions"), versionId),
@@ -631,7 +816,8 @@ namespace Launch_Minecraft
 
             foreach (var lib in libs)
             {
-                if (IsNativeLibrary(lib)) continue;
+                if (!context.IsModernNativeLayout && IsNativeLibrary(lib))
+                    continue;
 
                 string relPath = ResolveLibraryPath(lib);
                 if (string.IsNullOrEmpty(relPath)) continue;
@@ -707,6 +893,11 @@ namespace Launch_Minecraft
                 try { Directory.Delete(nativesDir, true); } catch { }
             }
             Directory.CreateDirectory(nativesDir);
+
+            Directory.CreateDirectory(Path.Combine(nativesDir, "java"));
+            Directory.CreateDirectory(Path.Combine(nativesDir, "jna"));
+            Directory.CreateDirectory(Path.Combine(nativesDir, "lwjgl"));
+            Directory.CreateDirectory(Path.Combine(nativesDir, "netty"));
 
             int extracted = 0;
             string libDir = Path.Combine(minecraftDir, "libraries");
@@ -858,6 +1049,9 @@ namespace Launch_Minecraft
                         i++;
                     continue;
                 }
+
+                if (arg.StartsWith("-Djava.library.path", StringComparison.OrdinalIgnoreCase))
+                    continue;
 
                 cmd.Add(ReplaceJvmPlaceholders(arg, context, libDir, nativesDir, classpathSep));
             }
@@ -1030,10 +1224,6 @@ namespace Launch_Minecraft
             return "linux";
         }
 
-        // ============================================================
-        //                        进程启动
-        // ============================================================
-
         protected void StartProcess(List<string> cmd, LaunchContext context)
         {
             string argsStr = BuildArgumentString(cmd);
@@ -1043,7 +1233,7 @@ namespace Launch_Minecraft
                 FileName = cmd[0],
                 Arguments = argsStr,
                 UseShellExecute = false,
-                CreateNoWindow = true,    // ★ 修复：不创建黑框
+                CreateNoWindow = true,
                 WorkingDirectory = context.GetGameDir(),
 
                 RedirectStandardInput = true,
@@ -1055,9 +1245,25 @@ namespace Launch_Minecraft
 
             var proc = new Process { StartInfo = psi };
 
+            bool windowReported = false;
+            bool runningReported = false;
+
             proc.OutputDataReceived += (s, e) =>
             {
-                if (e.Data != null) Console.WriteLine(e.Data);
+                if (e.Data == null) return;
+                Console.WriteLine(e.Data);
+
+                if (!windowReported)
+                {
+                    windowReported = true;
+                    Report(context, LaunchPhase.WaitingWindow, "等待游戏窗口出现...");
+                }
+
+                if (!runningReported && IsRunningSignal(e.Data))
+                {
+                    runningReported = true;
+                    Report(context, LaunchPhase.Running, "正在运行");
+                }
             };
             proc.ErrorDataReceived += (s, e) =>
             {
@@ -1066,6 +1272,8 @@ namespace Launch_Minecraft
 
             try
             {
+                Report(context, LaunchPhase.StartingProcess, "启动进程...");
+
                 proc.Start();
                 proc.StandardInput.Close();
                 proc.BeginOutputReadLine();
@@ -1078,9 +1286,20 @@ namespace Launch_Minecraft
                 proc.WaitForExit(int.MaxValue);
 
                 Console.WriteLine($"[{LoaderName}] Java 进程已退出，退出码 {proc.ExitCode}");
+
+                if (!runningReported)
+                {
+                    Report(context, LaunchPhase.Failed,
+                        $"启动失败（退出码 {proc.ExitCode}）");
+                }
+                else
+                {
+                    Report(context, LaunchPhase.Stopped, "游戏已退出");
+                }
             }
             catch (Exception ex)
             {
+                Report(context, LaunchPhase.Failed, "启动失败：" + ex.Message);
                 throw new Exception($"启动进程失败：{ex.Message}", ex);
             }
         }
@@ -1123,16 +1342,6 @@ namespace Launch_Minecraft
             }
         }
 
-        // ============================================================
-        //                服务端 run.bat 无窗口启动
-        // ============================================================
-
-        /// <summary>
-        /// 无窗口运行 .bat 脚本（服务端启动用）。
-        /// 通过 cmd.exe /c 调用 + CreateNoWindow + WindowStyle.Hidden 隐藏黑框。
-        /// 若传入 javaBaseDir，会把该 Java 的 bin 目录注入脚本进程的 PATH / JAVA_HOME，
-        /// 让脚本里的 "java" 优先使用启动器指定的 Java。
-        /// </summary>
         protected static void RunBatHidden(
             string workingDir, string batPath, string javaBaseDir = null)
         {
@@ -1176,21 +1385,14 @@ namespace Launch_Minecraft
             }
         }
 
-        /// <summary>
-        /// 从 javaBaseDir 解析 Java 的 bin 目录。
-        /// 支持：Java Home（下有 bin\java.exe）或包含多个 JDK 的父目录。
-        /// 找不到返回 null。
-        /// </summary>
         private static string ResolveJavaBinDir(string javaBaseDir)
         {
             if (string.IsNullOrEmpty(javaBaseDir) || !Directory.Exists(javaBaseDir))
                 return null;
 
-            // 情况 1：本身是 Java Home
             if (File.Exists(Path.Combine(javaBaseDir, "bin", "java.exe")))
                 return Path.Combine(javaBaseDir, "bin");
 
-            // 情况 2：是父目录，子目录里找
             try
             {
                 foreach (var sub in Directory.GetDirectories(javaBaseDir))
@@ -1204,15 +1406,6 @@ namespace Launch_Minecraft
             return null;
         }
 
-        /// <summary>
-        /// 判断指定 run.bat 是否是 Forge / NeoForge 官方安装器生成的启动脚本。
-        /// 原版、Fabric、Quilt 不生成该脚本；即使碰巧存在同名文件也不应误用。
-        ///
-        /// Forge 1.17+ / NeoForge 的 run.bat 内容特征：
-        ///   java @user_jvm_args.txt @libraries/net/minecraftforge/forge/<ver>/win_args.txt %*
-        ///   java @user_jvm_args.txt @libraries/net/neoforged/neoforge/<ver>/win_args.txt %*
-        /// 因此同时校验「user_jvm_args.txt」+「minecraftforge/neoforged/forge-」两个特征。
-        /// </summary>
         protected static bool IsForgeOrNeoForgeRunBat(string batPath)
         {
             if (string.IsNullOrEmpty(batPath) || !File.Exists(batPath))
@@ -1234,20 +1427,10 @@ namespace Launch_Minecraft
             }
             catch
             {
-                // 读不出来就当作不是有效脚本，走兜底流程更安全
                 return false;
             }
         }
 
-        // ============================================================
-        //              服务端启动（供 WPF 服务器页调用）
-        // ============================================================
-
-        /// <summary>
-        /// 检测是否需要弹窗询问 EULA。
-        /// true  = eula.txt 存在且 eula=false → 需要询问
-        /// false = eula.txt 不存在 / eula=true → 直接启动
-        /// </summary>
         public static bool NeedsAcceptEula(string serverDir, out string eulaPath)
         {
             eulaPath = Path.Combine(serverDir, "eula.txt");
@@ -1264,7 +1447,6 @@ namespace Launch_Minecraft
             catch { return false; }
         }
 
-        /// <summary>把 eula.txt 里的 eula 改成 true；文件不存在则创建</summary>
         public static void AcceptEula(string serverDir)
         {
             string eulaPath = Path.Combine(serverDir, "eula.txt");
@@ -1289,9 +1471,6 @@ namespace Launch_Minecraft
         }
     }
 
-    // ============================================================
-    //         Java 定位器（用户指定目录 + 注册表扫描）
-    // ============================================================
     internal static class JavaLocator
     {
         private class JavaCandidate

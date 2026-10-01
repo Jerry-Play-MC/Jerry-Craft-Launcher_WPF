@@ -6,22 +6,17 @@ namespace Launch_Minecraft
     {
         public override string LoaderName { get { return "Fabric"; } }
 
-        /// <summary>启动 Fabric 客户端</summary>
-        /// <param name="minecraftDir">.minecraft 根目录</param>
-        /// <param name="versionName">版本目录名，如 "fabric-loader-0.15.0-1.20.1"</param>
-        /// <param name="isolated">是否版本隔离</param>
-        /// <param name="javaBaseDir">Java 基准目录（可选）</param>
         public static void LaunchClient(string minecraftDir, string versionName,
-                                        bool isolated = false, string javaBaseDir = null)
+                                        bool isolated = false, string javaBaseDir = null,
+                                        string username = null, string uuid = null,
+                                        string accessToken = null, string userType = null,
+                                        Action<LaunchProgress> onProgress = null)
         {
             new Fabric().Launch(
-                CreateClientContext(minecraftDir, versionName, isolated, javaBaseDir));
+                CreateClientContext(minecraftDir, versionName, isolated, javaBaseDir,
+                                    username, uuid, accessToken, userType, onProgress));
         }
 
-        /// <summary>启动 Fabric 服务端</summary>
-        /// <param name="serverDir">server.jar 所在目录</param>
-        /// <param name="versionName">版本 JSON 名</param>
-        /// <param name="javaBaseDir">Java 基准目录（可选）</param>
         public static void LaunchServer(string serverDir, string versionName,
                                         string javaBaseDir = null)
         {

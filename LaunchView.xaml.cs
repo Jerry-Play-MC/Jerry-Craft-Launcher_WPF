@@ -6,6 +6,8 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Threading;
+using Launch_Minecraft;
 
 namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 {
@@ -20,8 +22,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             Unloaded += LaunchView_Unloaded;
             RoleManager.CurrentRoleChanged += OnCurrentRoleChanged;
         }
-
-        // ---------- 生命周期 ----------
 
         private void LaunchView_Loaded(object sender, RoutedEventArgs e)
         {
@@ -45,8 +45,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 _scanner = null;
             }
         }
-
-        // ---------- 版本扫描 ----------
 
         private void OnVersionsChanged(List<VersionInfo> versions)
         {
@@ -72,8 +70,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             CurrentVersionText.Text = string.IsNullOrEmpty(v) ? "无版本" : v;
         }
 
-        // ---------- 子导航切换 ----------
-
         private void SubNav_Checked(object sender, RoutedEventArgs e)
         {
             var rb = sender as RadioButton;
@@ -94,8 +90,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             }
         }
 
-        // ---------- 头像 ----------
-
         private void OnCurrentRoleChanged()
         {
             Dispatcher.Invoke(UpdateAvatar);
@@ -115,7 +109,9 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             AvatarText.Text = role.Initial;
             RoleNameText.Text = role.Username;
-            RoleTypeText.Text = role.Type == "Offline" ? "离线账号" : role.Type;
+            RoleTypeText.Text = role.Type == "Offline" ? "离线账号"
+                              : role.Type == "Microsoft" ? "正版账号"
+                              : role.Type;
             AvatarBorder.Background = new SolidColorBrush(GetAvatarColor(role.Username));
         }
 
@@ -139,8 +135,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             return colors[Math.Abs(hash) % colors.Length];
         }
 
-        // ---------- 角色列表 ----------
-
         private void RefreshRoleList()
         {
             RoleListBox.ItemsSource = null;
@@ -163,17 +157,9 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
         private void CreateRole_Click(object sender, RoutedEventArgs e)
         {
-            var dlg = new CreateRoleWindow(false)
-            {
-                Owner = Window.GetWindow(this)
-            };
-            if (dlg.ShowDialog() == true)
-            {
-                RefreshRoleList();
-            }
+            App.PromptCreateRole(Window.GetWindow(this), isFirstUse: false);
+            RefreshRoleList();
         }
-
-        // ---------- 版本选择 ----------
 
         private void VersionPickerButton_Click(object sender, RoutedEventArgs e)
         {
@@ -213,14 +199,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     "提示", MessageBoxButton.YesNo, MessageBoxImage.Question);
                 if (r == MessageBoxResult.Yes)
                 {
-                    var dlg = new CreateRoleWindow(false)
-                    {
-                        Owner = Window.GetWindow(this)
-                    };
-                    if (dlg.ShowDialog() == true)
-                    {
-                        RefreshRoleList();
-                    }
+                    App.PromptCreateRole(Window.GetWindow(this), isFirstUse: false);
+                    RefreshRoleList();
                 }
                 return;
             }
@@ -234,14 +214,28 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 string javaBaseDir = App.Config.JavaBaseDir;
                 bool isolated = App.Config.Isolated;
 
-                // 传入当前角色名
+                string userType = role.Type == "Microsoft" ? "msa" : "legacy";
+                string accessToken = role.AccessToken;
+                if (string.IsNullOrEmpty(accessToken))
+                    accessToken = "0";
+
+                var progress = new Progress<LaunchProgress>(p =>
+                {
+                    Dispatcher.Invoke(() => UpdateLaunchStatus(p));
+                });
+
                 int exitCode = await Task.Run(() =>
                     Launch_Minecraft.GameLauncher.Run(
                         "client",
                         gameDir,
                         version,
                         isolated,
-                        javaBaseDir));
+                        javaBaseDir,
+                        role.Username,
+                        role.Uuid,
+                        accessToken,
+                        userType,
+                        p => ((IProgress<LaunchProgress>)progress).Report(p)));
 
                 if (exitCode != 0)
                 {
@@ -258,6 +252,29 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             {
                 LaunchButton.IsEnabled = true;
                 VersionPickerButton.IsEnabled = true;
+            }
+        }
+
+        // ---------- 启动进度更新 ----------
+
+        private void UpdateLaunchStatus(LaunchProgress p)
+        {
+            if (p == null) return;
+
+            CurrentVersionText.Text = p.Message;
+
+            if (p.Phase == LaunchPhase.Stopped || p.Phase == LaunchPhase.Failed)
+            {
+                var timer = new DispatcherTimer
+                {
+                    Interval = TimeSpan.FromSeconds(3)
+                };
+                timer.Tick += (s, e) =>
+                {
+                    timer.Stop();
+                    UpdateVersionLabel();
+                };
+                timer.Start();
             }
         }
     }

@@ -10,20 +10,11 @@ namespace Launch_Minecraft
 {
     public static class GameLauncher
     {
-        // ============================================================
-        //   新的公开入口：替代原来的 Main
-        // ============================================================
-        /// <summary>
-        /// 启动 Minecraft。
-        /// </summary>
-        /// <param name="launchType">client / server</param>
-        /// <param name="folderPath">.minecraft 或服务端目录</param>
-        /// <param name="launchVersion">版本名，服务端可传 "none"</param>
-        /// <param name="isolated">是否开启版本隔离（仅 client 有效）</param>
-        /// <param name="javaBaseDir">Java 基准目录，可传 null</param>
-        /// <returns>0 = 成功，1 = 失败</returns>
         public static int Run(string launchType, string folderPath,
-                              string launchVersion, bool isolated, string javaBaseDir)
+                      string launchVersion, bool isolated, string javaBaseDir,
+                      string username = null, string uuid = null,
+                      string accessToken = null, string userType = null,
+                      Action<LaunchProgress> onProgress = null)
         {
             try
             {
@@ -87,27 +78,32 @@ namespace Launch_Minecraft
                 switch (info.Type)
                 {
                     case LoaderType.Vanilla:
-                        if (isClient) Vanilla.LaunchClient(folderPath, launchVersion, isolated, javaBaseDir);
+                        if (isClient) Vanilla.LaunchClient(folderPath, launchVersion, isolated, javaBaseDir,
+                                                            username, uuid, accessToken, userType, onProgress);
                         else Vanilla.LaunchServer(folderPath, launchVersion, javaBaseDir);
                         break;
 
                     case LoaderType.Forge:
-                        if (isClient) Forge.LaunchClient(folderPath, launchVersion, isolated, javaBaseDir);
+                        if (isClient) Forge.LaunchClient(folderPath, launchVersion, isolated, javaBaseDir,
+                                                          username, uuid, accessToken, userType, onProgress);
                         else Forge.LaunchServer(folderPath, launchVersion, javaBaseDir);
                         break;
 
                     case LoaderType.NeoForge:
-                        if (isClient) NeoForge.LaunchClient(folderPath, launchVersion, isolated, javaBaseDir);
+                        if (isClient) NeoForge.LaunchClient(folderPath, launchVersion, isolated, javaBaseDir,
+                                                             username, uuid, accessToken, userType, onProgress);
                         else NeoForge.LaunchServer(folderPath, launchVersion, javaBaseDir);
                         break;
 
                     case LoaderType.Fabric:
-                        if (isClient) Fabric.LaunchClient(folderPath, launchVersion, isolated, javaBaseDir);
+                        if (isClient) Fabric.LaunchClient(folderPath, launchVersion, isolated, javaBaseDir,
+                                                           username, uuid, accessToken, userType, onProgress);
                         else Fabric.LaunchServer(folderPath, launchVersion, javaBaseDir);
                         break;
 
                     case LoaderType.Quilt:
-                        if (isClient) Quilt.LaunchClient(folderPath, launchVersion, isolated, javaBaseDir);
+                        if (isClient) Quilt.LaunchClient(folderPath, launchVersion, isolated, javaBaseDir,
+                                                          username, uuid, accessToken, userType, onProgress);
                         else Quilt.LaunchServer(folderPath, launchVersion, javaBaseDir);
                         break;
 
@@ -145,9 +141,6 @@ namespace Launch_Minecraft
         }
     }
 
-    // ============================================================
-    //   以下枚举、类、检测器 全部保持原样
-    // ============================================================
     public enum LoaderType
     {
         Vanilla = 0,
