@@ -46,6 +46,14 @@
   - Fody 6.0.0
   - Costura.Fody 4.1.0
 
+## 📦 旧版本下载（非新项目）
+
+新项目功能尚未迁移完成，暂不发布正式版。如需体验旧版本编译成品，可前往：
+- [点击下载（蓝奏云）](https://wwbxj.lanzoul.com/b01bjnlkxa) 密码：JCL
+
+> ⚠️ 此下载仅对应已停止维护的旧版本，与新项目代码不完全一致。
+> 新项目发布正式版后会在此页面更新 GitHub Releases 链接。
+
 ## 🙏 致谢
 本项目的学习和开发过程中参考了以下优秀开源项目：
 - **Plain Craft Launcher 2**：https://github.com/Hex-Dragon/PCL2
