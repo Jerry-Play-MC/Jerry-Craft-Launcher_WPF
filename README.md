@@ -30,6 +30,13 @@
 ## ⚠️ Current Status and Notes
 > **Development background**: This project is a personal practice work independently completed by the author within two months during summer vacation, aiming to learn C# and .NET development. Since the author is still in the learning stage, there may be shortcomings in code style and architecture design. **Please use it with caution in production environments or for important saves.**
 
+## 🔐 Microsoft Authentication Compliance
+
+- Uses the official Microsoft OAuth **device code flow** only. No password is ever collected, stored, or transmitted.
+- All OAuth tokens (access / refresh / client token) are encrypted at rest with **Windows DPAPI** (`DataProtectionScope.CurrentUser`) before being written to disk. No plaintext token file is produced.
+- The launcher itself does not write to the Windows registry, AppData, or any other user-profile location for account data. All launcher data lives under its own program directory and is removed by deleting that directory.
+- Not involved in any account theft, credential sharing, or black-market activity.
+
 ## 🛠️ Tech Stack and Dependencies
 - Target framework: .NET Framework 4.5
 - Development environment: Visual Studio 2026

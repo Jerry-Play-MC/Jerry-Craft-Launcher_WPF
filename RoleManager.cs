@@ -19,6 +19,13 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         public static IList<Role> Roles { get { return _roles; } }
         public static Role Current { get { return _current; } }
 
+        /// <summary>
+        /// 最近一次 Reload() 里因为无法解密而删除的角色文件数量。
+        /// UI 层可以在 Initialize / Reload 后读这个值，提示用户重新登录。
+        /// 每次 Reload 都会重置。
+        /// </summary>
+        public static int LastRemovedInvalidCount { get; private set; }
+
         public static void Initialize()
         {
             string baseDir = AppDomain.CurrentDomain.BaseDirectory;
@@ -29,7 +36,9 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
         public static void Reload()
         {
+            LastRemovedInvalidCount = 0;
             _roles.Clear();
+
             try
             {
                 if (Directory.Exists(_roleDir))
@@ -38,32 +47,53 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     foreach (var f in Directory.GetFiles(_roleDir, "*.json",
                                                           SearchOption.AllDirectories))
                     {
+                        string json = null;
+
                         try
                         {
-                            // ★ 改为 DPAPI 解密读取，兼容旧明文并自动迁移
-                            string json = SecureStorage.ReadAllTextWithMigration(f);
-                            if (string.IsNullOrEmpty(json)) continue;
+                            // ★ DPAPI 解密读取，兼容旧明文并自动迁移
+                            json = SecureStorage.ReadAllTextWithMigration(f);
+                        }
+                        catch
+                        {
+                            json = null;
+                        }
 
-                            var role = new JavaScriptSerializer().Deserialize<Role>(json);
-                            if (role != null && !string.IsNullOrEmpty(role.Uuid))
+                        // 解密失败 → 换机器 / 换用户 / 文件损坏 → 直接删
+                        if (string.IsNullOrEmpty(json))
+                        {
+                            try
                             {
-                                if (string.IsNullOrEmpty(role.Type))
-                                {
-                                    // 兜底：JSON 里有 accessToken/refreshToken 字段 → 正版
-                                    if (json.IndexOf("\"accessToken\"",
-                                            StringComparison.OrdinalIgnoreCase) >= 0 ||
-                                        json.IndexOf("\"refreshToken\"",
-                                            StringComparison.OrdinalIgnoreCase) >= 0)
-                                    {
-                                        role.Type = "Microsoft";
-                                    }
-                                    else
-                                    {
-                                        role.Type = "Offline";
-                                    }
-                                }
-                                _roles.Add(role);
+                                File.Delete(f);
+                                LastRemovedInvalidCount++;
                             }
+                            catch { }
+                            continue;
+                        }
+
+                        // 解密成功，解析 JSON
+                        try
+                        {
+                            var role = new JavaScriptSerializer().Deserialize<Role>(json);
+                            if (role == null || string.IsNullOrEmpty(role.Uuid))
+                                continue;
+
+                            if (string.IsNullOrEmpty(role.Type))
+                            {
+                                // 兜底：JSON 里有 accessToken/refreshToken 字段 → 正版
+                                if (json.IndexOf("\"accessToken\"",
+                                        StringComparison.OrdinalIgnoreCase) >= 0 ||
+                                    json.IndexOf("\"refreshToken\"",
+                                        StringComparison.OrdinalIgnoreCase) >= 0)
+                                {
+                                    role.Type = "Microsoft";
+                                }
+                                else
+                                {
+                                    role.Type = "Offline";
+                                }
+                            }
+                            _roles.Add(role);
                         }
                         catch { }
                     }
@@ -101,7 +131,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             var role = new Role { Username = username, Uuid = uuid, Type = "Offline" };
             string path = Path.Combine(_roleDir, uuid + ".json");
 
-            // ★ 改为 DPAPI 加密写入，与正版账号保持一致
+            // ★ DPAPI 加密写入，与正版账号保持一致
             SecureStorage.WriteAllTextEncrypted(path,
                 new JavaScriptSerializer().Serialize(role));
 
@@ -158,6 +188,12 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         {
             var h = CurrentRoleChanged;
             if (h != null) h();
+        }
+
+        /// <summary>清空计数。UI 层弹完对话框后调用，避免重复提示。</summary>
+        public static void ClearLastRemovedInvalidCount()
+        {
+            LastRemovedInvalidCount = 0;
         }
     }
 }

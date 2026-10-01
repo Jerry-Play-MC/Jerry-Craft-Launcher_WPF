@@ -18,6 +18,9 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         private const string DEFAULT_CLIENT_ID = "04bc9a34-3d65-4526-9201-28bca0c4bef7";// 此启动器申请的Client_Id:{04bc9a34-3d65-4526-9201-28bca0c4bef7}
         private static readonly string[] DEFAULT_SCOPES = new[] { "XboxLive.signin", "offline_access" };
 
+        // 网络请求超时（毫秒）。微软/Xbox/Minecraft 服务偶尔抽风，必须有超时。
+        private const int HTTP_TIMEOUT_MS = 15000;
+
         private readonly string _clientId;
         private readonly string[] _scopes;
         private readonly string _clientToken;
@@ -161,7 +164,12 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 throw new Exception("刷新失败: " + result["error"] + " - " + result["error_description"]);
 
             accessToken = result["access_token"].ToString();
-            newRefreshToken = result["refresh_token"].ToString();
+
+            // ★ 微软 OAuth 有时不返回新的 refresh_token（scope 未变时会复用旧的），
+            //   必须容错，否则 result["refresh_token"] 会抛 KeyNotFoundException。
+            newRefreshToken = result.ContainsKey("refresh_token")
+                ? result["refresh_token"].ToString()
+                : refreshToken;
         }
 
         private DeviceAuthResult GetAzureTokenByDeviceCode()
@@ -191,8 +199,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             if (OnUserCodeReceived != null)
                 OnUserCodeReceived(userCode, verificationUri);
-            else
-                Console.WriteLine("请访问 " + verificationUri + " 并输入代码: " + userCode);
 
             var startTime = DateTime.UtcNow;
             while ((DateTime.UtcNow - startTime).TotalSeconds < expiresIn)
@@ -323,6 +329,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 "https://api.minecraftservices.com/minecraft/profile");
             request.Method = "GET";
             request.Headers["Authorization"] = "Bearer " + mcToken;
+            request.Timeout = HTTP_TIMEOUT_MS;
+            request.ReadWriteTimeout = HTTP_TIMEOUT_MS;
 
             using (var response = (HttpWebResponse)request.GetResponse())
             using (var stream = response.GetResponseStream())
@@ -364,6 +372,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             request.Method = "POST";
             request.ContentType = "application/x-www-form-urlencoded";
             request.UserAgent = "MinecraftLauncher/1.0";
+            request.Timeout = HTTP_TIMEOUT_MS;
+            request.ReadWriteTimeout = HTTP_TIMEOUT_MS;
             byte[] data = Encoding.UTF8.GetBytes(formData);
             request.ContentLength = data.Length;
             try
@@ -403,6 +413,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             request.Method = "POST";
             request.ContentType = "application/json";
             request.UserAgent = "MinecraftLauncher/1.0";
+            request.Timeout = HTTP_TIMEOUT_MS;
+            request.ReadWriteTimeout = HTTP_TIMEOUT_MS;
             byte[] data = Encoding.UTF8.GetBytes(jsonData);
             request.ContentLength = data.Length;
             try
