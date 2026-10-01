@@ -73,7 +73,9 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             if (!File.Exists(cacheFilePath))
                 throw new FileNotFoundException("缓存文件不存在", cacheFilePath);
 
-            string json = File.ReadAllText(cacheFilePath, Encoding.UTF8);
+            string json = SecureStorage.ReadAllTextWithMigration(cacheFilePath);
+            if (string.IsNullOrEmpty(json))
+                throw new Exception("缓存文件无法解密或已损坏，请重新登录。");
             var data = new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(json);
             string refreshToken = data["refreshToken"].ToString();
 
@@ -107,7 +109,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             };
 
             string json = new JavaScriptSerializer().Serialize(cacheObj);
-            File.WriteAllText(filePath, json, Encoding.UTF8);
+            SecureStorage.WriteAllTextEncrypted(filePath, json);
             return filePath;
         }
 
@@ -129,7 +131,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             };
 
             string json = new JavaScriptSerializer().Serialize(cacheObj);
-            File.WriteAllText(filePath, json, Encoding.UTF8);
+            SecureStorage.WriteAllTextEncrypted(filePath, json);
             return filePath;
         }
 
@@ -140,21 +142,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 "Launcher Setting", "Roles", "Microsoft");
             Directory.CreateDirectory(folder);
             return Path.Combine(folder, uuid + ".json");
-        }
-
-        private bool IsAccessTokenValid(string accessToken)
-        {
-            try
-            {
-                var request = (HttpWebRequest)WebRequest.Create(
-                    "https://api.minecraftservices.com/minecraft/profile");
-                request.Method = "GET";
-                request.Headers["Authorization"] = "Bearer " + accessToken;
-                request.Timeout = 5000;
-                using (var response = (HttpWebResponse)request.GetResponse())
-                    return response.StatusCode == HttpStatusCode.OK;
-            }
-            catch { return false; }
         }
 
         public void RefreshAzureToken(string refreshToken,
@@ -367,7 +354,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 userProperties = new { }
             };
             string json = new JavaScriptSerializer().Serialize(accountObj);
-            File.WriteAllText(filePath, json, Encoding.UTF8);
+            SecureStorage.WriteAllTextEncrypted(filePath, json);
         }
 
         // ----- HTTP 辅助 -----

@@ -40,7 +40,10 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     {
                         try
                         {
-                            string json = File.ReadAllText(f);
+                            // ★ 改为 DPAPI 解密读取，兼容旧明文并自动迁移
+                            string json = SecureStorage.ReadAllTextWithMigration(f);
+                            if (string.IsNullOrEmpty(json)) continue;
+
                             var role = new JavaScriptSerializer().Deserialize<Role>(json);
                             if (role != null && !string.IsNullOrEmpty(role.Uuid))
                             {
@@ -97,8 +100,10 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             var role = new Role { Username = username, Uuid = uuid, Type = "Offline" };
             string path = Path.Combine(_roleDir, uuid + ".json");
-            File.WriteAllText(path,
-                new JavaScriptSerializer().Serialize(role), Encoding.UTF8);
+
+            // ★ 改为 DPAPI 加密写入，与正版账号保持一致
+            SecureStorage.WriteAllTextEncrypted(path,
+                new JavaScriptSerializer().Serialize(role));
 
             _roles.Add(role);
             SetCurrent(role);
