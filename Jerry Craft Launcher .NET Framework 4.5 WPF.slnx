@@ -1,10 +1,21 @@
 <Solution>
-  <Project Path="Download Java/Download Java.csproj" Id="63055919-2791-49ce-8bf4-c9e2111ec160" />
-  <Project Path="Install Minecraft Versions/Install Minecraft Versions.csproj" Id="cc07ad9f-ebed-4ede-9282-a9791d1bd633" />
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="Download Java/Download Java.csproj" Id="63055919-2791-49ce-8bf4-c9e2111ec160">
+    <Platform Solution="*|x86" Project="x86" />
+  </Project>
+  <Project Path="Install Minecraft Versions/Install Minecraft Versions.csproj" Id="cc07ad9f-ebed-4ede-9282-a9791d1bd633">
+    <Platform Solution="*|x86" Project="x86" />
+  </Project>
   <Project Path="Jerry Craft Launcher .NET Framework 4.5 WPF.csproj" Id="cc4de3d2-cb2c-457c-bb08-e381841646c5">
     <BuildDependency Project="Download Java/Download Java.csproj" />
     <BuildDependency Project="Install Minecraft Versions/Install Minecraft Versions.csproj" />
     <BuildDependency Project="Launch Minecraft/Launch Minecraft.csproj" />
+    <Platform Solution="*|x86" Project="x86" />
   </Project>
-  <Project Path="Launch Minecraft/Launch Minecraft.csproj" Id="f0f5c8cf-8ad0-4a01-a82f-fa255112e98e" />
+  <Project Path="Launch Minecraft/Launch Minecraft.csproj" Id="f0f5c8cf-8ad0-4a01-a82f-fa255112e98e">
+    <Platform Solution="*|x86" Project="x86" />
+  </Project>
 </Solution>
