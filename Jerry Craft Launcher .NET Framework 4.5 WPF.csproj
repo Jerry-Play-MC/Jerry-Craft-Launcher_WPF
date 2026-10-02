@@ -134,8 +134,8 @@
     <Compile Include="SettingsView.xaml.cs">
       <DependentUpon>SettingsView.xaml</DependentUpon>
     </Compile>
-    <Compile Include="Updater\UpdateService.cs" />
-    <Compile Include="Updater\UpdateWindow.xaml.cs">
+    <Compile Include="Updates\UpdateService.cs" />
+    <Compile Include="Updates\UpdateWindow.xaml.cs">
       <DependentUpon>UpdateWindow.xaml</DependentUpon>
     </Compile>
     <Compile Include="VersionManifestScanner.cs" />
@@ -212,7 +212,7 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="Updater\UpdateWindow.xaml">
+    <Page Include="Updates\UpdateWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -240,7 +240,7 @@
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
     </None>
-    <None Include="Updater\latest.json" />
+    <None Include="Updates\latest.json" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
@@ -260,13 +260,12 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <Content Include="Updates\files\Jerry_Craft_Launcher.exe" />
     <EmbeddedResource Include="libwebp_x86.dll" />
     <Content Include="README-zh.md" />
     <Content Include="README.md" />
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Updater\files\" />
-  </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Import Project="packages\Fody.6.0.0\build\Fody.targets" Condition="Exists('packages\Fody.6.0.0\build\Fody.targets')" />
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">

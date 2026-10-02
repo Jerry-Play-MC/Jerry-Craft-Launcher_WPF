@@ -1,0 +1,12 @@
+{
+  "version": "1.0.1",
+  "notes": "第一个正式版本发布",
+  "force": false,
+  "files": {
+    "windows": {
+      "url": "https://raw.githubusercontent.com/Jerry-Play-MC/Jerry-Craft-Launcher_WPF/main/updates/files/Jerry_Craft_Launcher.exe",
+      "sha256": "0e33491b2f16f7e25da6bef1872a40a089244e6abfb9cc668976a659a815b980",
+      "size": 1041408
+    }
+  }
+}
