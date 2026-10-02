@@ -90,44 +90,44 @@
     <Compile Include="ClientInstallWindow.xaml.cs">
       <DependentUpon>ClientInstallWindow.xaml</DependentUpon>
     </Compile>
-    <Compile Include="CreateRoleWindow.xaml.cs">
+    <Compile Include="Roles\CreateRoleWindow.xaml.cs">
       <DependentUpon>CreateRoleWindow.xaml</DependentUpon>
     </Compile>
     <Compile Include="JsonHelper.cs" />
     <Compile Include="LocalVersionScanner.cs" />
-    <Compile Include="MicrosoftLoginWindow.xaml.cs">
+    <Compile Include="Roles\MicrosoftLoginWindow.xaml.cs">
       <DependentUpon>MicrosoftLoginWindow.xaml</DependentUpon>
     </Compile>
-    <Compile Include="MinecraftAuthenticator.cs" />
+    <Compile Include="Roles\MinecraftAuthenticator.cs" />
     <Compile Include="MinecraftCore.cs" />
-    <Compile Include="ModApiService.cs" />
-    <Compile Include="ModInstallTargetWindow.xaml.cs">
+    <Compile Include="Mod\ModApiService.cs" />
+    <Compile Include="Mod\ModInstallTargetWindow.xaml.cs">
       <DependentUpon>ModInstallTargetWindow.xaml</DependentUpon>
     </Compile>
-    <Compile Include="ModrinthModels.cs" />
-    <Compile Include="ModSearchView.xaml.cs">
+    <Compile Include="Mod\ModrinthModels.cs" />
+    <Compile Include="Mod\ModSearchView.xaml.cs">
       <DependentUpon>ModSearchView.xaml</DependentUpon>
     </Compile>
-    <Compile Include="ModVersionsWindow.xaml.cs">
+    <Compile Include="Mod\ModVersionsWindow.xaml.cs">
       <DependentUpon>ModVersionsWindow.xaml</DependentUpon>
     </Compile>
     <Compile Include="NativeLibraryLoader.cs" />
-    <Compile Include="Role.cs" />
-    <Compile Include="RoleManager.cs" />
+    <Compile Include="Roles\Role.cs" />
+    <Compile Include="Roles\RoleManager.cs" />
     <Compile Include="SecureStorage.cs" />
     <Compile Include="SelectLoginTypeWindow.xaml.cs">
       <DependentUpon>SelectLoginTypeWindow.xaml</DependentUpon>
     </Compile>
-    <Compile Include="ServerInfo.cs" />
-    <Compile Include="ServerInstallWindow.xaml.cs">
+    <Compile Include="Server\ServerInfo.cs" />
+    <Compile Include="Server\ServerInstallWindow.xaml.cs">
       <DependentUpon>ServerInstallWindow.xaml</DependentUpon>
     </Compile>
-    <Compile Include="ServerProperties.cs" />
-    <Compile Include="ServerScanner.cs" />
-    <Compile Include="ServerSettingsWindow.xaml.cs">
+    <Compile Include="Server\ServerProperties.cs" />
+    <Compile Include="Server\ServerScanner.cs" />
+    <Compile Include="Server\ServerSettingsWindow.xaml.cs">
       <DependentUpon>ServerSettingsWindow.xaml</DependentUpon>
     </Compile>
-    <Compile Include="ServerView.xaml.cs">
+    <Compile Include="Server\ServerView.xaml.cs">
       <DependentUpon>ServerView.xaml</DependentUpon>
     </Compile>
     <Compile Include="SettingsManager.cs" />
@@ -140,13 +140,13 @@
     </Compile>
     <Compile Include="VersionManifestScanner.cs" />
     <Compile Include="VersionScanner.cs" />
-    <Compile Include="WebPHelper.cs" />
-    <Compile Include="WebPWrapper.cs" />
+    <Compile Include="Mod\WebPHelper.cs" />
+    <Compile Include="Mod\WebPWrapper.cs" />
     <Page Include="ClientInstallWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="CreateRoleWindow.xaml">
+    <Page Include="Roles\CreateRoleWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -176,19 +176,19 @@
       <DependentUpon>MainWindow.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
-    <Page Include="MicrosoftLoginWindow.xaml">
+    <Page Include="Roles\MicrosoftLoginWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="ModInstallTargetWindow.xaml">
+    <Page Include="Mod\ModInstallTargetWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="ModSearchView.xaml">
+    <Page Include="Mod\ModSearchView.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="ModVersionsWindow.xaml">
+    <Page Include="Mod\ModVersionsWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -196,15 +196,15 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="ServerInstallWindow.xaml">
+    <Page Include="Server\ServerInstallWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="ServerSettingsWindow.xaml">
+    <Page Include="Server\ServerSettingsWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="ServerView.xaml">
+    <Page Include="Server\ServerView.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

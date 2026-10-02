@@ -46,6 +46,11 @@ Double-click to run. No additional components are required.
   - Fody 6.0.0
   - Costura.Fody 4.1.0
 
+## 📦 Download
+
+- [View all releases](https://github.com/Jerry-Play-MC/Jerry-Craft-Launcher_WPF/releases)
+- [Download the latest release](https://github.com/Jerry-Play-MC/Jerry-Craft-Launcher_WPF/releases/latest)
+
 ## 🙏 Acknowledgements
 The learning and development of this project referred to the following excellent open-source projects:
 - **Plain Craft Launcher 2**: https://github.com/Hex-Dragon/PCL2
