@@ -71,7 +71,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF.Updater
         public const UpdateSource JsonSource = UpdateSource.Repository;
 
         /// <summary>Repository 模式下的 JSON 路径</summary>
-        public const string JsonPath = "updates/latest.json";
+        public const string JsonPath = "Updates/latest.json";
 
         /// <summary>Release 模式下的 JSON 资产名</summary>
         public const string JsonFileName = "latest.json";

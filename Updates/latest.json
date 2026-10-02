@@ -4,8 +4,8 @@
   "force": false,
   "files": {
     "windows": {
-      "url": "https://raw.githubusercontent.com/Jerry-Play-MC/Jerry-Craft-Launcher_WPF/main/updates/files/Jerry_Craft_Launcher.exe",
-      "sha256": "0e33491b2f16f7e25da6bef1872a40a089244e6abfb9cc668976a659a815b980",
+      "url": "https://raw.githubusercontent.com/Jerry-Play-MC/Jerry-Craft-Launcher_WPF/main/Updates/files/Jerry_Craft_Launcher.exe",
+      "sha256": "3379d39621fd24bf231a223d9da3b2ea1d18ce666f7572e4db7e3c62544a1379",
       "size": 1041408
     }
   }
