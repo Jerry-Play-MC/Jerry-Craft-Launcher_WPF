@@ -308,7 +308,6 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <Content Include="Updates\files\Jerry_Craft_Launcher.exe" />
     <EmbeddedResource Include="libwebp_x86.dll" />
     <Content Include="README-zh.md" />
     <Content Include="README.md" />

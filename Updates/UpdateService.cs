@@ -121,7 +121,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF.Updater
 
         // ============================================================
 
-        public static string CurrentVersion = "1.0.0";
+        public static string CurrentVersion = "1.1.0";
 
         public static string ExeName =
             Path.GetFileName(Process.GetCurrentProcess().MainModule.FileName);

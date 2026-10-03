@@ -1,12 +1,12 @@
 {
-  "version": "1.0.0",
-  "notes": "第一个正式版本发布",
+  "version": "1.1.0",
+  "notes": "修复了Microsoft正版登录的相关问题",
   "force": false,
   "files": {
     "windows": {
       "url": "https://github.com/Jerry-Play-MC/Jerry-Craft-Launcher_WPF/releases/latest/download/Jerry_Craft_Launcher.exe",
-      "sha256": "68df8799e69ad4cac346bcbd6de7b8bbf56ff9ebab7e715ff548e367a584301e",
-      "size": 1040896
+      "sha256": "5e8e77c117874e4cba1da4d74425c8efd25d68c2ec2fe51ebd0e680fcda6e8fc",
+      "size": 411136
     }
   }
 }
