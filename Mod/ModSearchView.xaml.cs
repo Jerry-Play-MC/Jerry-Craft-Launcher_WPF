@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Jerry_Craft_Launcher.NET_Framework_4._5_WPF.Languages;
+using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Threading.Tasks;
@@ -87,7 +88,9 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             SearchButton.IsEnabled = false;
             PrevButton.IsEnabled = false;
             NextButton.IsEnabled = false;
-            ModList.ItemsSource = new List<string> { "加载中..." };
+            ModList.ItemsSource = new List<string> {
+                LanguageManager.Get("ModSearch.Loading")
+            };
 
             try
             {
@@ -104,8 +107,11 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
                 if (mods == null || mods.Count == 0)
                 {
-                    ModList.ItemsSource = new List<string> { "没有找到任何项目" };
-                    PageInfoText.Text = "第 1 / 1 页";
+                    ModList.ItemsSource = new List<string> {
+                        LanguageManager.Get("ModSearch.NoResult")
+                    };
+                    PageInfoText.Text = string.Format(
+                        LanguageManager.Get("ModSearch.PageInfo"), 1, 1, 0);
                     return;
                 }
 
@@ -117,13 +123,17 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
                 int totalPages = Math.Max(1,
                     (int)Math.Ceiling((double)_totalHits / PageSize));
-                PageInfoText.Text = "第 " + _currentPage + " / " + totalPages
-                    + " 页（共 " + _totalHits + " 项）";
+                PageInfoText.Text = string.Format(
+                    LanguageManager.Get("ModSearch.PageInfo"),
+                    _currentPage, totalPages, _totalHits);
             }
             catch (Exception ex)
             {
-                ModList.ItemsSource = new List<string> { "加载失败：" + ex.Message };
-                PageInfoText.Text = "第 1 / 1 页";
+                ModList.ItemsSource = new List<string> {
+                    LanguageManager.Get("Download.Failure") + "：" + ex.Message
+                };
+                PageInfoText.Text = string.Format(
+                    LanguageManager.Get("ModSearch.PageInfo"), 1, 1, 0);
             }
             finally
             {

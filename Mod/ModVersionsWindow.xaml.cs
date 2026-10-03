@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Jerry_Craft_Launcher.NET_Framework_4._5_WPF.Languages;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
@@ -40,7 +41,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             _currentVersion = App.Config.CurrentVersion;
             _isVersionIsolated = App.Config.Isolated;
 
-            TitleText.Text = "版本列表：" + (string.IsNullOrEmpty(title) ? modId : title);
+            TitleText.Text = LanguageManager.Get("ModVersions.TitlePrefix")
+                + (string.IsNullOrEmpty(title) ? modId : title);
 
             SortBox.SelectedIndex = 0;
             SortDirBox.SelectedIndex = 0;
@@ -58,8 +60,10 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             if (_loading) return;
             _loading = true;
 
-            StatusText.Text = "正在加载版本...";
-            VersionList.ItemsSource = new List<string> { "加载中..." };
+            StatusText.Text = LanguageManager.Get("ModVersions.Loading");
+            VersionList.ItemsSource = new List<string> {
+        LanguageManager.Get("ModVersions.Loading")
+    };
             SetFilterEnabled(false);
 
             try
@@ -69,8 +73,10 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
                 if (_allVersions.Count == 0)
                 {
-                    VersionList.ItemsSource = new List<string> { "没有找到版本" };
-                    StatusText.Text = "共 0 个版本";
+                    VersionList.ItemsSource = new List<string> {
+                LanguageManager.Get("ModVersions.NoResult")
+            };
+                    StatusText.Text = LanguageManager.Get("ModVersions.CountZero");
                     return;
                 }
 
@@ -79,8 +85,10 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             }
             catch (Exception ex)
             {
-                VersionList.ItemsSource = new List<string> { "加载失败：" + ex.Message };
-                StatusText.Text = "加载失败";
+                VersionList.ItemsSource = new List<string> {
+            LanguageManager.Get("Download.Failure") + "：" + ex.Message
+        };
+                StatusText.Text = LanguageManager.Get("Download.Failure");
             }
             finally
             {
@@ -115,12 +123,12 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             sortedVersions.Sort((a, b) => CompareVersions(b, a));
 
             GameVersionBox.Items.Clear();
-            GameVersionBox.Items.Add("全部");
+            GameVersionBox.Items.Add(LanguageManager.Get("Common.All"));
             foreach (var v in sortedVersions) GameVersionBox.Items.Add(v);
             GameVersionBox.SelectedIndex = 0;
 
             LoaderBox.Items.Clear();
-            LoaderBox.Items.Add("全部");
+            LoaderBox.Items.Add(LanguageManager.Get("Common.All"));
             foreach (var l in loaders.OrderBy(x => x)) LoaderBox.Items.Add(l);
             LoaderBox.SelectedIndex = 0;
         }
@@ -157,11 +165,12 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         private void ApplyFilter()
         {
             _filtering = true;
+            string allText = LanguageManager.Get("Common.All");
             try
             {
                 string search = (SearchBox.Text ?? "").Trim().ToLowerInvariant();
-                string game = GameVersionBox.SelectedItem as string ?? "全部";
-                string loader = LoaderBox.SelectedItem as string ?? "全部";
+                string game = GameVersionBox.SelectedItem as string ?? allText;
+                string loader = LoaderBox.SelectedItem as string ?? allText;
                 int sortIdx = Math.Max(0, SortBox.SelectedIndex);
                 bool desc = SortDirBox.SelectedIndex == 0;
 
@@ -171,10 +180,10 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     q = q.Where(v => v.VersionNumber != null &&
                                      v.VersionNumber.ToLowerInvariant().Contains(search));
 
-                if (game != "全部")
+                if (game != allText)
                     q = q.Where(v => v.GameVersions != null && v.GameVersions.Contains(game));
 
-                if (loader != "全部")
+                if (loader != allText)
                     q = q.Where(v => v.Loaders != null && v.Loaders.Contains(loader));
 
                 switch (sortIdx)
@@ -195,8 +204,9 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
                 _filtered = q.ToList();
                 VersionList.ItemsSource = _filtered;
-                StatusText.Text = "共 " + _allVersions.Count
-                    + " 个版本，显示 " + _filtered.Count + " 个";
+                StatusText.Text = string.Format(
+                    LanguageManager.Get("ModVersions.CountInfo"),
+                    _allVersions.Count, _filtered.Count);
             }
             finally
             {
@@ -209,8 +219,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             var version = VersionList.SelectedItem as ModVersion;
             if (version == null)
             {
-                MessageBox.Show("请先选择一个版本。", "提示",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
+                LanguageManager.ShowInfo("ModVersions.SelectOne");
                 return;
             }
 
@@ -218,8 +227,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 ? version.Files[0].Url : null;
             if (string.IsNullOrEmpty(url))
             {
-                MessageBox.Show("该版本没有可下载的文件。", "提示",
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                LanguageManager.ShowWarning("ModVersions.NoFile");
                 return;
             }
 
@@ -286,16 +294,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 string loaderReq = version.Loaders != null && version.Loaders.Count > 0
                     ? string.Join(" / ", version.Loaders.ToArray()) : "不限";
 
-                var r = MessageBox.Show(
-                    "没有找到符合此 Mod 要求的版本实例。\n\n" +
-                    "Mod 要求游戏版本：" + gameReq + "\n" +
-                    "Mod 要求加载器：" + loaderReq + "\n\n" +
-                    "是否改为直接下载到 .minecraft\\mods 目录？\n" +
-                    "（注意：开启版本隔离时，该目录下的 Mod 默认不会被加载）",
-                    "未找到匹配版本",
-                    MessageBoxButton.YesNo, MessageBoxImage.Question);
-
-                if (r != MessageBoxResult.Yes) return;
+                if (!LanguageManager.Confirm("ModVersions.NoMatch", gameReq, loaderReq))
+                    return;
 
                 HandleSimpleDownload(version, url, fileName,
                     Path.Combine(_minecraftDir, "mods"));
@@ -369,15 +369,13 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             string savesDir = Path.Combine(_minecraftDir, "saves");
             if (!Directory.Exists(savesDir))
             {
-                MessageBox.Show("未找到 saves 文件夹，请先创建世界。", "提示",
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                LanguageManager.ShowWarning("ModVersions.NoSavesFolder");
                 return;
             }
             var worlds = Directory.GetDirectories(savesDir);
             if (worlds.Length == 0)
             {
-                MessageBox.Show("未找到任何存档，请先创建世界。", "提示",
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                LanguageManager.ShowWarning("ModVersions.NoWorlds");
                 return;
             }
 
@@ -386,9 +384,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             if (!Directory.Exists(datapackDir)) Directory.CreateDirectory(datapackDir);
 
             string savePath = Path.Combine(datapackDir, fileName);
-            var r = MessageBox.Show("即将下载数据包到：\n" + savePath + "\n是否继续？",
-                "确认", MessageBoxButton.YesNo, MessageBoxImage.Question);
-            if (r == MessageBoxResult.Yes)
+            if (LanguageManager.Confirm("ModVersions.DatapackConfirm", savePath))
                 _ = DownloadFileAsync(url, savePath, version.VersionNumber);
         }
 
@@ -401,7 +397,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             string cachedFilePath = Path.Combine(cacheDir, fileName);
 
             var dlg = new System.Windows.Forms.FolderBrowserDialog();
-            dlg.Description = "选择整合包解压目标目录（建议选 versions）";
+            dlg.Description = LanguageManager.Get("ModVersions.ModpackDialogDesc");
             string defaultPath = Path.Combine(_minecraftDir, "versions");
             dlg.SelectedPath = Directory.Exists(defaultPath) ? defaultPath : _minecraftDir;
 
@@ -411,7 +407,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             if (File.Exists(cachedFilePath))
             {
-                StatusText.Text = "使用缓存整合包：" + fileName;
+                StatusText.Text = LanguageManager.Get("ModVersions.UsingCached") + fileName;
                 _ = ProcessModpackAsync(cachedFilePath, version, extractTarget);
                 return;
             }
@@ -422,7 +418,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         private async Task DownloadModpackAsync(string url, string savePath,
             ModVersion version, string extractTarget)
         {
-            StatusText.Text = "下载整合包中...";
+            StatusText.Text = LanguageManager.Get("ModVersions.DownloadingPack");
             try
             {
                 await Task.Run(() => DownloadFileWithRetry(url, savePath, null, 3));
@@ -430,36 +426,33 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             }
             catch (Exception ex)
             {
-                MessageBox.Show("整合包下载失败：" + ex.Message, "错误",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                LanguageManager.ShowError("ModVersions.ModpackDownloadFailed", ex.Message);
             }
         }
 
         private async Task DownloadFileAsync(string url, string savePath, string versionNumber)
         {
-            StatusText.Text = "正在准备下载 " + versionNumber + "...";
+            StatusText.Text = LanguageManager.Get("ModVersions.Preparing") + versionNumber + "...";
 
             try
             {
-                // 先镜像，失败回退原 URL
                 bool ok = await DownloadWithProgressAsync(
                     ModApiService.GetMirrorUrl(url), savePath, versionNumber);
 
                 if (!ok)
                 {
                     ok = await DownloadWithProgressAsync(url, savePath, versionNumber);
-                    if (!ok) throw new Exception("所有下载源均不可用");
+                    if (!ok) throw new Exception(LanguageManager.Get("ModVersions.AllSourcesFailed"));
                 }
 
-                StatusText.Text = "下载完成：" + Path.GetFileName(savePath);
-                MessageBox.Show("下载完成：\n" + savePath, "成功",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
+                StatusText.Text = LanguageManager.Get("ModVersions.DownloadComplete")
+                    + Path.GetFileName(savePath);
+                LanguageManager.ShowInfo("ModVersions.DownloadSuccess", savePath);
             }
             catch (Exception ex)
             {
-                StatusText.Text = "下载失败";
-                MessageBox.Show("下载失败：" + ex.Message, "错误",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                StatusText.Text = LanguageManager.Get("ModVersions.DownloadFailed");
+                LanguageManager.ShowError("ModVersions.DownloadFailedMsg", ex.Message);
             }
         }
 
@@ -486,14 +479,15 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                         {
                             if (total > 0)
                             {
-                                StatusText.Text = "正在下载 " + versionNumber + "：" +
-                                    pct + "%  (" + FormatSize(received) +
-                                    " / " + FormatSize(total) + ")";
+                                StatusText.Text = string.Format(
+                                    LanguageManager.Get("ModVersions.Downloading"),
+                                    versionNumber, pct, FormatSize(received), FormatSize(total));
                             }
                             else
                             {
-                                StatusText.Text = "正在下载 " + versionNumber + "：" +
-                                    FormatSize(received);
+                                StatusText.Text = string.Format(
+                                    LanguageManager.Get("ModVersions.DownloadingNoTotal"),
+                                    versionNumber, FormatSize(received));
                             }
                         }));
                     };
@@ -765,7 +759,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                         if (total > 0)
                         {
                             this.Dispatcher.Invoke(() =>
-                                StatusText.Text = "正在下载文件: 0/" + total);
+                            StatusText.Text = string.Format(
+                                LanguageManager.Get("ModVersions.DownloadingFile"), 0, total, ""));
 
                             var handles = new List<ManualResetEvent>();
                             int maxC = Math.Min(10, total);
@@ -789,8 +784,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                                                 Interlocked.Increment(ref completed);
                                                 int c = completed;
                                                 this.Dispatcher.Invoke(() =>
-                                                    StatusText.Text = "正在下载文件["
-                                                        + c + "/" + total + "]: " + task.FileName);
+                                                StatusText.Text = string.Format(
+                                                    LanguageManager.Get("ModVersions.DownloadingFile"), c, total, task.FileName));
                                             }
                                             else
                                             {
@@ -815,8 +810,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                             }
 
                             this.Dispatcher.Invoke(() =>
-                                StatusText.Text = "下载完成，成功 " + completed
-                                    + " 个，失败 " + failedCount + " 个");
+                            StatusText.Text = string.Format(
+                                LanguageManager.Get("ModVersions.Progress"), completed, failedCount));
                         }
 
                         if (failedFiles.Count > 0)
@@ -832,11 +827,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                             if (finalFailed.Count > 0)
                             {
                                 this.Dispatcher.Invoke(() =>
-                                    MessageBox.Show(
-                                        "以下文件下载失败，请手动下载：\n"
-                                        + string.Join("\n", finalFailed.ToArray()),
-                                        "整合包下载不完整",
-                                        MessageBoxButton.OK, MessageBoxImage.Warning));
+                                    LanguageManager.ShowWarning("ModVersions.Incomplete",
+                                        string.Join("\n", finalFailed.ToArray())));
                             }
                         }
 
@@ -847,11 +839,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
                         this.Dispatcher.Invoke(() =>
                         {
-                            StatusText.Text = "整合包安装完成：" + packDir;
-                            MessageBox.Show(
-                                "整合包已安装到：\n" + packDir
-                                + "\n\n现在可以在启动器中选中 '" + packName + "' 启动。",
-                                "安装成功", MessageBoxButton.OK, MessageBoxImage.Information);
+                            StatusText.Text = LanguageManager.Get("ModVersions.InstallComplete") + packDir;
+                            LanguageManager.ShowInfo("ModVersions.Installed", packDir, packName);
                         });
                     }
                     else
@@ -868,17 +857,14 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                                     Path.Combine(extractTarget, Path.GetFileName(file)), true);
                         }
                         try { Directory.Delete(extractTemp, true); } catch { }
-
                         this.Dispatcher.Invoke(() =>
-                            MessageBox.Show("整合包已解压（缺少 modrinth.index.json）。",
-                                "提示", MessageBoxButton.OK, MessageBoxImage.Warning));
+                        LanguageManager.ShowWarning("ModVersions.ExtractedNoIndex"));
                     }
                 }
                 catch (Exception ex)
                 {
                     this.Dispatcher.Invoke(() =>
-                        MessageBox.Show("处理整合包失败：" + ex.Message, "错误",
-                            MessageBoxButton.OK, MessageBoxImage.Error));
+                        LanguageManager.ShowError("ModVersions.ProcessFailed", ex.Message));
                 }
             });
         }
@@ -1293,21 +1279,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 File.Copy(file, Path.Combine(targetDir, Path.GetFileName(file)), overwrite);
             foreach (var dir in Directory.GetDirectories(sourceDir))
                 CopyDirectory(dir, Path.Combine(targetDir, Path.GetFileName(dir)), overwrite);
-        }
-
-        private string GetModTargetDirectory()
-        {
-            if (!_isVersionIsolated)
-                return Path.Combine(_minecraftDir, "mods");
-
-            if (string.IsNullOrEmpty(_currentVersion))
-            {
-                MessageBox.Show("没有选择版本，无法定位 mods 目录。", "提示",
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
-                return null;
-            }
-            return Path.Combine(
-                Path.Combine(Path.Combine(_minecraftDir, "versions"), _currentVersion), "mods");
         }
 
         private string GetResourcePackTargetDirectory()

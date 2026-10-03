@@ -17,27 +17,32 @@
         <Border Grid.Column="0" Background="#FAFAFA"
                 BorderBrush="#E0E0E0" BorderThickness="0,0,1,0">
             <StackPanel Margin="8,16,8,0">
-                <RadioButton GroupName="DownloadSubNav" Content="Minecraft"
+                <RadioButton GroupName="DownloadSubNav"
+                             Content="{DynamicResource Download.Minecraft}"
                              Style="{StaticResource SubNavButtonStyle}"
                              IsChecked="True" Tag="Minecraft"
                              Checked="SubNav_Checked"
                              Margin="0,0,0,2"/>
-                <RadioButton GroupName="DownloadSubNav" Content="Mod"
+                <RadioButton GroupName="DownloadSubNav"
+                             Content="{DynamicResource Download.Mod}"
                              Style="{StaticResource SubNavButtonStyle}"
                              Tag="Mod"
                              Checked="SubNav_Checked"
                              Margin="0,2,0,0"/>
-                <RadioButton GroupName="DownloadSubNav" Content="整合包"
+                <RadioButton GroupName="DownloadSubNav"
+                             Content="{DynamicResource Download.Modpack}"
                              Style="{StaticResource SubNavButtonStyle}"
                              Tag="Modpack"
                              Checked="SubNav_Checked"
                              Margin="0,2,0,0"/>
-                <RadioButton GroupName="DownloadSubNav" Content="数据包"
+                <RadioButton GroupName="DownloadSubNav"
+                             Content="{DynamicResource Download.Datapack}"
                              Style="{StaticResource SubNavButtonStyle}"
                              Tag="Datapack"
                              Checked="SubNav_Checked"
                              Margin="0,2,0,0"/>
-                <RadioButton GroupName="DownloadSubNav" Content="光影包"
+                <RadioButton GroupName="DownloadSubNav"
+                             Content="{DynamicResource Download.Shader}"
                              Style="{StaticResource SubNavButtonStyle}"
                              Tag="Shader"
                              Checked="SubNav_Checked"
@@ -58,18 +63,19 @@
 
                 <!-- 标题 + 刷新 -->
                 <Grid Grid.Row="0" Margin="24,20,24,0">
-                    <TextBlock Text="Minecraft 版本"
+                    <TextBlock Text="{DynamicResource Download.MinecraftTitle}"
                                FontSize="22" FontWeight="SemiBold"
                                Foreground="#333333"
                                VerticalAlignment="Center"/>
                     <StackPanel Orientation="Horizontal"
                                 HorizontalAlignment="Right"
                                 VerticalAlignment="Center">
-                        <TextBlock x:Name="LoadingText" Text="加载中..."
+                        <TextBlock x:Name="LoadingText"
+                                   Text="{DynamicResource Download.Loading}"
                                    FontSize="12" Foreground="#999999"
                                    Margin="0,0,12,0"
                                    VerticalAlignment="Center"/>
-                        <Button Content="刷新"
+                        <Button Content="{DynamicResource Download.Refresh}"
                                 Style="{StaticResource SecondaryButtonStyle}"
                                 Height="30"
                                 Click="RefreshManifest_Click"/>
@@ -78,24 +84,28 @@
 
                 <!-- 分类切换 -->
                 <StackPanel Grid.Row="1" Orientation="Horizontal"
-            Margin="24,16,24,0">
-                    <RadioButton GroupName="MinecraftCategory" Content="正式版"
-                 Style="{StaticResource TopNavButtonStyle}"
-                 Tag="Release"
-                 IsChecked="True"
-                 Checked="Category_Checked"/>
-                    <RadioButton GroupName="MinecraftCategory" Content="快照版"
-                 Style="{StaticResource TopNavButtonStyle}"
-                 Tag="Snapshot"
-                 Checked="Category_Checked"/>
-                    <RadioButton GroupName="MinecraftCategory" Content="远古版"
-                 Style="{StaticResource TopNavButtonStyle}"
-                 Tag="Old"
-                 Checked="Category_Checked"/>
-                    <RadioButton GroupName="MinecraftCategory" Content="愚人节版"
-                 Style="{StaticResource TopNavButtonStyle}"
-                 Tag="AprilFools"
-                 Checked="Category_Checked"/>
+                            Margin="24,16,24,0">
+                    <RadioButton GroupName="MinecraftCategory"
+                                 Content="{DynamicResource Download.Cat.Release}"
+                                 Style="{StaticResource TopNavButtonStyle}"
+                                 Tag="Release"
+                                 IsChecked="True"
+                                 Checked="Category_Checked"/>
+                    <RadioButton GroupName="MinecraftCategory"
+                                 Content="{DynamicResource Download.Cat.Snapshot}"
+                                 Style="{StaticResource TopNavButtonStyle}"
+                                 Tag="Snapshot"
+                                 Checked="Category_Checked"/>
+                    <RadioButton GroupName="MinecraftCategory"
+                                 Content="{DynamicResource Download.Cat.Old}"
+                                 Style="{StaticResource TopNavButtonStyle}"
+                                 Tag="Old"
+                                 Checked="Category_Checked"/>
+                    <RadioButton GroupName="MinecraftCategory"
+                                 Content="{DynamicResource Download.Cat.AprilFools}"
+                                 Style="{StaticResource TopNavButtonStyle}"
+                                 Tag="AprilFools"
+                                 Checked="Category_Checked"/>
                 </StackPanel>
 
                 <!-- 版本列表 -->

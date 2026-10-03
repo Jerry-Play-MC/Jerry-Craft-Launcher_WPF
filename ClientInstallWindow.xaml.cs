@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Jerry_Craft_Launcher.NET_Framework_4._5_WPF.Languages;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
@@ -32,19 +33,13 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         private const string FORGE_MAVEN = "https://maven.minecraftforge.net";
         private const string NEOFORGE_MAVEN = "https://maven.neoforged.net/releases";
 
-        // ============================================================
-        //  加载器版本下拉项
-        // ============================================================
         private class LoaderVersionEntry
         {
-            public string Version { get; set; }   // null = 使用最新版
+            public string Version { get; set; }
             public string Display { get; set; }
             public override string ToString() { return Display; }
         }
 
-        // ============================================================
-        //  OptiFine 数据模型
-        // ============================================================
         private class OptiFineItem
         {
             public string McVersion { get; set; }
@@ -53,11 +48,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             public string FileName { get; set; }
             public string Forge { get; set; }
 
-            /// <summary>
-            /// BMCL 约定：
-            ///   "N/A" → 兼容所有 Forge 版本
-            ///   空字符串 → 不兼容任何 Forge 版本（无 Forge 版本可配）
-            /// </summary>
             public bool IsForgeUniversal
             {
                 get
@@ -74,7 +64,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     string name = string.IsNullOrEmpty(Type) ? Patch : Type + "_" + Patch;
                     if (IsForgeUniversal) return name;
                     if (string.IsNullOrEmpty(Forge)) return name;
-                    return name + "（配合 Forge " + ExtractForgeShort(Forge) + "）";
+                    return name + " (" + LanguageManager.Get("ClientInstall.WithForge")
+                        + " " + ExtractForgeShort(Forge) + ")";
                 }
             }
 
@@ -87,9 +78,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             public string Error;
         }
 
-        // ============================================================
-        //  状态
-        // ============================================================
         private readonly string _gameVersion;
         private List<OptiFineItem> _allOptifine = new List<OptiFineItem>();
         private bool _loadingOptifine;
@@ -106,9 +94,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         private LogWriter _uiWriter;
         private int _logLineCount;
 
-        // ============================================================
-        //  构造函数
-        // ============================================================
         public ClientInstallWindow(string gameVersion)
         {
             InitializeComponent();
@@ -121,7 +106,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             LoaderBox.SelectedIndex = 0;
             _suppressEvents = false;
 
-            // Vanilla 不需要加载器版本
             LoaderVersionBox.IsEnabled = false;
 
             Loaded += ClientInstallWindow_Loaded;
@@ -137,9 +121,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             if (!_installing) DragMove();
         }
 
-        // ============================================================
-        //  加载器切换
-        // ============================================================
         private void LoaderBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (_suppressEvents) return;
@@ -158,7 +139,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 if (OptifineCheck.IsChecked != true)
                     OptifineVersionBox.IsEnabled = false;
 
-                // 清空版本列表
                 LoaderVersionBox.SelectedItem = null;
                 LoaderVersionBox.ItemsSource = null;
                 _lastLoaderVersionError = null;
@@ -177,9 +157,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 _ = LoadLoaderVersionsAsync(loader);
         }
 
-        // ============================================================
-        //  加载器版本列表
-        // ============================================================
         private async Task LoadLoaderVersionsAsync(string loaderName)
         {
             if (string.IsNullOrEmpty(_gameVersion)) return;
@@ -211,7 +188,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             }
 
             _loadingLoaderVersions = false;
-            if (result == null) result = new LoaderVersionResult { Error = "未知错误" };
+            if (result == null) result = new LoaderVersionResult { Error = "Unknown" };
 
             _loaderVersionCache[cacheKey] = result;
             ApplyLoaderVersions(result.Versions);
@@ -224,7 +201,11 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             if (LoaderVersionBox == null) return;
 
             var entries = new List<LoaderVersionEntry>();
-            entries.Add(new LoaderVersionEntry { Version = null, Display = "（使用最新版）" });
+            entries.Add(new LoaderVersionEntry
+            {
+                Version = null,
+                Display = LanguageManager.Get("ClientInstall.LatestVersion")
+            });
             foreach (var v in versions)
                 entries.Add(new LoaderVersionEntry { Version = v, Display = v });
 
@@ -252,9 +233,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             }
         }
 
-        // ============================================================
-        //  按加载器抓取版本列表
-        // ============================================================
         private static LoaderVersionResult FetchLoaderVersions(string loaderName, string mcVersion)
         {
             switch (loaderName)
@@ -264,7 +242,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 case "Fabric": return FetchFabricVersions(mcVersion);
                 case "Quilt": return FetchQuiltVersions(mcVersion);
             }
-            return new LoaderVersionResult { Error = "未知加载器：" + loaderName };
+            return new LoaderVersionResult { Error = "Unknown loader: " + loaderName };
         }
 
         private static LoaderVersionResult FetchForgeVersions(string mcVersion)
@@ -285,7 +263,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             if (string.IsNullOrEmpty(xml))
             {
-                result.Error = "下载 Forge 版本列表失败" + (lastError != null ? "：" + lastError : "");
+                result.Error = LanguageManager.Get("ClientInstall.LoaderListFailed") + " Forge"
+                    + (lastError != null ? ": " + lastError : "");
                 return result;
             }
 
@@ -307,7 +286,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             }
             catch (Exception ex)
             {
-                result.Error = "解析 Forge 版本列表失败：" + ex.Message;
+                result.Error = LanguageManager.Get("ClientInstall.LoaderListFailed") + " Forge: "
+                    + ex.Message;
             }
 
             return result;
@@ -331,7 +311,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             if (string.IsNullOrEmpty(xml))
             {
-                result.Error = "下载 NeoForge 版本列表失败" + (lastError != null ? "：" + lastError : "");
+                result.Error = LanguageManager.Get("ClientInstall.LoaderListFailed") + " NeoForge"
+                    + (lastError != null ? ": " + lastError : "");
                 return result;
             }
 
@@ -356,7 +337,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             }
             catch (Exception ex)
             {
-                result.Error = "解析 NeoForge 版本列表失败：" + ex.Message;
+                result.Error = LanguageManager.Get("ClientInstall.LoaderListFailed") + " NeoForge: "
+                    + ex.Message;
             }
 
             return result;
@@ -377,7 +359,11 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     json = DownloadString(url, 15000);
                     if (!string.IsNullOrEmpty(json)) break;
                 }
-                if (string.IsNullOrEmpty(json)) { result.Error = "下载 Fabric 版本列表失败"; return result; }
+                if (string.IsNullOrEmpty(json))
+                {
+                    result.Error = LanguageManager.Get("ClientInstall.LoaderListFailed") + " Fabric";
+                    return result;
+                }
 
                 var arr = new JavaScriptSerializer().Deserialize<ArrayList>(json);
                 if (arr == null) return result;
@@ -394,7 +380,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             }
             catch (Exception ex)
             {
-                result.Error = "解析 Fabric 版本列表失败：" + ex.Message;
+                result.Error = LanguageManager.Get("ClientInstall.LoaderListFailed") + " Fabric: "
+                    + ex.Message;
             }
             return result;
         }
@@ -414,7 +401,11 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     json = DownloadString(url, 15000);
                     if (!string.IsNullOrEmpty(json)) break;
                 }
-                if (string.IsNullOrEmpty(json)) { result.Error = "下载 Quilt 版本列表失败"; return result; }
+                if (string.IsNullOrEmpty(json))
+                {
+                    result.Error = LanguageManager.Get("ClientInstall.LoaderListFailed") + " Quilt";
+                    return result;
+                }
 
                 var arr = new JavaScriptSerializer().Deserialize<ArrayList>(json);
                 if (arr == null) return result;
@@ -431,14 +422,12 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             }
             catch (Exception ex)
             {
-                result.Error = "解析 Quilt 版本列表失败：" + ex.Message;
+                result.Error = LanguageManager.Get("ClientInstall.LoaderListFailed") + " Quilt: "
+                    + ex.Message;
             }
             return result;
         }
 
-        // ============================================================
-        //  通用 HTTP
-        // ============================================================
         private static string DownloadString(string url, int timeoutMs)
         {
             ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072;
@@ -460,9 +449,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             catch { return string.Compare(a, b, StringComparison.Ordinal); }
         }
 
-        // ============================================================
-        //  OptiFine 复选框
-        // ============================================================
         private void OptifineCheck_Changed(object sender, RoutedEventArgs e)
         {
             if (_suppressEvents) return;
@@ -491,9 +477,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             UpdateHints();
         }
 
-        // ============================================================
-        //  OptiFine 版本切换 → 尝试自动填 Forge 版本
-        // ============================================================
         private void OptifineVersionBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (_suppressEvents) return;
@@ -509,7 +492,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             {
                 if (!string.IsNullOrEmpty(item.Forge) && !item.IsForgeUniversal)
                 {
-                    // 有具体 Forge 版本 → 切 Forge + 选中该版本
                     if (!"Forge".Equals(loader, StringComparison.OrdinalIgnoreCase))
                     {
                         int idx = Array.IndexOf(LoaderTypes, "Forge");
@@ -520,7 +502,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 }
                 else if (item.IsForgeUniversal)
                 {
-                    // 通用 → 保持 Forge 或切 Forge，版本选"最新版"
                     if (!"Forge".Equals(loader, StringComparison.OrdinalIgnoreCase))
                     {
                         int idx = Array.IndexOf(LoaderTypes, "Forge");
@@ -530,7 +511,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 }
                 else
                 {
-                    // Forge 字段为空 → 不兼容任何 Forge 版本，只能 Vanilla
                     if (!"Vanilla".Equals(loader, StringComparison.OrdinalIgnoreCase))
                     {
                         int idx = Array.IndexOf(LoaderTypes, "Vanilla");
@@ -578,16 +558,14 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             return entry != null ? entry.Version : null;
         }
 
-        // ============================================================
-        //  提示文字
-        // ============================================================
         private void UpdateHints()
         {
             string loader = LoaderBox.SelectedItem as string;
 
             if (_loadingLoaderVersions)
             {
-                LoaderVersionHint.Text = "正在加载 " + (loader ?? "") + " 版本列表...";
+                LoaderVersionHint.Text = string.Format(
+                    LanguageManager.Get("ClientInstall.LoadingVersions"), loader ?? "");
             }
             else if (!string.IsNullOrEmpty(_lastLoaderVersionError))
             {
@@ -598,19 +576,15 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 switch (loader)
                 {
                     case "Vanilla":
-                        LoaderVersionHint.Text = "原版不需要加载器版本。";
+                        LoaderVersionHint.Text = LanguageManager.Get("ClientInstall.VanillaHint");
                         break;
                     case "Forge":
-                        LoaderVersionHint.Text = "留空使用最新版。可从下拉列表选择具体版本。";
+                        LoaderVersionHint.Text = LanguageManager.Get("ClientInstall.ForgeHint");
                         break;
                     case "NeoForge":
-                        LoaderVersionHint.Text = "留空使用最新版。不能与 OptiFine 共存。";
-                        break;
                     case "Fabric":
-                        LoaderVersionHint.Text = "留空使用最新版。不能与 OptiFine 共存。";
-                        break;
                     case "Quilt":
-                        LoaderVersionHint.Text = "留空使用最新版。不能与 OptiFine 共存。";
+                        LoaderVersionHint.Text = LanguageManager.Get("ClientInstall.LoaderHint");
                         break;
                 }
 
@@ -620,9 +594,10 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     var entries = LoaderVersionBox.ItemsSource as List<LoaderVersionEntry>;
                     int count = entries != null ? entries.Count - 1 : 0;
                     if (count > 0)
-                        LoaderVersionHint.Text += "（已加载 " + count + " 个版本）";
+                        LoaderVersionHint.Text += string.Format(
+                            LanguageManager.Get("ClientInstall.LoadedCount"), count);
                     else
-                        LoaderVersionHint.Text += "（暂无可用版本）";
+                        LoaderVersionHint.Text += LanguageManager.Get("ClientInstall.NoVersions");
                 }
             }
 
@@ -633,21 +608,19 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     : ((IEnumerable<object>)OptifineVersionBox.ItemsSource).Count();
 
                 if (_loadingOptifine)
-                    OptifineHint.Text = "OptiFine 版本列表加载中...";
+                    OptifineHint.Text = LanguageManager.Get("ClientInstall.OptifineLoading");
                 else if (count == 0)
-                    OptifineHint.Text = "没有与当前 Forge 版本兼容的 OptiFine，或该游戏版本无 OptiFine。";
+                    OptifineHint.Text = LanguageManager.Get("ClientInstall.OptifineNone");
                 else
-                    OptifineHint.Text = "已加载 " + count + " 个 OptiFine 版本。";
+                    OptifineHint.Text = string.Format(
+                        LanguageManager.Get("ClientInstall.OptifineLoaded"), count);
             }
             else
             {
-                OptifineHint.Text = "勾选上方复选框后启用。选择 OptiFine 版本会自动填入兼容的 Forge 版本。";
+                OptifineHint.Text = LanguageManager.Get("ClientInstall.OptifineHint");
             }
         }
 
-        // ============================================================
-        //  OptiFine 列表
-        // ============================================================
         private async Task LoadOptifineListAsync()
         {
             if (string.IsNullOrEmpty(_gameVersion)) return;
@@ -704,9 +677,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             return result;
         }
 
-        // ============================================================
-        //  筛选 OptiFine 下拉列表
-        // ============================================================
         private void RefreshOptifineDropdown()
         {
             if (OptifineVersionBox == null) return;
@@ -722,13 +692,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
                 filtered = _allOptifine.Where(v =>
                 {
-                    // ★ 空字符串 → 不兼容任何 Forge 版本，直接过滤掉
                     if (string.IsNullOrEmpty(v.Forge)) return false;
-
-                    // N/A → 兼容所有 Forge 版本
                     if (v.IsForgeUniversal) return true;
-
-                    // 有具体 Forge 版本 → 未选具体版本就显示，否则精确匹配
                     if (string.IsNullOrEmpty(forgeShort)) return true;
                     return ExtractForgeShort(v.Forge)
                         .Equals(forgeShort, StringComparison.OrdinalIgnoreCase);
@@ -779,9 +744,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             return forge;
         }
 
-        // ============================================================
-        //  安装
-        // ============================================================
         private async void Install_Click(object sender, RoutedEventArgs e)
         {
             if (_installing) return;
@@ -795,8 +757,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             if (string.IsNullOrEmpty(gameVersion))
             {
-                MessageBox.Show("未选择游戏版本。", "提示",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
+                LanguageManager.ShowInfo("ClientInstall.NoVersion");
                 return;
             }
 
@@ -805,10 +766,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             if (withOptifine && LoadersIncompatibleWithOptifine.Contains(loaderName))
             {
-                MessageBox.Show(
-                    "OptiFine 与 " + loaderName + " 不兼容。\n" +
-                    "请把加载器改为 Forge 或 Vanilla，或取消勾选 OptiFine。",
-                    "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+                LanguageManager.ShowWarning("ClientInstall.OptifineConflict", loaderName);
                 return;
             }
 
@@ -830,7 +788,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             _installing = true;
             InstallButton.IsEnabled = false;
-            InstallStatusText.Text = "安装中...";
+            InstallStatusText.Text = LanguageManager.Get("ClientInstall.Installing");
             SetFormEnabled(false);
 
             LogBox.Clear();
@@ -847,16 +805,21 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             {
                 AppendLogLines(new List<string> {
                     "==================================================",
-                    "[Launcher] 开始安装客户端",
-                    "[Launcher] 游戏版本   : " + gameVersion,
-                    "[Launcher] 加载器     : " + loaderName,
-                    "[Launcher] 加载器版本 : " +
-                        (string.IsNullOrEmpty(loaderVersion) ? "（最新）" : loaderVersion),
-                    "[Launcher] OptiFine   : " +
-                        (withOptifine
-                            ? (string.IsNullOrEmpty(optifineVersion) ? "（最新）" : optifineVersion)
-                            : "不安装"),
-                    "[Launcher] 目标目录   : " + gameDir,
+                    "[Launcher] " + LanguageManager.Get("ClientInstall.BeginInstall"),
+                    "[Launcher] " + LanguageManager.Get("ClientInstall.GameVersion")
+                        + "   : " + gameVersion,
+                    "[Launcher] " + LanguageManager.Get("ClientInstall.Loader")
+                        + "     : " + loaderName,
+                    "[Launcher] " + LanguageManager.Get("ClientInstall.LoaderVersion")
+                        + " : " + (string.IsNullOrEmpty(loaderVersion)
+                            ? LanguageManager.Get("ClientInstall.LatestVersionShort") : loaderVersion),
+                    "[Launcher] " + LanguageManager.Get("ClientInstall.Optifine")
+                        + "   : " + (withOptifine
+                            ? (string.IsNullOrEmpty(optifineVersion)
+                                ? LanguageManager.Get("ClientInstall.LatestVersionShort") : optifineVersion)
+                            : LanguageManager.Get("ClientInstall.DoNotInstall")),
+                    "[Launcher] " + LanguageManager.Get("ClientInstall.TargetDir")
+                        + "   : " + gameDir,
                     "[Launcher] loaderType : " + loaderType,
                     "=================================================="
                 });
@@ -870,34 +833,34 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
                 if (rc == 0)
                 {
-                    AppendLogLines(new List<string> { "", "[Launcher] ✅ 安装完成" });
-                    InstallStatusText.Text = "安装完成";
+                    AppendLogLines(new List<string> { "",
+                        "[Launcher] " + LanguageManager.Get("ClientInstall.InstallDoneLog") });
+                    InstallStatusText.Text = LanguageManager.Get("ClientInstall.InstallDone");
 
-                    MessageBox.Show(
-                        "Minecraft " + gameVersion + " 客户端安装完成。",
-                        "成功", MessageBoxButton.OK, MessageBoxImage.Information);
+                    LanguageManager.ShowInfo("ClientInstall.InstallSuccess", gameVersion);
 
                     DialogResult = true;
                     Close();
                 }
                 else
                 {
-                    AppendLogLines(new List<string> { "", "[Launcher] ❌ 安装失败，退出码 " + rc });
-                    InstallStatusText.Text = "安装失败";
+                    AppendLogLines(new List<string> { "",
+                        "[Launcher] " + LanguageManager.Get("ClientInstall.InstallFailedLog")
+                        + " rc=" + rc });
+                    InstallStatusText.Text = LanguageManager.Get("ClientInstall.InstallFailed");
 
-                    MessageBox.Show(
-                        "安装失败，请查看下方日志中的错误信息。",
-                        "失败", MessageBoxButton.OK, MessageBoxImage.Error);
+                    LanguageManager.ShowError("ClientInstall.InstallFailed");
                 }
             }
             catch (Exception ex)
             {
                 if (_uiWriter != null) { try { _uiWriter.Flush(); } catch { } }
-                AppendLogLines(new List<string> { "", "[Launcher] ❌ 安装出错：" + ex.Message });
-                InstallStatusText.Text = "安装失败";
+                AppendLogLines(new List<string> { "",
+                    "[Launcher] " + LanguageManager.Get("ClientInstall.InstallErrorLog")
+                    + " " + ex.Message });
+                InstallStatusText.Text = LanguageManager.Get("ClientInstall.InstallFailed");
 
-                MessageBox.Show("安装出错：" + ex.Message,
-                    "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                LanguageManager.ShowError("ClientInstall.InstallError", ex.Message);
             }
             finally
             {
@@ -922,9 +885,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             OptifineVersionBox.IsEnabled = enabled && OptifineCheck.IsChecked == true;
         }
 
-        // ============================================================
-        //  日志
-        // ============================================================
         private void AppendLogLines(List<string> lines)
         {
             if (lines == null || lines.Count == 0) return;
@@ -985,9 +945,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             LogBox.ScrollToEnd();
         }
 
-        // ============================================================
-        //  关闭
-        // ============================================================
         private void Cancel_Click(object sender, RoutedEventArgs e)
         {
             if (_installing) return;

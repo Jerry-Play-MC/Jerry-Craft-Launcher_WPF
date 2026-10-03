@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Jerry_Craft_Launcher.NET_Framework_4._5_WPF.Languages;
+using System;
 using System.IO;
 using System.Text;
 using System.Windows;
@@ -62,7 +63,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         {
             try
             {
-                // ---------- 1) 服务器名（重命名文件夹） ----------
                 string newName = (NameBox.Text ?? "").Trim();
                 if (!string.IsNullOrEmpty(newName) && newName != _info.Name)
                 {
@@ -71,8 +71,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
                     if (Directory.Exists(newPath))
                     {
-                        MessageBox.Show("已存在同名服务器文件夹。", "错误",
-                            MessageBoxButton.OK, MessageBoxImage.Warning);
+                        LanguageManager.ShowWarning("ServerSettings.FolderExists");
                         return;
                     }
 
@@ -84,7 +83,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     _info.PropertiesPath = Path.Combine(newPath, "server.properties");
                 }
 
-                // ---------- 2) server.properties ----------
                 string p = _info.PropertiesPath;
                 if (!File.Exists(p))
                     File.WriteAllText(p, "", new UTF8Encoding(false));
@@ -113,7 +111,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 ServerProperties.WriteProperty(p, "simulation-distance",
                     SimDistanceBox.Text ?? "10");
 
-                // ★ 新增：把新 Motd 写回内存模型
                 _info.Motd = MotdBox.Text ?? "";
 
                 DialogResult = true;
@@ -121,8 +118,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             }
             catch (Exception ex)
             {
-                MessageBox.Show("保存失败：" + ex.Message, "错误",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                LanguageManager.ShowError("ServerSettings.SaveFailed", ex.Message);
             }
         }
 

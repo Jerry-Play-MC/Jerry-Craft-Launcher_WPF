@@ -1,5 +1,5 @@
-﻿using System;
-using System.IO;
+﻿using Jerry_Craft_Launcher.NET_Framework_4._5_WPF.Languages;
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -18,11 +18,10 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF.Updater
             InitializeComponent();
             _info = info;
 
-            VersionText.Text = "当前版本：" + UpdateService.CurrentVersion
-                + "  →  最新版本：" + info.version;
+            VersionText.Text = LanguageManager.Get("Settings.CurrentVersion")
+                + UpdateService.CurrentVersion + "  →  " + info.version;
 
-            NotesText.Text = string.IsNullOrEmpty(info.notes)
-                ? "（无更新说明）" : info.notes;
+            NotesText.Text = string.IsNullOrEmpty(info.notes) ? "—" : info.notes;
         }
 
         private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -43,38 +42,41 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF.Updater
 
             try
             {
-                StatusText.Text = "正在下载更新包...";
+                StatusText.Text = LanguageManager.Get("Update.Downloading");
 
                 var progress = new Progress<double>(p =>
                 {
                     Progress.Value = p * 100;
-                    StatusText.Text = "正在下载更新包：" + (int)(p * 100) + "%";
+                    StatusText.Text = string.Format(
+                        LanguageManager.Get("ModVersions.Downloading"),
+                        _info.version, (int)(p * 100), "", "");
                 });
 
                 string zipPath = await UpdateService.DownloadAsync(
                     _info, progress, _cts.Token);
 
-                StatusText.Text = "下载完成，正在准备应用更新...";
+                StatusText.Text = LanguageManager.Get("Update.Preparing");
                 Progress.Value = 100;
 
                 string targetDir = AppDomain.CurrentDomain.BaseDirectory;
                 UpdateService.ApplyUpdateAndRestart(zipPath, targetDir);
 
-                StatusText.Text = "即将重启应用...";
+                StatusText.Text = LanguageManager.Get("Update.Restarting");
 
                 await Task.Delay(500);
-
                 Application.Current.Shutdown();
             }
             catch (OperationCanceledException)
             {
-                StatusText.Text = "已取消";
+                StatusText.Text = LanguageManager.Get("Update.Cancelled");
                 ResetButtons();
             }
             catch (Exception ex)
             {
-                StatusText.Text = "更新失败：" + ex.Message;
-                MessageBox.Show("更新失败：\n" + ex.Message, "错误",
+                StatusText.Text = LanguageManager.Get("Update.Failed");
+                MessageBox.Show(
+                    LanguageManager.Get("Update.Failed") + "\n" + ex.Message,
+                    LanguageManager.Get("Dialog.Error"),
                     MessageBoxButton.OK, MessageBoxImage.Error);
                 ResetButtons();
             }

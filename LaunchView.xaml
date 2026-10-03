@@ -86,7 +86,8 @@
                                        HorizontalAlignment="Center"
                                        VerticalAlignment="Center"/>
                         </Border>
-                        <TextBlock x:Name="RoleNameText" Text="未登录"
+                        <TextBlock x:Name="RoleNameText"
+                                   Text="{DynamicResource Launch.NotLoggedIn}"
                                    FontSize="14" FontWeight="SemiBold"
                                    Foreground="#333333"
                                    HorizontalAlignment="Center"
@@ -102,12 +103,14 @@
                 <Border Height="1" Background="#E8E8E8" Margin="16,4"/>
 
                 <!-- 子项 -->
-                <RadioButton GroupName="LaunchSubNav" Content="主页"
+                <RadioButton GroupName="LaunchSubNav"
+                             Content="{DynamicResource Launch.Home}"
                              Style="{StaticResource SubNavButtonStyle}"
                              IsChecked="True" Tag="Home"
                              Checked="SubNav_Checked"
                              Margin="8,8,8,2"/>
-                <RadioButton GroupName="LaunchSubNav" Content="角色管理"
+                <RadioButton GroupName="LaunchSubNav"
+                             Content="{DynamicResource Launch.Roles}"
                              Style="{StaticResource SubNavButtonStyle}"
                              Tag="Roles"
                              Checked="SubNav_Checked"
@@ -138,12 +141,12 @@
                                 Style="{StaticResource LaunchMainButtonStyle}"
                                 Click="LaunchButton_Click">
                             <StackPanel>
-                                <TextBlock Text="启动"
+                                <TextBlock Text="{DynamicResource Launch.Start}"
                                            FontSize="18"
                                            FontWeight="SemiBold"
                                            Foreground="White"/>
                                 <TextBlock x:Name="CurrentVersionText"
-                                           Text="无版本"
+                                           Text="{DynamicResource Launch.NoVersion}"
                                            FontSize="11"
                                            Foreground="#CCFFFFFF"
                                            Margin="0,3,0,0"/>
@@ -237,7 +240,7 @@
                 </Grid.RowDefinitions>
 
                 <TextBlock Grid.Row="0"
-                           Text="角色管理"
+                           Text="{DynamicResource Launch.RolesTitle}"
                            FontSize="22" FontWeight="SemiBold"
                            Foreground="#333333"
                            Margin="24,24,24,12"/>
@@ -312,7 +315,7 @@
                 </ListBox>
 
                 <Button Grid.Row="2"
-                        Content="创建角色"
+                        Content="{DynamicResource Launch.CreateRole}"
                         Style="{StaticResource PrimaryButtonStyle}"
                         HorizontalAlignment="Right"
                         Margin="24,12,24,24"

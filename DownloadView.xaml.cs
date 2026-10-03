@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Jerry_Craft_Launcher.NET_Framework_4._5_WPF.Languages;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
@@ -22,8 +23,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             if (_allVersions.Count == 0)
                 RefreshManifest();
         }
-
-        // ---------- 子导航切换 ----------
 
         private void SubNav_Checked(object sender, RoutedEventArgs e)
         {
@@ -52,8 +51,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             }
         }
 
-        // ---------- 刷新清单 ----------
-
         private void RefreshManifest_Click(object sender, RoutedEventArgs e)
         {
             RefreshManifest();
@@ -61,7 +58,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
         private void RefreshManifest()
         {
-            LoadingText.Text = "加载中...";
+            LoadingText.Text = LanguageManager.Get("Download.Loading");
             ManifestVersionList.ItemsSource = null;
 
             try
@@ -72,18 +69,17 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 if (string.IsNullOrEmpty(_currentCategory))
                     _currentCategory = "Release";
 
-                LoadingText.Text = $"共 {_allVersions.Count} 个版本";
+                LoadingText.Text = string.Format(
+                    LanguageManager.Get("Download.Count"),
+                    _allVersions.Count);
                 ApplyCategoryFilter();
             }
             catch (Exception ex)
             {
-                LoadingText.Text = "加载失败";
-                MessageBox.Show("获取版本清单失败：" + ex.Message,
-                    "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                LoadingText.Text = LanguageManager.Get("Download.Failure");
+                LanguageManager.ShowError("Download.FetchFailed", ex.Message);
             }
         }
-
-        // ---------- 分类切换 ----------
 
         private void Category_Checked(object sender, RoutedEventArgs e)
         {
@@ -158,15 +154,12 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             catch { return DateTime.MinValue; }
         }
 
-        // ---------- 选中版本 → 打开客户端安装窗口 ----------
-
         private void ManifestVersionList_SelectionChanged(
             object sender, SelectionChangedEventArgs e)
         {
             var item = ManifestVersionList.SelectedItem as ManifestVersion;
             if (item == null) return;
 
-            // 清除选中状态，避免重复触发
             ManifestVersionList.SelectedItem = null;
 
             var win = new ClientInstallWindow(item.Id)

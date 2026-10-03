@@ -1,0 +1,315 @@
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:s="clr-namespace:System;assembly=mscorlib">
+
+    <s:String x:Key="App.Title">Jerry Craft Launcher</s:String>
+    <s:String x:Key="Nav.Launch">Запуск</s:String>
+    <s:String x:Key="Nav.Download">Загрузка</s:String>
+    <s:String x:Key="Nav.Server">Сервер</s:String>
+    <s:String x:Key="Nav.Settings">Настройки</s:String>
+
+    <s:String x:Key="Launch.Home">Главная</s:String>
+    <s:String x:Key="Launch.Roles">Аккаунты</s:String>
+    <s:String x:Key="Launch.Start">Запустить</s:String>
+    <s:String x:Key="Launch.NoVersion">Нет версии</s:String>
+    <s:String x:Key="Launch.NotLoggedIn">Не выполнен вход</s:String>
+    <s:String x:Key="Launch.RoleOffline">Офлайн-аккаунт</s:String>
+    <s:String x:Key="Launch.RoleMicrosoft">Премиум-аккаунт</s:String>
+    <s:String x:Key="Launch.RolesTitle">Управление аккаунтами</s:String>
+    <s:String x:Key="Launch.CreateRole">Создать аккаунт</s:String>
+
+    <s:String x:Key="Download.Minecraft">Minecraft</s:String>
+    <s:String x:Key="Download.Mod">Моды</s:String>
+    <s:String x:Key="Download.Modpack">Сборки</s:String>
+    <s:String x:Key="Download.Datapack">Датапаки</s:String>
+    <s:String x:Key="Download.Shader">Шейдеры</s:String>
+    <s:String x:Key="Download.MinecraftTitle">Версии Minecraft</s:String>
+    <s:String x:Key="Download.Loading">Загрузка...</s:String>
+    <s:String x:Key="Download.Refresh">Обновить</s:String>
+    <s:String x:Key="Download.Cat.Release">Релиз</s:String>
+    <s:String x:Key="Download.Cat.Snapshot">Снапшот</s:String>
+    <s:String x:Key="Download.Cat.Old">Старые версии</s:String>
+    <s:String x:Key="Download.Cat.AprilFools">Первоапрельская</s:String>
+
+    <s:String x:Key="Server.Title">Серверы</s:String>
+    <s:String x:Key="Server.Install">Установить сервер</s:String>
+    <s:String x:Key="Server.OpenFolder">Открыть папку Server</s:String>
+    <s:String x:Key="Server.Refresh">Обновить</s:String>
+    <s:String x:Key="Server.Start">Запустить</s:String>
+    <s:String x:Key="Server.Settings">Настройки</s:String>
+    <s:String x:Key="Server.Delete">Удалить</s:String>
+    <s:String x:Key="Server.EmptyHint">Поместите сервер в  ПапкаПрограммы\Server\ИмяСервера\  (поддерживается server.jar / run.bat / fabric-server-launch.jar / quilt-server-launch.jar)</s:String>
+
+    <s:String x:Key="Settings.Launcher">Лаунчер</s:String>
+    <s:String x:Key="Settings.Java">Java</s:String>
+    <s:String x:Key="Settings.Game">Игра</s:String>
+    <s:String x:Key="Settings.Versions">Управление экземплярами</s:String>
+    <s:String x:Key="Settings.Title">Лаунчер</s:String>
+    <s:String x:Key="Settings.CheckUpdate">Проверить обновления</s:String>
+    <s:String x:Key="Settings.CurrentVersion">Текущая версия:</s:String>
+    <s:String x:Key="Settings.Game.Title">Игра</s:String>
+    <s:String x:Key="Settings.Game.Isolation">Изоляция версий</s:String>
+    <s:String x:Key="Settings.Game.IsolationDesc">При включении данные игры (сохранения, ресурсы, конфигурации и т. д.) хранятся в versions\имя-версии, изолируя каждую версию.</s:String>
+
+    <s:String x:Key="Login.Title">Выбор способа входа</s:String>
+    <s:String x:Key="Login.Prompt">Выберите тип аккаунта для создания:</s:String>
+    <s:String x:Key="Login.Premium">Премиум-вход</s:String>
+    <s:String x:Key="Login.PremiumDesc">Войти через аккаунт Microsoft</s:String>
+    <s:String x:Key="Login.Offline">Офлайн-вход</s:String>
+    <s:String x:Key="Login.OfflineDesc">Создать локальный офлайн-аккаунт</s:String>
+
+    <s:String x:Key="CreateRole.Title">Создать офлайн-аккаунт</s:String>
+    <s:String x:Key="CreateRole.NameLabel">Имя пользователя</s:String>
+    <s:String x:Key="CreateRole.NameHint">4–16 символов, без CJK-символов и пробелов</s:String>
+    <s:String x:Key="CreateRole.Skip">Пропустить</s:String>
+    <s:String x:Key="CreateRole.Create">Создать</s:String>
+
+    <s:String x:Key="MSLogin.Title">Вход через Microsoft</s:String>
+    <s:String x:Key="MSLogin.BrowserHint">Нажатие на кнопку ниже откроет страницу входа Microsoft в браузере</s:String>
+    <s:String x:Key="MSLogin.CodeHint">Код, показанный в браузере</s:String>
+    <s:String x:Key="MSLogin.CodeCopied">(скопировано в буфер обмена)</s:String>
+    <s:String x:Key="MSLogin.StatusReady">Нажмите кнопку ниже, чтобы начать</s:String>
+    <s:String x:Key="MSLogin.Login">Войти</s:String>
+    <s:String x:Key="MSLogin.LoginBusy">Вход...</s:String>
+
+    <s:String x:Key="ClientInstall.Title">Установка клиента</s:String>
+    <s:String x:Key="ClientInstall.GameVersion">Версия игры</s:String>
+    <s:String x:Key="ClientInstall.Loader">Загрузчик</s:String>
+    <s:String x:Key="ClientInstall.LoaderVersion">Версия загрузчика</s:String>
+    <s:String x:Key="ClientInstall.LoaderVersionHint">Оставьте пустым для последней версии</s:String>
+    <s:String x:Key="ClientInstall.Optifine">Установить OptiFine</s:String>
+    <s:String x:Key="ClientInstall.OptifineVersion">Версия OptiFine</s:String>
+    <s:String x:Key="ClientInstall.OptifineHint">Сначала отметьте флажок выше. При выборе версии OptiFine автоматически подставится совместимая версия Forge.</s:String>
+    <s:String x:Key="ClientInstall.Warning">При установке будет загружено много файлов из сети. Прогресс отображается в журнале ниже. После завершения версия появится на странице запуска.</s:String>
+    <s:String x:Key="ClientInstall.LogPlaceholder">Журнал установки появится здесь...</s:String>
+    <s:String x:Key="ClientInstall.Cancel">Отмена</s:String>
+    <s:String x:Key="ClientInstall.Install">Установить</s:String>
+
+    <s:String x:Key="ServerInstall.Title">Установка сервера</s:String>
+    <s:String x:Key="ServerInstall.ServerName">Имя сервера</s:String>
+    <s:String x:Key="ServerInstall.ServerNameHint">Имя папки в каталоге Server. Рекомендуются буквы, цифры и подчёркивания.</s:String>
+    <s:String x:Key="ServerInstall.GameVersion">Версия игры</s:String>
+    <s:String x:Key="ServerInstall.Refresh">Обновить</s:String>
+    <s:String x:Key="ServerInstall.Loader">Загрузчик</s:String>
+    <s:String x:Key="ServerInstall.LoaderVersion">Версия загрузчика</s:String>
+    <s:String x:Key="ServerInstall.LoaderVersionHint">Оставьте пустым для последней. Например: Forge 47.2.0, NeoForge 21.1.0, версия загрузчика Fabric/Quilt</s:String>
+    <s:String x:Key="ServerInstall.LogPlaceholder">Журнал установки появится здесь...</s:String>
+    <s:String x:Key="ServerInstall.Cancel">Отмена</s:String>
+    <s:String x:Key="ServerInstall.Install">Установить</s:String>
+
+    <s:String x:Key="ServerSettings.Title">Настройки сервера</s:String>
+    <s:String x:Key="ServerSettings.Basic">Основное</s:String>
+    <s:String x:Key="ServerSettings.ServerName">Имя сервера (переименовывает папку)</s:String>
+    <s:String x:Key="ServerSettings.Motd">MOTD</s:String>
+    <s:String x:Key="ServerSettings.Port">Порт</s:String>
+    <s:String x:Key="ServerSettings.Players">Игроки</s:String>
+    <s:String x:Key="ServerSettings.OnlineMode">Онлайн-режим (online-mode)</s:String>
+    <s:String x:Key="ServerSettings.Whitelist">Включить белый список (white-list)</s:String>
+    <s:String x:Key="ServerSettings.EnforceWhitelist">Строгий белый список (enforce-whitelist)</s:String>
+    <s:String x:Key="ServerSettings.Pvp">Разрешить PVP (pvp)</s:String>
+    <s:String x:Key="ServerSettings.AllowFlight">Разрешить полёт (allow-flight)</s:String>
+    <s:String x:Key="ServerSettings.Cheat">Разрешить читы (enable-command-block)</s:String>
+    <s:String x:Key="ServerSettings.MaxPlayers">Максимум игроков</s:String>
+    <s:String x:Key="ServerSettings.World">Мир</s:String>
+    <s:String x:Key="ServerSettings.Gamemode">Режим игры (survival / creative / adventure / spectator)</s:String>
+    <s:String x:Key="ServerSettings.Difficulty">Сложность (peaceful / easy / normal / hard)</s:String>
+    <s:String x:Key="ServerSettings.ViewDistance">Дальность прорисовки (view-distance)</s:String>
+    <s:String x:Key="ServerSettings.SimDistance">Дистанция симуляции (simulation-distance)</s:String>
+    <s:String x:Key="ServerSettings.Cancel">Отмена</s:String>
+    <s:String x:Key="ServerSettings.Save">Сохранить</s:String>
+
+    <s:String x:Key="Update.Title">Доступно обновление</s:String>
+    <s:String x:Key="Update.Notes">Что нового</s:String>
+    <s:String x:Key="Update.Later">Позже</s:String>
+    <s:String x:Key="Update.Now">Обновить сейчас</s:String>
+    <s:String x:Key="Update.Downloading">Загрузка обновления...</s:String>
+
+    <s:String x:Key="Common.Cancel">Отмена</s:String>
+    <s:String x:Key="Common.Save">Сохранить</s:String>
+    <s:String x:Key="Common.Close">Закрыть</s:String>
+    <s:String x:Key="Common.OK">ОК</s:String>
+
+    <s:String x:Key="Download.Failure">Ошибка загрузки</s:String>
+
+    <s:String x:Key="Dialog.Info">Уведомление</s:String>
+    <s:String x:Key="Dialog.Error">Ошибка</s:String>
+    <s:String x:Key="Dialog.Success">Успех</s:String>
+    <s:String x:Key="Dialog.Warning">Предупреждение</s:String>
+    <s:String x:Key="Dialog.Confirm">Подтверждение</s:String>
+    <s:String x:Key="Dialog.Yes">Да</s:String>
+    <s:String x:Key="Dialog.No">Нет</s:String>
+    <s:String x:Key="Common.Confirm">Подтвердить</s:String>
+    <s:String x:Key="Common.Delete">Удалить</s:String>
+
+    <s:String x:Key="ModSearch.Search">Поиск</s:String>
+    <s:String x:Key="ModSearch.ResourcePack">Ресурспаки</s:String>
+    <s:String x:Key="ModSearch.PrevPage">Назад</s:String>
+    <s:String x:Key="ModSearch.NextPage">Вперёд</s:String>
+    <s:String x:Key="ModSearch.Loading">Загрузка...</s:String>
+    <s:String x:Key="ModSearch.NoResult">Проекты не найдены</s:String>
+    <s:String x:Key="ModSearch.PageInfo">Страница {0} / {1}  (всего {2})</s:String>
+
+    <s:String x:Key="ModVersions.Title">Версии мода</s:String>
+    <s:String x:Key="ModVersions.TitlePrefix">Версии:</s:String>
+    <s:String x:Key="ModVersions.Loading">Загрузка версий...</s:String>
+    <s:String x:Key="ModVersions.NoResult">Версии не найдены</s:String>
+    <s:String x:Key="ModVersions.CountZero">0 версий</s:String>
+    <s:String x:Key="ModVersions.CountInfo">{0} версий, показано {1}</s:String>
+    <s:String x:Key="ModVersions.Sort.Date">Дата выпуска</s:String>
+    <s:String x:Key="ModVersions.Sort.Downloads">Загрузки</s:String>
+    <s:String x:Key="ModVersions.Sort.Version">Версия</s:String>
+    <s:String x:Key="ModVersions.SortDir.Desc">Убыв. (новые)</s:String>
+    <s:String x:Key="ModVersions.SortDir.Asc">Возр. (старые)</s:String>
+    <s:String x:Key="ModVersions.Download">Скачать выбранное</s:String>
+    <s:String x:Key="ModVersions.Preparing">Подготовка загрузки</s:String>
+    <s:String x:Key="ModVersions.Downloading">Загрузка {0}: {1}%  ({2} / {3})</s:String>
+    <s:String x:Key="ModVersions.DownloadComplete">Загрузка завершена:</s:String>
+    <s:String x:Key="ModVersions.DownloadFailed">Ошибка загрузки</s:String>
+    <s:String x:Key="ModVersions.DownloadingPack">Загрузка сборки...</s:String>
+    <s:String x:Key="ModVersions.UsingCached">Использование кэшированной сборки:</s:String>
+    <s:String x:Key="ModVersions.Progress">Готово. Успешно {0}, ошибок {1}</s:String>
+
+    <s:String x:Key="ModInstallTarget.Title">Выбор цели установки</s:String>
+    <s:String x:Key="ModInstallTarget.Hint">Найдены подходящие версии. Выберите, куда установить:</s:String>
+    <s:String x:Key="ModInstallTarget.Requirements">Требуется: MC {0}  |  Загрузчик {1}</s:String>
+    <s:String x:Key="ModInstallTarget.InstallHere">Установить сюда</s:String>
+    <s:String x:Key="ModInstallTarget.SelectOne">Сначала выберите версию.</s:String>
+
+    <s:String x:Key="ClientInstall.NoVersion">Версия игры не выбрана.</s:String>
+    <s:String x:Key="ClientInstall.OptifineConflict">OptiFine несовместим с {0}. Смените загрузчик на Forge/Vanilla или снимите галочку OptiFine.</s:String>
+    <s:String x:Key="ClientInstall.InstallSuccess">Клиент Minecraft {0} установлен.</s:String>
+    <s:String x:Key="ClientInstall.InstallFailed">Установка не удалась. См. журнал ниже.</s:String>
+    <s:String x:Key="ClientInstall.InstallError">Ошибка установки: {0}</s:String>
+
+    <s:String x:Key="ServerInstall.NameRequired">Введите имя сервера.</s:String>
+    <s:String x:Key="ServerInstall.NameInvalid">Имя сервера содержит недопустимый символ: {0}</s:String>
+    <s:String x:Key="ServerInstall.VersionRequired">Выберите или введите версию игры.</s:String>
+    <s:String x:Key="ServerInstall.FolderExists">Целевая папка уже существует и не пуста:\n{0}\n\nПродолжить и перезаписать?</s:String>
+    <s:String x:Key="ServerInstall.InstallSuccess">Сервер "{0}" установлен.</s:String>
+    <s:String x:Key="ServerInstall.InstallFailed">Установка не удалась. См. журнал ниже.</s:String>
+    <s:String x:Key="ServerInstall.InstallError">Ошибка установки: {0}</s:String>
+
+    <s:String x:Key="Server.Running">Сервер "{0}" уже запущен.</s:String>
+    <s:String x:Key="Server.DeleteConfirm">Удалить сервер "{0}"?\n\nЭто удалит всю папку:\n{1}\n  Ваши сохранения будут потеряны!\n\nЭто нельзя отменить!</s:String>
+    <s:String x:Key="Server.DeleteFailed">Ошибка удаления: {0}</s:String>
+    <s:String x:Key="Server.StartFailed">Не удалось запустить сервер: {0}</s:String>
+    <s:String x:Key="Server.EulaPrompt">Сервер "{0}" требует принятия Minecraft EULA.\n\nEULA: https://aka.ms/MinecraftEULA\n\nНажмите «Да», чтобы принять. Лаунчер установит eula=true в eula.txt.</s:String>
+
+    <s:String x:Key="Role.Invalid">Недопустимое имя пользователя:\n· 4–16 символов\n· Без CJK-символов и пробелов</s:String>
+    <s:String x:Key="Role.CreateFailed">Ошибка создания: {0}</s:String>
+    <s:String x:Key="Role.NeedFirst">Аккаунта ещё нет. Создайте его перед запуском.\nВсё равно пропустить?</s:String>
+
+    <s:String x:Key="MSLogin.LoginFailed">Ошибка входа:\n{0}</s:String>
+    <s:String x:Key="MSLogin.CacheDetected">Обнаружены кэшированные учётные данные Microsoft.\n\nВойти с использованием кэша (без браузера)?\n\n· Да → Вход из кэша\n· Нет → Вход по коду устройства</s:String>
+    <s:String x:Key="MSLogin.CacheSuccess">Учётные данные Microsoft сохранены в кэше.\n\nПосле одобрения Mojang откройте это окно снова и выберите «Использовать вход из кэша».</s:String>
+    <s:String x:Key="MSLogin.LoginSuccess">Вход выполнен!\n\nАккаунт сохранён.</s:String>
+
+    <s:String x:Key="Common.Any">Любой</s:String>
+    <s:String x:Key="Common.All">Все</s:String>
+
+    <s:String x:Key="Launch.NoVersionSelected">Версия не выбрана. Сначала установите версию в .minecraft\versions.</s:String>
+    <s:String x:Key="Launch.NoRoleConfirm">Аккаунт ещё не создан. Создать сейчас?</s:String>
+    <s:String x:Key="Launch.FailedWithCode">Ошибка запуска, код выхода: {0}</s:String>
+    <s:String x:Key="Launch.Error">Ошибка запуска: {0}</s:String>
+
+    <s:String x:Key="Download.Count">Всего {0} версий</s:String>
+    <s:String x:Key="Download.FetchFailed">Не удалось получить список версий: {0}</s:String>
+
+    <s:String x:Key="Settings.Checking">Проверка...</s:String>
+    <s:String x:Key="Settings.CheckFailed">Ошибка проверки обновлений: {0}</s:String>
+    <s:String x:Key="Settings.CheckError">Ошибка проверки обновлений: {0}</s:String>
+    <s:String x:Key="Settings.CheckFailedShort">Проверка не удалась</s:String>
+    <s:String x:Key="Settings.UpToDate">Обновлено</s:String>
+    <s:String x:Key="Settings.UpToDateWithVersion">Уже последняя версия {0}.</s:String>
+    <s:String x:Key="Settings.NewVersionFound">Найдена новая версия</s:String>
+
+    <s:String x:Key="Server.DeleteRunning">Сервер "{0}" запущен. Остановите его перед удалением.</s:String>
+
+    <s:String x:Key="Update.Preparing">Загрузка завершена, подготовка к применению обновления...</s:String>
+    <s:String x:Key="Update.Restarting">Перезапуск приложения...</s:String>
+    <s:String x:Key="Update.Cancelled">Отменено</s:String>
+    <s:String x:Key="Update.Failed">Ошибка обновления</s:String>
+
+    <s:String x:Key="MSLogin.Preparing">Подготовка входа, подождите...</s:String>
+    <s:String x:Key="MSLogin.CacheLogin">Вход с использованием кэша...</s:String>
+    <s:String x:Key="MSLogin.NoResult">Вход не вернул результат</s:String>
+    <s:String x:Key="MSLogin.CacheSaved">Учётные данные Azure кэшированы, автоматический вход будет доступен после одобрения Mojang</s:String>
+    <s:String x:Key="MSLogin.Success">Вход выполнен</s:String>
+    <s:String x:Key="MSLogin.CancelConfirm">Выполняется вход. Вы уверены, что хотите выйти?</s:String>
+
+    <s:String x:Key="ClientInstall.LatestVersion">(использовать последнюю)</s:String>
+    <s:String x:Key="ClientInstall.LatestVersionShort">(последняя)</s:String>
+    <s:String x:Key="ClientInstall.WithForge">с Forge</s:String>
+    <s:String x:Key="ClientInstall.LoadingVersions">Загрузка версий {0}...</s:String>
+    <s:String x:Key="ClientInstall.VanillaHint">Vanilla не требует версии загрузчика.</s:String>
+    <s:String x:Key="ClientInstall.ForgeHint">Оставьте пустым для последней. Можно выбрать конкретную версию из списка.</s:String>
+    <s:String x:Key="ClientInstall.LoaderHint">Оставьте пустым для последней. Нельзя использовать с OptiFine.</s:String>
+    <s:String x:Key="ClientInstall.LoadedCount">(загружено {0} версий)</s:String>
+    <s:String x:Key="ClientInstall.NoVersions">(нет доступных версий)</s:String>
+    <s:String x:Key="ClientInstall.OptifineLoading">Загрузка версий OptiFine...</s:String>
+    <s:String x:Key="ClientInstall.OptifineNone">Нет OptiFine, совместимого с текущей версией Forge, или нет OptiFine для этой версии игры.</s:String>
+    <s:String x:Key="ClientInstall.OptifineLoaded">Загружено {0} версий OptiFine.</s:String>
+    <s:String x:Key="ClientInstall.LoaderListFailed">Не удалось загрузить список версий</s:String>
+    <s:String x:Key="ClientInstall.Installing">Установка...</s:String>
+    <s:String x:Key="ClientInstall.InstallDone">Установка завершена</s:String>
+    <s:String x:Key="ClientInstall.InstallDoneLog">✅ Установка завершена</s:String>
+    <s:String x:Key="ClientInstall.InstallFailedLog">❌ Ошибка установки</s:String>
+    <s:String x:Key="ClientInstall.InstallErrorLog">❌ Ошибка установки:</s:String>
+    <s:String x:Key="ClientInstall.BeginInstall">Начало установки клиента</s:String>
+    <s:String x:Key="ClientInstall.TargetDir">Целевой каталог</s:String>
+    <s:String x:Key="ClientInstall.DoNotInstall">Не устанавливать</s:String>
+
+    <s:String x:Key="ServerInstall.LoadingManifest">Загрузка списка версий...</s:String>
+    <s:String x:Key="ServerInstall.ReleaseCount">{0} релизов</s:String>
+    <s:String x:Key="ServerInstall.LoadFailed">Ошибка загрузки</s:String>
+    <s:String x:Key="ServerInstall.Installing">Установка...</s:String>
+    <s:String x:Key="ServerInstall.BeginInstall">Начало установки сервера</s:String>
+
+    <s:String x:Key="ServerSettings.FolderExists">Папка сервера с таким именем уже существует.</s:String>
+    <s:String x:Key="ServerSettings.SaveFailed">Ошибка сохранения: {0}</s:String>
+
+    <s:String x:Key="ModVersions.SelectOne">Сначала выберите версию.</s:String>
+    <s:String x:Key="ModVersions.NoFile">В этой версии нет файлов для загрузки.</s:String>
+    <s:String x:Key="ModVersions.AllSourcesFailed">Все источники загрузки недоступны</s:String>
+    <s:String x:Key="ModVersions.DownloadingNoTotal">Загрузка {0}: {1}</s:String>
+    <s:String x:Key="ModVersions.DownloadSuccess">Загрузка завершена:\n{0}</s:String>
+    <s:String x:Key="ModVersions.DownloadFailedMsg">Ошибка загрузки: {0}</s:String>
+    <s:String x:Key="ModVersions.NoWorlds">Сохранения не найдены. Сначала создайте мир.</s:String>
+    <s:String x:Key="ModVersions.NoSavesFolder">Папка saves не найдена. Сначала создайте мир.</s:String>
+    <s:String x:Key="ModVersions.DatapackConfirm">Датапак будет загружен в:\n{0}\nПродолжить?</s:String>
+    <s:String x:Key="ModVersions.ModpackDialogDesc">Выберите каталог для распаковки сборки (рекомендуется versions)</s:String>
+    <s:String x:Key="ModVersions.NoMatch">Не найдено версии, совместимой с требованиями этого мода.\n\nМод требует версию игры: {0}\nМод требует загрузчик: {1}\n\nЗагрузить напрямую в .minecraft\mods?\n(Примечание: при включённой изоляции версий моды из этого каталога не загружаются по умолчанию)</s:String>
+    <s:String x:Key="ModVersions.ModpackDownloadFailed">Ошибка загрузки сборки: {0}</s:String>
+    <s:String x:Key="ModVersions.DownloadingFile">Загрузка файла [{0}/{1}]: {2}</s:String>
+    <s:String x:Key="ModVersions.Incomplete">Следующие файлы не удалось загрузить. Скачайте вручную:\n{0}</s:String>
+    <s:String x:Key="ModVersions.Installed">Сборка установлена в:\n{0}\n\nТеперь можно выбрать '{1}' в лаунчере для запуска.</s:String>
+    <s:String x:Key="ModVersions.ProcessFailed">Ошибка обработки сборки: {0}</s:String>
+    <s:String x:Key="ModVersions.ExtractedNoIndex">Сборка распакована (отсутствует modrinth.index.json).</s:String>
+    <s:String x:Key="ModVersions.InstallComplete">Установка сборки завершена:</s:String>
+    <s:String x:Key="ModVersions.NoVersionSelected">Версия не выбрана, невозможно найти каталог mods.</s:String>
+    <s:String x:Key="ModVersions.IndexParseFailed">Ошибка разбора modrinth.index.json</s:String>
+    <s:String x:Key="ModVersions.NoMcVersion">Не удалось извлечь версию Minecraft из modrinth.index.json</s:String>
+
+    <s:String x:Key="Role.EmptyUsername">Имя пользователя не может быть пустым</s:String>
+
+    <s:String x:Key="Auth.ChildAccount">Детские аккаунты требуют одобрения родителей.</s:String>
+    <s:String x:Key="Auth.RegionUnsupported">Регион не поддерживается.</s:String>
+    <s:String x:Key="Auth.XstsError">Ошибка XSTS: {0}</s:String>
+    <s:String x:Key="Auth.Timeout">Время входа пользователя истекло.</s:String>
+    <s:String x:Key="Auth.DeviceCodeFailed">Ошибка запроса кода устройства: {0}</s:String>
+    <s:String x:Key="Auth.PostFailed">Ошибка POST-запроса (URL: {0}, HTTP {1})</s:String>
+    <s:String x:Key="Auth.RefreshFailed">Ошибка обновления: {0} - {1}</s:String>
+    <s:String x:Key="Auth.CacheCorrupted">Файл кэша не может быть расшифрован или повреждён. Войдите снова.</s:String>
+    <s:String x:Key="Auth.CacheMissing">Файл кэша не существует</s:String>
+
+    <s:String x:Key="Api.TooManyRequests">Слишком много запросов. Попробуйте позже.</s:String>
+    <s:String x:Key="Api.BadRequest">Неверные параметры запроса. Проверьте критерии поиска.</s:String>
+    <s:String x:Key="Api.NotFound">Запрошенный ресурс не найден.</s:String>
+    <s:String x:Key="Api.NetworkError">Ошибка сетевого подключения. Проверьте сеть или настройки прокси.</s:String>
+    <s:String x:Key="Api.HttpError">Ошибка HTTP {0}</s:String>
+    <s:String x:Key="Api.ModIdRequired">ID мода не может быть пустым</s:String>
+
+    <s:String x:Key="Settings.Language">Язык</s:String>
+    <s:String x:Key="Settings.LanguageDesc">Изменить язык интерфейса лаунчера. Применяется сразу.</s:String>
+
+</ResourceDictionary>

@@ -1,0 +1,315 @@
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:s="clr-namespace:System;assembly=mscorlib">
+
+    <s:String x:Key="App.Title">Jerry Craft Launcher</s:String>
+    <s:String x:Key="Nav.Launch">啟動</s:String>
+    <s:String x:Key="Nav.Download">下載</s:String>
+    <s:String x:Key="Nav.Server">伺服器</s:String>
+    <s:String x:Key="Nav.Settings">設定</s:String>
+
+    <s:String x:Key="Launch.Home">首頁</s:String>
+    <s:String x:Key="Launch.Roles">角色管理</s:String>
+    <s:String x:Key="Launch.Start">啟動</s:String>
+    <s:String x:Key="Launch.NoVersion">無版本</s:String>
+    <s:String x:Key="Launch.NotLoggedIn">未登入</s:String>
+    <s:String x:Key="Launch.RoleOffline">離線帳號</s:String>
+    <s:String x:Key="Launch.RoleMicrosoft">正版帳號</s:String>
+    <s:String x:Key="Launch.RolesTitle">角色管理</s:String>
+    <s:String x:Key="Launch.CreateRole">建立角色</s:String>
+
+    <s:String x:Key="Download.Minecraft">Minecraft</s:String>
+    <s:String x:Key="Download.Mod">模組</s:String>
+    <s:String x:Key="Download.Modpack">整合包</s:String>
+    <s:String x:Key="Download.Datapack">資料包</s:String>
+    <s:String x:Key="Download.Shader">光影包</s:String>
+    <s:String x:Key="Download.MinecraftTitle">Minecraft 版本</s:String>
+    <s:String x:Key="Download.Loading">載入中...</s:String>
+    <s:String x:Key="Download.Refresh">重新整理</s:String>
+    <s:String x:Key="Download.Cat.Release">正式版</s:String>
+    <s:String x:Key="Download.Cat.Snapshot">快照版</s:String>
+    <s:String x:Key="Download.Cat.Old">遠古版</s:String>
+    <s:String x:Key="Download.Cat.AprilFools">愚人節版</s:String>
+
+    <s:String x:Key="Server.Title">伺服器</s:String>
+    <s:String x:Key="Server.Install">安裝伺服器</s:String>
+    <s:String x:Key="Server.OpenFolder">開啟 Server 目錄</s:String>
+    <s:String x:Key="Server.Refresh">重新整理</s:String>
+    <s:String x:Key="Server.Start">啟動</s:String>
+    <s:String x:Key="Server.Settings">設定</s:String>
+    <s:String x:Key="Server.Delete">刪除</s:String>
+    <s:String x:Key="Server.EmptyHint">將伺服端放到 程式目錄\Server\自訂伺服器名稱\ 下（支援 server.jar / run.bat / fabric-server-launch.jar / quilt-server-launch.jar）</s:String>
+
+    <s:String x:Key="Settings.Launcher">啟動器</s:String>
+    <s:String x:Key="Settings.Java">Java</s:String>
+    <s:String x:Key="Settings.Game">遊戲</s:String>
+    <s:String x:Key="Settings.Versions">執行個體管理</s:String>
+    <s:String x:Key="Settings.Title">啟動器</s:String>
+    <s:String x:Key="Settings.CheckUpdate">檢查更新</s:String>
+    <s:String x:Key="Settings.CurrentVersion">目前版本：</s:String>
+    <s:String x:Key="Settings.Game.Title">遊戲</s:String>
+    <s:String x:Key="Settings.Game.Isolation">版本隔離</s:String>
+    <s:String x:Key="Settings.Game.IsolationDesc">開啟後，遊戲資料（存檔、資源、設定等）會儲存在 versions\版本名稱 目錄下，各版本互不干擾。</s:String>
+
+    <s:String x:Key="Login.Title">選擇登入方式</s:String>
+    <s:String x:Key="Login.Prompt">請選擇你要建立的角色類型：</s:String>
+    <s:String x:Key="Login.Premium">正版登入</s:String>
+    <s:String x:Key="Login.PremiumDesc">使用 Microsoft 帳號登入</s:String>
+    <s:String x:Key="Login.Offline">離線登入</s:String>
+    <s:String x:Key="Login.OfflineDesc">建立本機離線角色</s:String>
+
+    <s:String x:Key="CreateRole.Title">建立離線角色</s:String>
+    <s:String x:Key="CreateRole.NameLabel">角色名稱</s:String>
+    <s:String x:Key="CreateRole.NameHint">4-16 個字元，不能包含中文和空格</s:String>
+    <s:String x:Key="CreateRole.Skip">略過</s:String>
+    <s:String x:Key="CreateRole.Create">建立</s:String>
+
+    <s:String x:Key="MSLogin.Title">Microsoft 正版登入</s:String>
+    <s:String x:Key="MSLogin.BrowserHint">點擊下方按鈕後會在瀏覽器中開啟微軟登入頁</s:String>
+    <s:String x:Key="MSLogin.CodeHint">瀏覽器中提示的代碼</s:String>
+    <s:String x:Key="MSLogin.CodeCopied">（已複製到剪貼簿）</s:String>
+    <s:String x:Key="MSLogin.StatusReady">點擊下方按鈕開始登入</s:String>
+    <s:String x:Key="MSLogin.Login">開始登入</s:String>
+    <s:String x:Key="MSLogin.LoginBusy">登入中...</s:String>
+
+    <s:String x:Key="ClientInstall.Title">安裝用戶端</s:String>
+    <s:String x:Key="ClientInstall.GameVersion">遊戲版本</s:String>
+    <s:String x:Key="ClientInstall.Loader">載入器</s:String>
+    <s:String x:Key="ClientInstall.LoaderVersion">載入器版本</s:String>
+    <s:String x:Key="ClientInstall.LoaderVersionHint">留空使用最新版</s:String>
+    <s:String x:Key="ClientInstall.Optifine">安裝 OptiFine</s:String>
+    <s:String x:Key="ClientInstall.OptifineVersion">OptiFine 版本</s:String>
+    <s:String x:Key="ClientInstall.OptifineHint">勾選上方核取方塊後啟用。選擇 OptiFine 版本會自動填入相容的 Forge 版本。</s:String>
+    <s:String x:Key="ClientInstall.Warning">安裝過程會從網路下載大量檔案，進度會顯示在下方日誌中。安裝完成後版本會自動出現在啟動頁的版本清單裡。</s:String>
+    <s:String x:Key="ClientInstall.LogPlaceholder">安裝日誌將顯示在這裡...</s:String>
+    <s:String x:Key="ClientInstall.Cancel">取消</s:String>
+    <s:String x:Key="ClientInstall.Install">安裝</s:String>
+
+    <s:String x:Key="ServerInstall.Title">安裝伺服端</s:String>
+    <s:String x:Key="ServerInstall.ServerName">伺服器名稱</s:String>
+    <s:String x:Key="ServerInstall.ServerNameHint">會成為 Server 目錄下的資料夾名稱，建議用英文、數字、底線</s:String>
+    <s:String x:Key="ServerInstall.GameVersion">遊戲版本</s:String>
+    <s:String x:Key="ServerInstall.Refresh">重新整理</s:String>
+    <s:String x:Key="ServerInstall.Loader">載入器</s:String>
+    <s:String x:Key="ServerInstall.LoaderVersion">載入器版本</s:String>
+    <s:String x:Key="ServerInstall.LoaderVersionHint">留空使用最新版。例如 Forge 填 47.2.0、NeoForge 填 21.1.0、Fabric/Quilt 填 Loader 版本號</s:String>
+    <s:String x:Key="ServerInstall.LogPlaceholder">安裝日誌將顯示在這裡...</s:String>
+    <s:String x:Key="ServerInstall.Cancel">取消</s:String>
+    <s:String x:Key="ServerInstall.Install">安裝</s:String>
+
+    <s:String x:Key="ServerSettings.Title">伺服器設定</s:String>
+    <s:String x:Key="ServerSettings.Basic">基本</s:String>
+    <s:String x:Key="ServerSettings.ServerName">伺服器名稱（會重新命名資料夾）</s:String>
+    <s:String x:Key="ServerSettings.Motd">簡介 (MOTD)</s:String>
+    <s:String x:Key="ServerSettings.Port">連接埠</s:String>
+    <s:String x:Key="ServerSettings.Players">玩家</s:String>
+    <s:String x:Key="ServerSettings.OnlineMode">正版登入 (online-mode)</s:String>
+    <s:String x:Key="ServerSettings.Whitelist">啟用白名單 (white-list)</s:String>
+    <s:String x:Key="ServerSettings.EnforceWhitelist">強制白名單 (enforce-whitelist)</s:String>
+    <s:String x:Key="ServerSettings.Pvp">允許 PVP (pvp)</s:String>
+    <s:String x:Key="ServerSettings.AllowFlight">允許飛行 (allow-flight)</s:String>
+    <s:String x:Key="ServerSettings.Cheat">允許作弊 (enable-command-block)</s:String>
+    <s:String x:Key="ServerSettings.MaxPlayers">最大玩家數</s:String>
+    <s:String x:Key="ServerSettings.World">世界</s:String>
+    <s:String x:Key="ServerSettings.Gamemode">遊戲模式 (survival / creative / adventure / spectator)</s:String>
+    <s:String x:Key="ServerSettings.Difficulty">難度 (peaceful / easy / normal / hard)</s:String>
+    <s:String x:Key="ServerSettings.ViewDistance">視距 (view-distance)</s:String>
+    <s:String x:Key="ServerSettings.SimDistance">模擬距離 (simulation-distance)</s:String>
+    <s:String x:Key="ServerSettings.Cancel">取消</s:String>
+    <s:String x:Key="ServerSettings.Save">儲存</s:String>
+
+    <s:String x:Key="Update.Title">發現新版本</s:String>
+    <s:String x:Key="Update.Notes">更新內容</s:String>
+    <s:String x:Key="Update.Later">稍後</s:String>
+    <s:String x:Key="Update.Now">立即更新</s:String>
+    <s:String x:Key="Update.Downloading">正在下載更新包...</s:String>
+
+    <s:String x:Key="Common.Cancel">取消</s:String>
+    <s:String x:Key="Common.Save">儲存</s:String>
+    <s:String x:Key="Common.Close">關閉</s:String>
+    <s:String x:Key="Common.OK">確定</s:String>
+
+    <s:String x:Key="Download.Failure">載入失敗</s:String>
+
+    <s:String x:Key="Dialog.Info">提示</s:String>
+    <s:String x:Key="Dialog.Error">錯誤</s:String>
+    <s:String x:Key="Dialog.Success">成功</s:String>
+    <s:String x:Key="Dialog.Warning">警告</s:String>
+    <s:String x:Key="Dialog.Confirm">確認</s:String>
+    <s:String x:Key="Dialog.Yes">是</s:String>
+    <s:String x:Key="Dialog.No">否</s:String>
+    <s:String x:Key="Common.Confirm">確認</s:String>
+    <s:String x:Key="Common.Delete">刪除</s:String>
+
+    <s:String x:Key="ModSearch.Search">搜尋</s:String>
+    <s:String x:Key="ModSearch.ResourcePack">資源包</s:String>
+    <s:String x:Key="ModSearch.PrevPage">上一頁</s:String>
+    <s:String x:Key="ModSearch.NextPage">下一頁</s:String>
+    <s:String x:Key="ModSearch.Loading">載入中...</s:String>
+    <s:String x:Key="ModSearch.NoResult">沒有找到任何項目</s:String>
+    <s:String x:Key="ModSearch.PageInfo">第 {0} / {1} 頁（共 {2} 項）</s:String>
+
+    <s:String x:Key="ModVersions.Title">Mod 版本列表</s:String>
+    <s:String x:Key="ModVersions.TitlePrefix">版本列表：</s:String>
+    <s:String x:Key="ModVersions.Loading">正在載入版本...</s:String>
+    <s:String x:Key="ModVersions.NoResult">沒有找到版本</s:String>
+    <s:String x:Key="ModVersions.CountZero">共 0 個版本</s:String>
+    <s:String x:Key="ModVersions.CountInfo">共 {0} 個版本，顯示 {1} 個</s:String>
+    <s:String x:Key="ModVersions.Sort.Date">發布日期</s:String>
+    <s:String x:Key="ModVersions.Sort.Downloads">下載次數</s:String>
+    <s:String x:Key="ModVersions.Sort.Version">版本號</s:String>
+    <s:String x:Key="ModVersions.SortDir.Desc">降序(最新)</s:String>
+    <s:String x:Key="ModVersions.SortDir.Asc">升序(最早)</s:String>
+    <s:String x:Key="ModVersions.Download">下載選中</s:String>
+    <s:String x:Key="ModVersions.Preparing">正在準備下載</s:String>
+    <s:String x:Key="ModVersions.Downloading">正在下載 {0}：{1}%  ({2} / {3})</s:String>
+    <s:String x:Key="ModVersions.DownloadComplete">下載完成：</s:String>
+    <s:String x:Key="ModVersions.DownloadFailed">下載失敗</s:String>
+    <s:String x:Key="ModVersions.DownloadingPack">下載整合包中...</s:String>
+    <s:String x:Key="ModVersions.UsingCached">使用快取整合包：</s:String>
+    <s:String x:Key="ModVersions.Progress">下載完成，成功 {0} 個，失敗 {1} 個</s:String>
+
+    <s:String x:Key="ModInstallTarget.Title">選擇安裝目標</s:String>
+    <s:String x:Key="ModInstallTarget.Hint">找到以下符合要求的版本實例，請選擇要安裝到哪個：</s:String>
+    <s:String x:Key="ModInstallTarget.Requirements">Mod 要求：遊戲版本 = {0}  |  載入器 = {1}</s:String>
+    <s:String x:Key="ModInstallTarget.InstallHere">安裝到此版本</s:String>
+    <s:String x:Key="ModInstallTarget.SelectOne">請先選擇一個版本實例。</s:String>
+
+    <s:String x:Key="ClientInstall.NoVersion">未選擇遊戲版本。</s:String>
+    <s:String x:Key="ClientInstall.OptifineConflict">OptiFine 與 {0} 不相容。\n請把載入器改為 Forge 或 Vanilla，或取消勾選 OptiFine。</s:String>
+    <s:String x:Key="ClientInstall.InstallSuccess">Minecraft {0} 用戶端安裝完成。</s:String>
+    <s:String x:Key="ClientInstall.InstallFailed">安裝失敗，請查看下方日誌中的錯誤資訊。</s:String>
+    <s:String x:Key="ClientInstall.InstallError">安裝出錯：{0}</s:String>
+
+    <s:String x:Key="ServerInstall.NameRequired">請填寫伺服器名稱。</s:String>
+    <s:String x:Key="ServerInstall.NameInvalid">伺服器名稱包含非法字元：{0}</s:String>
+    <s:String x:Key="ServerInstall.VersionRequired">請選擇或輸入遊戲版本。</s:String>
+    <s:String x:Key="ServerInstall.FolderExists">目標資料夾已存在且不為空：\n{0}\n\n繼續安裝會覆蓋部分檔案，是否繼續？</s:String>
+    <s:String x:Key="ServerInstall.InstallSuccess">伺服器【{0}】安裝完成。</s:String>
+    <s:String x:Key="ServerInstall.InstallFailed">安裝失敗，請查看下方日誌中的錯誤資訊。</s:String>
+    <s:String x:Key="ServerInstall.InstallError">安裝出錯：{0}</s:String>
+
+    <s:String x:Key="Server.Running">伺服器【{0}】已在執行中。</s:String>
+    <s:String x:Key="Server.DeleteConfirm">確定要刪除伺服器【{0}】嗎？\n\n此操作會刪除整個資料夾：\n{1}\n  您的存檔將會消失！\n\n刪除後無法恢復！</s:String>
+    <s:String x:Key="Server.DeleteFailed">刪除失敗：{0}</s:String>
+    <s:String x:Key="Server.StartFailed">啟動伺服器失敗：{0}</s:String>
+    <s:String x:Key="Server.EulaPrompt">伺服器【{0}】需要你先同意 Minecraft EULA 才能啟動。\n\nEULA 官方網址：\nhttps://aka.ms/MinecraftEULA\n\n點擊「是」表示你已閱讀並同意 EULA，\n啟動器會自動把 eula.txt 中的 eula 改為 true。</s:String>
+
+    <s:String x:Key="Role.Invalid">角色名稱不符合要求：\n· 長度必須在 4-16 個字元之間\n· 不能包含中文字元或空格</s:String>
+    <s:String x:Key="Role.CreateFailed">建立失敗：{0}</s:String>
+    <s:String x:Key="Role.NeedFirst">還沒有角色，啟動遊戲前必須先建立角色。\n確定要略過嗎？</s:String>
+
+    <s:String x:Key="MSLogin.LoginFailed">登入失敗：\n{0}</s:String>
+    <s:String x:Key="MSLogin.CacheDetected">偵測到已快取的 Microsoft 帳號憑證。\n\n是否嘗試使用快取直接登入（無需開啟瀏覽器）？\n\n· 是 → 嘗試用快取登入\n· 否 → 重新進行裝置碼登入</s:String>
+    <s:String x:Key="MSLogin.CacheSuccess">已成功快取您的 Microsoft 帳戶憑證。\n\n待 Mojang 服務審核通過後，再次開啟本視窗選擇「使用快取登入」即可，無需再次開啟瀏覽器。</s:String>
+    <s:String x:Key="MSLogin.LoginSuccess">登入成功！\n\n帳號已儲存。</s:String>
+
+    <s:String x:Key="Common.Any">不限</s:String>
+    <s:String x:Key="Common.All">全部</s:String>
+
+    <s:String x:Key="Launch.NoVersionSelected">尚未選擇版本。請先在 .minecraft\versions 下安裝版本。</s:String>
+    <s:String x:Key="Launch.NoRoleConfirm">尚未建立角色。是否現在建立？</s:String>
+    <s:String x:Key="Launch.FailedWithCode">啟動失敗，退出碼：{0}</s:String>
+    <s:String x:Key="Launch.Error">啟動出錯：{0}</s:String>
+
+    <s:String x:Key="Download.Count">共 {0} 個版本</s:String>
+    <s:String x:Key="Download.FetchFailed">取得版本清單失敗：{0}</s:String>
+
+    <s:String x:Key="Settings.Checking">檢查中...</s:String>
+    <s:String x:Key="Settings.CheckFailed">檢查更新失敗：{0}</s:String>
+    <s:String x:Key="Settings.CheckError">檢查更新失敗：{0}</s:String>
+    <s:String x:Key="Settings.CheckFailedShort">檢查失敗</s:String>
+    <s:String x:Key="Settings.UpToDate">已是最新版本</s:String>
+    <s:String x:Key="Settings.UpToDateWithVersion">目前已是最新版本 {0}。</s:String>
+    <s:String x:Key="Settings.NewVersionFound">發現新版本</s:String>
+
+    <s:String x:Key="Server.DeleteRunning">伺服器【{0}】正在執行中，請先關閉伺服端後再刪除。</s:String>
+
+    <s:String x:Key="Update.Preparing">下載完成，正在準備套用更新...</s:String>
+    <s:String x:Key="Update.Restarting">即將重新啟動應用程式...</s:String>
+    <s:String x:Key="Update.Cancelled">已取消</s:String>
+    <s:String x:Key="Update.Failed">更新失敗</s:String>
+
+    <s:String x:Key="MSLogin.Preparing">正在準備登入，請稍候...</s:String>
+    <s:String x:Key="MSLogin.CacheLogin">正在使用快取登入...</s:String>
+    <s:String x:Key="MSLogin.NoResult">登入未傳回結果</s:String>
+    <s:String x:Key="MSLogin.CacheSaved">Azure 憑證已快取，待 Mojang 審核通過後可自動登入</s:String>
+    <s:String x:Key="MSLogin.Success">登入成功</s:String>
+    <s:String x:Key="MSLogin.CancelConfirm">正在登入中，確定要結束嗎？</s:String>
+
+    <s:String x:Key="ClientInstall.LatestVersion">（使用最新版）</s:String>
+    <s:String x:Key="ClientInstall.LatestVersionShort">（最新）</s:String>
+    <s:String x:Key="ClientInstall.WithForge">配合 Forge</s:String>
+    <s:String x:Key="ClientInstall.LoadingVersions">正在載入 {0} 版本列表...</s:String>
+    <s:String x:Key="ClientInstall.VanillaHint">原版不需要載入器版本。</s:String>
+    <s:String x:Key="ClientInstall.ForgeHint">留空使用最新版。可從下拉列表選擇具體版本。</s:String>
+    <s:String x:Key="ClientInstall.LoaderHint">留空使用最新版。不能與 OptiFine 共存。</s:String>
+    <s:String x:Key="ClientInstall.LoadedCount">（已載入 {0} 個版本）</s:String>
+    <s:String x:Key="ClientInstall.NoVersions">（暫無可用版本）</s:String>
+    <s:String x:Key="ClientInstall.OptifineLoading">OptiFine 版本列表載入中...</s:String>
+    <s:String x:Key="ClientInstall.OptifineNone">沒有與目前 Forge 版本相容的 OptiFine，或該遊戲版本無 OptiFine。</s:String>
+    <s:String x:Key="ClientInstall.OptifineLoaded">已載入 {0} 個 OptiFine 版本。</s:String>
+    <s:String x:Key="ClientInstall.LoaderListFailed">下載版本列表失敗</s:String>
+    <s:String x:Key="ClientInstall.Installing">安裝中...</s:String>
+    <s:String x:Key="ClientInstall.InstallDone">安裝完成</s:String>
+    <s:String x:Key="ClientInstall.InstallDoneLog">✅ 安裝完成</s:String>
+    <s:String x:Key="ClientInstall.InstallFailedLog">❌ 安裝失敗</s:String>
+    <s:String x:Key="ClientInstall.InstallErrorLog">❌ 安裝出錯：</s:String>
+    <s:String x:Key="ClientInstall.BeginInstall">開始安裝用戶端</s:String>
+    <s:String x:Key="ClientInstall.TargetDir">目標目錄</s:String>
+    <s:String x:Key="ClientInstall.DoNotInstall">不安裝</s:String>
+
+    <s:String x:Key="ServerInstall.LoadingManifest">載入版本清單中...</s:String>
+    <s:String x:Key="ServerInstall.ReleaseCount">共 {0} 個正式版</s:String>
+    <s:String x:Key="ServerInstall.LoadFailed">載入失敗</s:String>
+    <s:String x:Key="ServerInstall.Installing">安裝中...</s:String>
+    <s:String x:Key="ServerInstall.BeginInstall">開始安裝伺服端</s:String>
+
+    <s:String x:Key="ServerSettings.FolderExists">已存在同名伺服器資料夾。</s:String>
+    <s:String x:Key="ServerSettings.SaveFailed">儲存失敗：{0}</s:String>
+
+    <s:String x:Key="ModVersions.SelectOne">請先選擇一個版本。</s:String>
+    <s:String x:Key="ModVersions.NoFile">該版本沒有可下載的檔案。</s:String>
+    <s:String x:Key="ModVersions.AllSourcesFailed">所有下載來源均不可用</s:String>
+    <s:String x:Key="ModVersions.DownloadingNoTotal">正在下載 {0}：{1}</s:String>
+    <s:String x:Key="ModVersions.DownloadSuccess">下載完成：\n{0}</s:String>
+    <s:String x:Key="ModVersions.DownloadFailedMsg">下載失敗：{0}</s:String>
+    <s:String x:Key="ModVersions.NoWorlds">未找到任何存檔，請先建立世界。</s:String>
+    <s:String x:Key="ModVersions.NoSavesFolder">未找到 saves 資料夾，請先建立世界。</s:String>
+    <s:String x:Key="ModVersions.DatapackConfirm">即將下載資料包到：\n{0}\n是否繼續？</s:String>
+    <s:String x:Key="ModVersions.ModpackDialogDesc">選擇整合包解壓目標目錄（建議選 versions）</s:String>
+    <s:String x:Key="ModVersions.NoMatch">沒有找到符合此 Mod 要求的版本實例。\n\nMod 要求遊戲版本：{0}\nMod 要求載入器：{1}\n\n是否改為直接下載到 .minecraft\mods 目錄？\n（注意：開啟版本隔離時，該目錄下的 Mod 預設不會被載入）</s:String>
+    <s:String x:Key="ModVersions.ModpackDownloadFailed">整合包下載失敗：{0}</s:String>
+    <s:String x:Key="ModVersions.DownloadingFile">正在下載檔案[{0}/{1}]: {2}</s:String>
+    <s:String x:Key="ModVersions.Incomplete">以下檔案下載失敗，請手動下載：\n{0}</s:String>
+    <s:String x:Key="ModVersions.Installed">整合包已安裝到：\n{0}\n\n現在可以在啟動器中選中 '{1}' 啟動。</s:String>
+    <s:String x:Key="ModVersions.ProcessFailed">處理整合包失敗：{0}</s:String>
+    <s:String x:Key="ModVersions.ExtractedNoIndex">整合包已解壓（缺少 modrinth.index.json）。</s:String>
+    <s:String x:Key="ModVersions.InstallComplete">整合包安裝完成：</s:String>
+    <s:String x:Key="ModVersions.NoVersionSelected">沒有選擇版本，無法定位 mods 目錄。</s:String>
+    <s:String x:Key="ModVersions.IndexParseFailed">modrinth.index.json 解析失敗</s:String>
+    <s:String x:Key="ModVersions.NoMcVersion">無法從 modrinth.index.json 中解析 Minecraft 版本號</s:String>
+
+    <s:String x:Key="Role.EmptyUsername">使用者名稱不能為空</s:String>
+
+    <s:String x:Key="Auth.ChildAccount">兒童帳戶需家長授權。</s:String>
+    <s:String x:Key="Auth.RegionUnsupported">該地區不被支援。</s:String>
+    <s:String x:Key="Auth.XstsError">XSTS 錯誤：{0}</s:String>
+    <s:String x:Key="Auth.Timeout">使用者登入逾時。</s:String>
+    <s:String x:Key="Auth.DeviceCodeFailed">裝置碼請求失敗：{0}</s:String>
+    <s:String x:Key="Auth.PostFailed">POST 請求失敗 (URL: {0}, HTTP {1})</s:String>
+    <s:String x:Key="Auth.RefreshFailed">重新整理失敗：{0} - {1}</s:String>
+    <s:String x:Key="Auth.CacheCorrupted">快取檔案無法解密或已損壞，請重新登入。</s:String>
+    <s:String x:Key="Auth.CacheMissing">快取檔案不存在</s:String>
+
+    <s:String x:Key="Api.TooManyRequests">請求過於頻繁，請稍後再試。</s:String>
+    <s:String x:Key="Api.BadRequest">請求參數錯誤，請檢查搜尋條件。</s:String>
+    <s:String x:Key="Api.NotFound">未找到請求的資源。</s:String>
+    <s:String x:Key="Api.NetworkError">網路連線失敗，請檢查網路或代理設定。</s:String>
+    <s:String x:Key="Api.HttpError">HTTP {0} 錯誤</s:String>
+    <s:String x:Key="Api.ModIdRequired">Mod ID 不能為空</s:String>
+
+    <s:String x:Key="Settings.Language">語言</s:String>
+    <s:String x:Key="Settings.LanguageDesc">切換啟動器介面語言，切換後立即生效。</s:String>
+
+</ResourceDictionary>

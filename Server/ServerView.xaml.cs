@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Jerry_Craft_Launcher.NET_Framework_4._5_WPF.Languages;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -67,8 +68,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             Process.Start(new ProcessStartInfo { FileName = path, UseShellExecute = true });
         }
 
-        // ---------- 安装服务器 ----------
-
         private void InstallServer_Click(object sender, RoutedEventArgs e)
         {
             var win = new ServerInstallWindow
@@ -83,16 +82,12 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             }
         }
 
-        // ---------- 从按钮拿到绑定的 ServerInfo ----------
-
         private ServerInfo GetServerFromButton(object sender)
         {
             var btn = sender as Button;
             if (btn == null) return null;
             return btn.DataContext as ServerInfo;
         }
-
-        // ---------- 启动 ----------
 
         private void ServerStart_Click(object sender, RoutedEventArgs e)
         {
@@ -105,8 +100,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         {
             if (info.IsRunning)
             {
-                MessageBox.Show($"服务器【{info.Name}】已在运行中。", "提示",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
+                LanguageManager.ShowInfo("Server.Running", info.Name);
                 return;
             }
 
@@ -137,8 +131,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             }
             catch (Exception ex)
             {
-                MessageBox.Show("启动服务器失败：" + ex.Message, "错误",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                LanguageManager.ShowError("Server.StartFailed", ex.Message);
             }
         }
 
@@ -175,8 +168,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             }));
         }
 
-        // ---------- 设置 ----------
-
         private void ServerSettings_Click(object sender, RoutedEventArgs e)
         {
             var info = GetServerFromButton(sender);
@@ -192,8 +183,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             _scanner?.Start();
         }
 
-        // ---------- 删除 ----------
-
         private void ServerDelete_Click(object sender, RoutedEventArgs e)
         {
             var info = GetServerFromButton(sender);
@@ -201,20 +190,13 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             if (info.IsRunning)
             {
-                MessageBox.Show(
-                    $"服务器【{info.Name}】正在运行中，请先关闭服务端后再删除。",
-                    "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+                LanguageManager.ShowWarning("Server.DeleteRunning", info.Name);
                 return;
             }
 
-            var r = MessageBox.Show(
-                $"确定要删除服务器【{info.Name}】吗？\n\n" +
-                $"此操作会删除整个文件夹：\n{info.FolderPath}\n  您的存档将会消失！\n\n" +
-                "删除后无法恢复！",
-                "删除服务器",
-                MessageBoxButton.YesNo, MessageBoxImage.Warning);
-
-            if (r != MessageBoxResult.Yes) return;
+            if (!LanguageManager.ConfirmWarning("Server.DeleteConfirm",
+                    info.Name, info.FolderPath))
+                return;
 
             try
             {
@@ -224,26 +206,13 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             }
             catch (Exception ex)
             {
-                MessageBox.Show("删除失败：" + ex.Message, "错误",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                LanguageManager.ShowError("Server.DeleteFailed", ex.Message);
             }
         }
 
-        // ---------- EULA ----------
-
         private bool AskAcceptEula(string serverName)
         {
-            string msg =
-                "服务器【" + serverName + "】需要你先同意 Minecraft EULA 才能启动。\n\n" +
-                "EULA 官方地址：\n" +
-                "https://aka.ms/MinecraftEULA\n\n" +
-                "点击「是」表示你已阅读并同意 EULA，\n" +
-                "启动器会自动把 eula.txt 中的 eula 改为 true。";
-
-            var r = MessageBox.Show(msg, "同意 Minecraft EULA",
-                MessageBoxButton.YesNo, MessageBoxImage.Question);
-
-            return r == MessageBoxResult.Yes;
+            return LanguageManager.ConfirmWarning("Server.EulaPrompt", serverName);
         }
     }
 }

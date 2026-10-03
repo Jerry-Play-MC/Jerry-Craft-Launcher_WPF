@@ -1,0 +1,315 @@
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:s="clr-namespace:System;assembly=mscorlib">
+
+    <s:String x:Key="App.Title">Jerry Craft Launcher</s:String>
+    <s:String x:Key="Nav.Launch">Iniciar</s:String>
+    <s:String x:Key="Nav.Download">Baixar</s:String>
+    <s:String x:Key="Nav.Server">Servidor</s:String>
+    <s:String x:Key="Nav.Settings">Configurações</s:String>
+
+    <s:String x:Key="Launch.Home">Início</s:String>
+    <s:String x:Key="Launch.Roles">Contas</s:String>
+    <s:String x:Key="Launch.Start">Iniciar</s:String>
+    <s:String x:Key="Launch.NoVersion">Sem versão</s:String>
+    <s:String x:Key="Launch.NotLoggedIn">Não conectado</s:String>
+    <s:String x:Key="Launch.RoleOffline">Conta offline</s:String>
+    <s:String x:Key="Launch.RoleMicrosoft">Conta premium</s:String>
+    <s:String x:Key="Launch.RolesTitle">Gerenciar contas</s:String>
+    <s:String x:Key="Launch.CreateRole">Criar conta</s:String>
+
+    <s:String x:Key="Download.Minecraft">Minecraft</s:String>
+    <s:String x:Key="Download.Mod">Mods</s:String>
+    <s:String x:Key="Download.Modpack">Modpacks</s:String>
+    <s:String x:Key="Download.Datapack">Pacotes de dados</s:String>
+    <s:String x:Key="Download.Shader">Shaders</s:String>
+    <s:String x:Key="Download.MinecraftTitle">Versões do Minecraft</s:String>
+    <s:String x:Key="Download.Loading">Carregando...</s:String>
+    <s:String x:Key="Download.Refresh">Atualizar</s:String>
+    <s:String x:Key="Download.Cat.Release">Versão estável</s:String>
+    <s:String x:Key="Download.Cat.Snapshot">Snapshot</s:String>
+    <s:String x:Key="Download.Cat.Old">Versões antigas</s:String>
+    <s:String x:Key="Download.Cat.AprilFools">Primeiro de abril</s:String>
+
+    <s:String x:Key="Server.Title">Servidores</s:String>
+    <s:String x:Key="Server.Install">Instalar servidor</s:String>
+    <s:String x:Key="Server.OpenFolder">Abrir pasta Server</s:String>
+    <s:String x:Key="Server.Refresh">Atualizar</s:String>
+    <s:String x:Key="Server.Start">Iniciar</s:String>
+    <s:String x:Key="Server.Settings">Configurações</s:String>
+    <s:String x:Key="Server.Delete">Excluir</s:String>
+    <s:String x:Key="Server.EmptyHint">Coloque um servidor em  Diretório do programa\Server\NomeDoServidor\  (compatível com server.jar / run.bat / fabric-server-launch.jar / quilt-server-launch.jar)</s:String>
+
+    <s:String x:Key="Settings.Launcher">Launcher</s:String>
+    <s:String x:Key="Settings.Java">Java</s:String>
+    <s:String x:Key="Settings.Game">Jogo</s:String>
+    <s:String x:Key="Settings.Versions">Gerenciamento de instâncias</s:String>
+    <s:String x:Key="Settings.Title">Launcher</s:String>
+    <s:String x:Key="Settings.CheckUpdate">Verificar atualizações</s:String>
+    <s:String x:Key="Settings.CurrentVersion">Versão atual:</s:String>
+    <s:String x:Key="Settings.Game.Title">Jogo</s:String>
+    <s:String x:Key="Settings.Game.Isolation">Isolamento de versão</s:String>
+    <s:String x:Key="Settings.Game.IsolationDesc">Quando ativado, os dados do jogo (mundos, recursos, configurações etc.) são salvos em versions\nome-da-versão, mantendo cada versão isolada.</s:String>
+
+    <s:String x:Key="Login.Title">Escolher tipo de login</s:String>
+    <s:String x:Key="Login.Prompt">Escolha o tipo de conta que deseja criar:</s:String>
+    <s:String x:Key="Login.Premium">Login premium</s:String>
+    <s:String x:Key="Login.PremiumDesc">Entrar com uma conta Microsoft</s:String>
+    <s:String x:Key="Login.Offline">Login offline</s:String>
+    <s:String x:Key="Login.OfflineDesc">Criar uma conta offline local</s:String>
+
+    <s:String x:Key="CreateRole.Title">Criar conta offline</s:String>
+    <s:String x:Key="CreateRole.NameLabel">Nome de usuário</s:String>
+    <s:String x:Key="CreateRole.NameHint">4 a 16 caracteres, sem caracteres CJK ou espaços</s:String>
+    <s:String x:Key="CreateRole.Skip">Pular</s:String>
+    <s:String x:Key="CreateRole.Create">Criar</s:String>
+
+    <s:String x:Key="MSLogin.Title">Login Microsoft</s:String>
+    <s:String x:Key="MSLogin.BrowserHint">Clicar no botão abaixo abrirá a página de login da Microsoft no seu navegador</s:String>
+    <s:String x:Key="MSLogin.CodeHint">Código exibido no navegador</s:String>
+    <s:String x:Key="MSLogin.CodeCopied">(copiado para a área de transferência)</s:String>
+    <s:String x:Key="MSLogin.StatusReady">Clique no botão abaixo para começar</s:String>
+    <s:String x:Key="MSLogin.Login">Entrar</s:String>
+    <s:String x:Key="MSLogin.LoginBusy">Entrando...</s:String>
+
+    <s:String x:Key="ClientInstall.Title">Instalar cliente</s:String>
+    <s:String x:Key="ClientInstall.GameVersion">Versão do jogo</s:String>
+    <s:String x:Key="ClientInstall.Loader">Loader</s:String>
+    <s:String x:Key="ClientInstall.LoaderVersion">Versão do loader</s:String>
+    <s:String x:Key="ClientInstall.LoaderVersionHint">Deixe vazio para usar a versão mais recente</s:String>
+    <s:String x:Key="ClientInstall.Optifine">Instalar OptiFine</s:String>
+    <s:String x:Key="ClientInstall.OptifineVersion">Versão do OptiFine</s:String>
+    <s:String x:Key="ClientInstall.OptifineHint">Marque a caixa acima primeiro. Ao selecionar uma versão do OptiFine, uma versão compatível do Forge será preenchida automaticamente.</s:String>
+    <s:String x:Key="ClientInstall.Warning">A instalação baixará muitos arquivos da rede. O progresso é mostrado no log abaixo. Ao concluir, a versão aparecerá na página de início.</s:String>
+    <s:String x:Key="ClientInstall.LogPlaceholder">O log de instalação aparecerá aqui...</s:String>
+    <s:String x:Key="ClientInstall.Cancel">Cancelar</s:String>
+    <s:String x:Key="ClientInstall.Install">Instalar</s:String>
+
+    <s:String x:Key="ServerInstall.Title">Instalar servidor</s:String>
+    <s:String x:Key="ServerInstall.ServerName">Nome do servidor</s:String>
+    <s:String x:Key="ServerInstall.ServerNameHint">Nome da pasta no diretório Server. Letras, dígitos e sublinhados são recomendados.</s:String>
+    <s:String x:Key="ServerInstall.GameVersion">Versão do jogo</s:String>
+    <s:String x:Key="ServerInstall.Refresh">Atualizar</s:String>
+    <s:String x:Key="ServerInstall.Loader">Loader</s:String>
+    <s:String x:Key="ServerInstall.LoaderVersion">Versão do loader</s:String>
+    <s:String x:Key="ServerInstall.LoaderVersionHint">Deixe vazio para a mais recente. Ex: Forge 47.2.0, NeoForge 21.1.0, versão do loader Fabric/Quilt</s:String>
+    <s:String x:Key="ServerInstall.LogPlaceholder">O log de instalação aparecerá aqui...</s:String>
+    <s:String x:Key="ServerInstall.Cancel">Cancelar</s:String>
+    <s:String x:Key="ServerInstall.Install">Instalar</s:String>
+
+    <s:String x:Key="ServerSettings.Title">Configurações do servidor</s:String>
+    <s:String x:Key="ServerSettings.Basic">Básico</s:String>
+    <s:String x:Key="ServerSettings.ServerName">Nome do servidor (renomeia a pasta)</s:String>
+    <s:String x:Key="ServerSettings.Motd">MOTD</s:String>
+    <s:String x:Key="ServerSettings.Port">Porta</s:String>
+    <s:String x:Key="ServerSettings.Players">Jogadores</s:String>
+    <s:String x:Key="ServerSettings.OnlineMode">Modo online (online-mode)</s:String>
+    <s:String x:Key="ServerSettings.Whitelist">Ativar lista de permissões (white-list)</s:String>
+    <s:String x:Key="ServerSettings.EnforceWhitelist">Forçar lista de permissões (enforce-whitelist)</s:String>
+    <s:String x:Key="ServerSettings.Pvp">Permitir PVP (pvp)</s:String>
+    <s:String x:Key="ServerSettings.AllowFlight">Permitir voo (allow-flight)</s:String>
+    <s:String x:Key="ServerSettings.Cheat">Permitir comandos (enable-command-block)</s:String>
+    <s:String x:Key="ServerSettings.MaxPlayers">Máximo de jogadores</s:String>
+    <s:String x:Key="ServerSettings.World">Mundo</s:String>
+    <s:String x:Key="ServerSettings.Gamemode">Modo de jogo (survival / creative / adventure / spectator)</s:String>
+    <s:String x:Key="ServerSettings.Difficulty">Dificuldade (peaceful / easy / normal / hard)</s:String>
+    <s:String x:Key="ServerSettings.ViewDistance">Distância de visão (view-distance)</s:String>
+    <s:String x:Key="ServerSettings.SimDistance">Distância de simulação (simulation-distance)</s:String>
+    <s:String x:Key="ServerSettings.Cancel">Cancelar</s:String>
+    <s:String x:Key="ServerSettings.Save">Salvar</s:String>
+
+    <s:String x:Key="Update.Title">Atualização disponível</s:String>
+    <s:String x:Key="Update.Notes">Novidades</s:String>
+    <s:String x:Key="Update.Later">Mais tarde</s:String>
+    <s:String x:Key="Update.Now">Atualizar agora</s:String>
+    <s:String x:Key="Update.Downloading">Baixando atualização...</s:String>
+
+    <s:String x:Key="Common.Cancel">Cancelar</s:String>
+    <s:String x:Key="Common.Save">Salvar</s:String>
+    <s:String x:Key="Common.Close">Fechar</s:String>
+    <s:String x:Key="Common.OK">OK</s:String>
+
+    <s:String x:Key="Download.Failure">Falha ao carregar</s:String>
+
+    <s:String x:Key="Dialog.Info">Aviso</s:String>
+    <s:String x:Key="Dialog.Error">Erro</s:String>
+    <s:String x:Key="Dialog.Success">Sucesso</s:String>
+    <s:String x:Key="Dialog.Warning">Aviso</s:String>
+    <s:String x:Key="Dialog.Confirm">Confirmar</s:String>
+    <s:String x:Key="Dialog.Yes">Sim</s:String>
+    <s:String x:Key="Dialog.No">Não</s:String>
+    <s:String x:Key="Common.Confirm">Confirmar</s:String>
+    <s:String x:Key="Common.Delete">Excluir</s:String>
+
+    <s:String x:Key="ModSearch.Search">Pesquisar</s:String>
+    <s:String x:Key="ModSearch.ResourcePack">Pacotes de recursos</s:String>
+    <s:String x:Key="ModSearch.PrevPage">Anterior</s:String>
+    <s:String x:Key="ModSearch.NextPage">Próxima</s:String>
+    <s:String x:Key="ModSearch.Loading">Carregando...</s:String>
+    <s:String x:Key="ModSearch.NoResult">Nenhum projeto encontrado</s:String>
+    <s:String x:Key="ModSearch.PageInfo">Página {0} / {1}  ({2} no total)</s:String>
+
+    <s:String x:Key="ModVersions.Title">Versões do Mod</s:String>
+    <s:String x:Key="ModVersions.TitlePrefix">Versões:</s:String>
+    <s:String x:Key="ModVersions.Loading">Carregando versões...</s:String>
+    <s:String x:Key="ModVersions.NoResult">Nenhuma versão encontrada</s:String>
+    <s:String x:Key="ModVersions.CountZero">0 versões</s:String>
+    <s:String x:Key="ModVersions.CountInfo">{0} versões, mostrando {1}</s:String>
+    <s:String x:Key="ModVersions.Sort.Date">Data de lançamento</s:String>
+    <s:String x:Key="ModVersions.Sort.Downloads">Downloads</s:String>
+    <s:String x:Key="ModVersions.Sort.Version">Versão</s:String>
+    <s:String x:Key="ModVersions.SortDir.Desc">Desc (mais recente)</s:String>
+    <s:String x:Key="ModVersions.SortDir.Asc">Asc (mais antigo)</s:String>
+    <s:String x:Key="ModVersions.Download">Baixar selecionado</s:String>
+    <s:String x:Key="ModVersions.Preparing">Preparando download</s:String>
+    <s:String x:Key="ModVersions.Downloading">Baixando {0}: {1}%  ({2} / {3})</s:String>
+    <s:String x:Key="ModVersions.DownloadComplete">Download concluído:</s:String>
+    <s:String x:Key="ModVersions.DownloadFailed">Falha no download</s:String>
+    <s:String x:Key="ModVersions.DownloadingPack">Baixando modpack...</s:String>
+    <s:String x:Key="ModVersions.UsingCached">Usando modpack em cache:</s:String>
+    <s:String x:Key="ModVersions.Progress">Concluído. Sucesso {0}, falha {1}</s:String>
+
+    <s:String x:Key="ModInstallTarget.Title">Escolher destino de instalação</s:String>
+    <s:String x:Key="ModInstallTarget.Hint">Versões compatíveis encontradas. Escolha em qual instalar:</s:String>
+    <s:String x:Key="ModInstallTarget.Requirements">Requer: MC {0}  |  Loader {1}</s:String>
+    <s:String x:Key="ModInstallTarget.InstallHere">Instalar aqui</s:String>
+    <s:String x:Key="ModInstallTarget.SelectOne">Selecione uma versão primeiro.</s:String>
+
+    <s:String x:Key="ClientInstall.NoVersion">Nenhuma versão do jogo selecionada.</s:String>
+    <s:String x:Key="ClientInstall.OptifineConflict">OptiFine é incompatível com {0}. Mude o loader para Forge/Vanilla ou desmarque OptiFine.</s:String>
+    <s:String x:Key="ClientInstall.InstallSuccess">Cliente Minecraft {0} instalado.</s:String>
+    <s:String x:Key="ClientInstall.InstallFailed">Falha na instalação. Veja o log abaixo.</s:String>
+    <s:String x:Key="ClientInstall.InstallError">Erro de instalação: {0}</s:String>
+
+    <s:String x:Key="ServerInstall.NameRequired">Digite um nome de servidor.</s:String>
+    <s:String x:Key="ServerInstall.NameInvalid">O nome do servidor contém caractere inválido: {0}</s:String>
+    <s:String x:Key="ServerInstall.VersionRequired">Selecione ou digite uma versão do jogo.</s:String>
+    <s:String x:Key="ServerInstall.FolderExists">A pasta de destino já existe e não está vazia:\n{0}\n\nContinuar e sobrescrever?</s:String>
+    <s:String x:Key="ServerInstall.InstallSuccess">Servidor "{0}" instalado.</s:String>
+    <s:String x:Key="ServerInstall.InstallFailed">Falha na instalação. Veja o log abaixo.</s:String>
+    <s:String x:Key="ServerInstall.InstallError">Erro de instalação: {0}</s:String>
+
+    <s:String x:Key="Server.Running">O servidor "{0}" já está em execução.</s:String>
+    <s:String x:Key="Server.DeleteConfirm">Excluir o servidor "{0}"?\n\nIsso excluirá a pasta inteira:\n{1}\n  Seus mundos serão perdidos!\n\nIsso não pode ser desfeito!</s:String>
+    <s:String x:Key="Server.DeleteFailed">Falha ao excluir: {0}</s:String>
+    <s:String x:Key="Server.StartFailed">Falha ao iniciar o servidor: {0}</s:String>
+    <s:String x:Key="Server.EulaPrompt">O servidor "{0}" exige aceitar o EULA do Minecraft primeiro.\n\nEULA: https://aka.ms/MinecraftEULA\n\nClique em Sim para aceitar. O launcher definirá eula=true no eula.txt.</s:String>
+
+    <s:String x:Key="Role.Invalid">Nome de usuário inválido:\n· 4-16 caracteres\n· Sem caracteres CJK ou espaços</s:String>
+    <s:String x:Key="Role.CreateFailed">Falha ao criar: {0}</s:String>
+    <s:String x:Key="Role.NeedFirst">Ainda não há conta. Crie uma antes de iniciar.\nPular mesmo assim?</s:String>
+
+    <s:String x:Key="MSLogin.LoginFailed">Falha no login:\n{0}</s:String>
+    <s:String x:Key="MSLogin.CacheDetected">Credenciais da Microsoft em cache encontradas.\n\nFazer login com cache (sem navegador)?\n\n· Sim → Login em cache\n· Não → Login por código de dispositivo</s:String>
+    <s:String x:Key="MSLogin.CacheSuccess">Credenciais da Microsoft armazenadas em cache.\n\nApós aprovação da Mojang, reabra esta janela e escolha "Usar login em cache".</s:String>
+    <s:String x:Key="MSLogin.LoginSuccess">Login bem-sucedido!\n\nConta salva.</s:String>
+
+    <s:String x:Key="Common.Any">Qualquer</s:String>
+    <s:String x:Key="Common.All">Todos</s:String>
+
+    <s:String x:Key="Launch.NoVersionSelected">Nenhuma versão selecionada. Instale uma versão em .minecraft\versions primeiro.</s:String>
+    <s:String x:Key="Launch.NoRoleConfirm">Nenhuma conta criada ainda. Criar uma agora?</s:String>
+    <s:String x:Key="Launch.FailedWithCode">Falha ao iniciar, código de saída: {0}</s:String>
+    <s:String x:Key="Launch.Error">Erro ao iniciar: {0}</s:String>
+
+    <s:String x:Key="Download.Count">{0} versões</s:String>
+    <s:String x:Key="Download.FetchFailed">Falha ao obter a lista de versões: {0}</s:String>
+
+    <s:String x:Key="Settings.Checking">Verificando...</s:String>
+    <s:String x:Key="Settings.CheckFailed">Falha na verificação de atualização: {0}</s:String>
+    <s:String x:Key="Settings.CheckError">Falha na verificação de atualização: {0}</s:String>
+    <s:String x:Key="Settings.CheckFailedShort">Verificação falhou</s:String>
+    <s:String x:Key="Settings.UpToDate">Atualizado</s:String>
+    <s:String x:Key="Settings.UpToDateWithVersion">Já está na versão mais recente {0}.</s:String>
+    <s:String x:Key="Settings.NewVersionFound">Nova versão encontrada</s:String>
+
+    <s:String x:Key="Server.DeleteRunning">O servidor "{0}" está em execução. Pare-o antes de excluir.</s:String>
+
+    <s:String x:Key="Update.Preparing">Download concluído, preparando para aplicar atualização...</s:String>
+    <s:String x:Key="Update.Restarting">Reiniciando o aplicativo...</s:String>
+    <s:String x:Key="Update.Cancelled">Cancelado</s:String>
+    <s:String x:Key="Update.Failed">Falha na atualização</s:String>
+
+    <s:String x:Key="MSLogin.Preparing">Preparando login, aguarde...</s:String>
+    <s:String x:Key="MSLogin.CacheLogin">Fazendo login com cache...</s:String>
+    <s:String x:Key="MSLogin.NoResult">O login não retornou resultado</s:String>
+    <s:String x:Key="MSLogin.CacheSaved">Credenciais do Azure armazenadas em cache, login automático disponível após aprovação da Mojang</s:String>
+    <s:String x:Key="MSLogin.Success">Login bem-sucedido</s:String>
+    <s:String x:Key="MSLogin.CancelConfirm">Fazendo login. Tem certeza de que deseja sair?</s:String>
+
+    <s:String x:Key="ClientInstall.LatestVersion">(usar a mais recente)</s:String>
+    <s:String x:Key="ClientInstall.LatestVersionShort">(mais recente)</s:String>
+    <s:String x:Key="ClientInstall.WithForge">com Forge</s:String>
+    <s:String x:Key="ClientInstall.LoadingVersions">Carregando versões {0}...</s:String>
+    <s:String x:Key="ClientInstall.VanillaHint">Vanilla não precisa de versão do loader.</s:String>
+    <s:String x:Key="ClientInstall.ForgeHint">Deixe vazio para a mais recente. Você pode selecionar uma versão específica na lista suspensa.</s:String>
+    <s:String x:Key="ClientInstall.LoaderHint">Deixe vazio para a mais recente. Não pode ser usado com OptiFine.</s:String>
+    <s:String x:Key="ClientInstall.LoadedCount">({0} versões carregadas)</s:String>
+    <s:String x:Key="ClientInstall.NoVersions">(nenhuma versão disponível)</s:String>
+    <s:String x:Key="ClientInstall.OptifineLoading">Carregando versões do OptiFine...</s:String>
+    <s:String x:Key="ClientInstall.OptifineNone">Nenhum OptiFine compatível com a versão atual do Forge, ou nenhum OptiFine para esta versão do jogo.</s:String>
+    <s:String x:Key="ClientInstall.OptifineLoaded">{0} versões do OptiFine carregadas.</s:String>
+    <s:String x:Key="ClientInstall.LoaderListFailed">Falha ao baixar a lista de versões</s:String>
+    <s:String x:Key="ClientInstall.Installing">Instalando...</s:String>
+    <s:String x:Key="ClientInstall.InstallDone">Instalação concluída</s:String>
+    <s:String x:Key="ClientInstall.InstallDoneLog">✅ Instalação concluída</s:String>
+    <s:String x:Key="ClientInstall.InstallFailedLog">❌ Falha na instalação</s:String>
+    <s:String x:Key="ClientInstall.InstallErrorLog">❌ Erro de instalação:</s:String>
+    <s:String x:Key="ClientInstall.BeginInstall">Iniciando instalação do cliente</s:String>
+    <s:String x:Key="ClientInstall.TargetDir">Diretório de destino</s:String>
+    <s:String x:Key="ClientInstall.DoNotInstall">Não instalar</s:String>
+
+    <s:String x:Key="ServerInstall.LoadingManifest">Carregando lista de versões...</s:String>
+    <s:String x:Key="ServerInstall.ReleaseCount">{0} lançamentos</s:String>
+    <s:String x:Key="ServerInstall.LoadFailed">Falha ao carregar</s:String>
+    <s:String x:Key="ServerInstall.Installing">Instalando...</s:String>
+    <s:String x:Key="ServerInstall.BeginInstall">Iniciando instalação do servidor</s:String>
+
+    <s:String x:Key="ServerSettings.FolderExists">Já existe uma pasta de servidor com o mesmo nome.</s:String>
+    <s:String x:Key="ServerSettings.SaveFailed">Falha ao salvar: {0}</s:String>
+
+    <s:String x:Key="ModVersions.SelectOne">Selecione uma versão primeiro.</s:String>
+    <s:String x:Key="ModVersions.NoFile">Esta versão não tem arquivos para download.</s:String>
+    <s:String x:Key="ModVersions.AllSourcesFailed">Todas as fontes de download estão indisponíveis</s:String>
+    <s:String x:Key="ModVersions.DownloadingNoTotal">Baixando {0}: {1}</s:String>
+    <s:String x:Key="ModVersions.DownloadSuccess">Download concluído:\n{0}</s:String>
+    <s:String x:Key="ModVersions.DownloadFailedMsg">Falha no download: {0}</s:String>
+    <s:String x:Key="ModVersions.NoWorlds">Nenhum mundo encontrado. Crie um mundo primeiro.</s:String>
+    <s:String x:Key="ModVersions.NoSavesFolder">Pasta saves não encontrada. Crie um mundo primeiro.</s:String>
+    <s:String x:Key="ModVersions.DatapackConfirm">O pacote de dados será baixado para:\n{0}\nContinuar?</s:String>
+    <s:String x:Key="ModVersions.ModpackDialogDesc">Escolha o diretório de destino para extrair o modpack (recomendado versions)</s:String>
+    <s:String x:Key="ModVersions.NoMatch">Nenhuma instância de versão compatível com os requisitos deste mod foi encontrada.\n\nO mod requer versão do jogo: {0}\nO mod requer loader: {1}\n\nBaixar diretamente para .minecraft\mods?\n(Nota: se o isolamento de versão estiver ativado, os mods neste diretório não são carregados por padrão)</s:String>
+    <s:String x:Key="ModVersions.ModpackDownloadFailed">Falha no download do modpack: {0}</s:String>
+    <s:String x:Key="ModVersions.DownloadingFile">Baixando arquivo [{0}/{1}]: {2}</s:String>
+    <s:String x:Key="ModVersions.Incomplete">Os seguintes arquivos falharam no download. Baixe manualmente:\n{0}</s:String>
+    <s:String x:Key="ModVersions.Installed">Modpack instalado em:\n{0}\n\nAgora você pode selecionar '{1}' no launcher para iniciar.</s:String>
+    <s:String x:Key="ModVersions.ProcessFailed">Falha ao processar o modpack: {0}</s:String>
+    <s:String x:Key="ModVersions.ExtractedNoIndex">Modpack extraído (modrinth.index.json ausente).</s:String>
+    <s:String x:Key="ModVersions.InstallComplete">Instalação do modpack concluída:</s:String>
+    <s:String x:Key="ModVersions.NoVersionSelected">Nenhuma versão selecionada, não é possível localizar o diretório mods.</s:String>
+    <s:String x:Key="ModVersions.IndexParseFailed">Falha ao analisar modrinth.index.json</s:String>
+    <s:String x:Key="ModVersions.NoMcVersion">Não foi possível obter a versão do Minecraft de modrinth.index.json</s:String>
+
+    <s:String x:Key="Role.EmptyUsername">O nome de usuário não pode estar vazio</s:String>
+
+    <s:String x:Key="Auth.ChildAccount">Contas infantis requerem aprovação dos pais.</s:String>
+    <s:String x:Key="Auth.RegionUnsupported">Região não suportada.</s:String>
+    <s:String x:Key="Auth.XstsError">Erro XSTS: {0}</s:String>
+    <s:String x:Key="Auth.Timeout">Tempo de login do usuário esgotado.</s:String>
+    <s:String x:Key="Auth.DeviceCodeFailed">Falha na solicitação do código do dispositivo: {0}</s:String>
+    <s:String x:Key="Auth.PostFailed">Falha na solicitação POST (URL: {0}, HTTP {1})</s:String>
+    <s:String x:Key="Auth.RefreshFailed">Falha ao atualizar: {0} - {1}</s:String>
+    <s:String x:Key="Auth.CacheCorrupted">O arquivo de cache não pode ser descriptografado ou está corrompido. Faça login novamente.</s:String>
+    <s:String x:Key="Auth.CacheMissing">O arquivo de cache não existe</s:String>
+
+    <s:String x:Key="Api.TooManyRequests">Muitas solicitações. Tente novamente mais tarde.</s:String>
+    <s:String x:Key="Api.BadRequest">Parâmetros de solicitação incorretos. Verifique seus critérios de pesquisa.</s:String>
+    <s:String x:Key="Api.NotFound">Recurso solicitado não encontrado.</s:String>
+    <s:String x:Key="Api.NetworkError">Falha na conexão de rede. Verifique sua rede ou configurações de proxy.</s:String>
+    <s:String x:Key="Api.HttpError">Erro HTTP {0}</s:String>
+    <s:String x:Key="Api.ModIdRequired">O ID do mod não pode estar vazio</s:String>
+
+    <s:String x:Key="Settings.Language">Idioma</s:String>
+    <s:String x:Key="Settings.LanguageDesc">Alterar o idioma da interface do launcher. Aplica-se imediatamente.</s:String>
+
+</ResourceDictionary>

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Jerry_Craft_Launcher.NET_Framework_4._5_WPF.Languages;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -164,7 +165,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         public static string GenerateOfflineUuid(string username)
         {
             if (username == null) throw new ArgumentNullException("username");
-            if (username.Length == 0) throw new ArgumentException("用户名不能为空");
+            if (username.Length == 0) throw new ArgumentException(LanguageManager.Get("Role.EmptyUsername"));
 
             string input = "OfflinePlayer:" + username;
             byte[] inputBytes = Encoding.UTF8.GetBytes(input);

@@ -1,7 +1,7 @@
 ﻿<Window x:Class="Jerry_Craft_Launcher.NET_Framework_4._5_WPF.ClientInstallWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="安装客户端"
+        Title="{DynamicResource ClientInstall.Title}"
         Width="640" Height="700"
         WindowStartupLocation="CenterOwner"
         WindowStyle="None"
@@ -23,7 +23,7 @@
                     CornerRadius="10,10,0,0"
                     MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
                 <Grid>
-                    <TextBlock Text="安装客户端"
+                    <TextBlock Text="{DynamicResource ClientInstall.Title}"
                                FontSize="13" FontWeight="SemiBold"
                                VerticalAlignment="Center"
                                Margin="16,0,0,0"/>
@@ -48,14 +48,14 @@
                     <StackPanel>
 
                         <!-- 游戏版本（只读） -->
-                        <TextBlock Text="游戏版本"
+                        <TextBlock Text="{DynamicResource ClientInstall.GameVersion}"
                                    FontSize="12" Foreground="#666666" Margin="0,0,0,4"/>
                         <TextBox x:Name="GameVersionBox"
                                  Style="{StaticResource InputTextBoxStyle}"
                                  IsReadOnly="True"/>
 
                         <!-- 加载器 -->
-                        <TextBlock Text="加载器"
+                        <TextBlock Text="{DynamicResource ClientInstall.Loader}"
                                    FontSize="12" Foreground="#666666"
                                    Margin="0,14,0,4"/>
                         <ComboBox x:Name="LoaderBox"
@@ -63,27 +63,27 @@
                                   SelectionChanged="LoaderBox_SelectionChanged"/>
 
                         <!-- 加载器版本 -->
-                        <TextBlock Text="加载器版本"
+                        <TextBlock Text="{DynamicResource ClientInstall.LoaderVersion}"
                                    FontSize="12" Foreground="#666666"
                                    Margin="0,14,0,4"/>
                         <ComboBox x:Name="LoaderVersionBox"
                                   Style="{StaticResource ModernComboBoxStyle}"
                                   SelectionChanged="LoaderVersionBox_SelectionChanged"/>
                         <TextBlock x:Name="LoaderVersionHint"
-                                   Text="留空使用最新版"
+                                   Text="{DynamicResource ClientInstall.LoaderVersionHint}"
                                    FontSize="11" Foreground="#999999"
                                    Margin="0,4,0,0"
                                    TextWrapping="Wrap"/>
 
                         <!-- OptiFine -->
                         <CheckBox x:Name="OptifineCheck"
-                                  Content="安装 OptiFine"
+                                  Content="{DynamicResource ClientInstall.Optifine}"
                                   FontSize="13"
                                   Margin="0,18,0,0"
                                   Checked="OptifineCheck_Changed"
                                   Unchecked="OptifineCheck_Changed"/>
 
-                        <TextBlock Text="OptiFine 版本"
+                        <TextBlock Text="{DynamicResource ClientInstall.OptifineVersion}"
                                    FontSize="12" Foreground="#666666"
                                    Margin="0,10,0,4"/>
                         <ComboBox x:Name="OptifineVersionBox"
@@ -91,7 +91,7 @@
                                   IsEnabled="False"
                                   SelectionChanged="OptifineVersionBox_SelectionChanged"/>
                         <TextBlock x:Name="OptifineHint"
-                                   Text="勾选上方复选框后启用。选择 OptiFine 版本会自动填入兼容的 Forge 版本。"
+                                   Text="{DynamicResource ClientInstall.OptifineHint}"
                                    FontSize="11" Foreground="#999999"
                                    Margin="0,4,0,0"
                                    TextWrapping="Wrap"/>
@@ -102,7 +102,7 @@
                                 Margin="0,18,0,0">
                             <TextBlock TextWrapping="Wrap"
                                        FontSize="11" Foreground="#8D6E00"
-                                       Text="安装过程会从网络下载大量文件，进度会在下方日志中输出。安装完成后版本会自动出现在启动页的版本列表里。"/>
+                                       Text="{DynamicResource ClientInstall.Warning}"/>
                         </Border>
 
                     </StackPanel>
@@ -121,7 +121,7 @@
                                  Background="Transparent"
                                  Foreground="#333333"
                                  BorderThickness="0"
-                                 FontFamily="Consolas, Courier New, monospace"
+                                 FontFamily="{DynamicResource App.MonoFontFamily}"
                                  FontSize="11"
                                  Padding="10,8"
                                  IsReadOnly="True"
@@ -130,9 +130,9 @@
                                  VerticalScrollBarVisibility="Auto"
                                  HorizontalScrollBarVisibility="Auto"/>
                         <TextBlock x:Name="LogPlaceholder"
-                                   Text="安装日志将显示在这里..."
+                                   Text="{DynamicResource ClientInstall.LogPlaceholder}"
                                    Foreground="#BBBBBB"
-                                   FontFamily="Consolas, Courier New, monospace"
+                                   FontFamily="{DynamicResource App.MonoFontFamily}"
                                    FontSize="11"
                                    Margin="12,10,0,0"
                                    VerticalAlignment="Top"
@@ -157,12 +157,12 @@
                     <StackPanel Orientation="Horizontal"
                                 HorizontalAlignment="Right"
                                 VerticalAlignment="Center">
-                        <Button Content="取消"
+                        <Button Content="{DynamicResource ClientInstall.Cancel}"
                                 Style="{StaticResource SecondaryButtonStyle}"
                                 Click="Cancel_Click"
                                 Margin="0,0,8,0"/>
                         <Button x:Name="InstallButton"
-                                Content="安装"
+                                Content="{DynamicResource ClientInstall.Install}"
                                 Style="{StaticResource PrimaryButtonStyle}"
                                 Click="Install_Click"/>
                     </StackPanel>

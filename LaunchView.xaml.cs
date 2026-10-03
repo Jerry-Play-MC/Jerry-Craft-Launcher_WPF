@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Jerry_Craft_Launcher.NET_Framework_4._5_WPF.Languages;
+using Launch_Minecraft;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -7,7 +9,6 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
-using Launch_Minecraft;
 
 namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 {
@@ -21,6 +22,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             Loaded += LaunchView_Loaded;
             Unloaded += LaunchView_Unloaded;
             RoleManager.CurrentRoleChanged += OnCurrentRoleChanged;
+            LanguageManager.LanguageChanged += OnLanguageChanged;
         }
 
         private void LaunchView_Loaded(object sender, RoutedEventArgs e)
@@ -46,6 +48,15 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             }
         }
 
+        private void OnLanguageChanged()
+        {
+            Dispatcher.Invoke(() =>
+            {
+                UpdateVersionLabel();
+                UpdateAvatar();
+            });
+        }
+
         private void OnVersionsChanged(List<VersionInfo> versions)
         {
             VersionList.ItemsSource = versions;
@@ -67,7 +78,9 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         private void UpdateVersionLabel()
         {
             string v = App.Config.CurrentVersion;
-            CurrentVersionText.Text = string.IsNullOrEmpty(v) ? "无版本" : v;
+            CurrentVersionText.Text = string.IsNullOrEmpty(v)
+                ? LanguageManager.Get("Launch.NoVersion")
+                : v;
         }
 
         private void SubNav_Checked(object sender, RoutedEventArgs e)
@@ -101,7 +114,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             if (role == null)
             {
                 AvatarText.Text = "?";
-                RoleNameText.Text = "未登录";
+                RoleNameText.Text = LanguageManager.Get("Launch.NotLoggedIn");
                 RoleTypeText.Text = "";
                 AvatarBorder.Background = new SolidColorBrush(Color.FromRgb(0x99, 0x99, 0x99));
                 return;
@@ -109,9 +122,11 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             AvatarText.Text = role.Initial;
             RoleNameText.Text = role.Username;
-            RoleTypeText.Text = role.Type == "Offline" ? "离线账号"
-                              : role.Type == "Microsoft" ? "正版账号"
-                              : role.Type;
+            RoleTypeText.Text = role.Type == "Offline"
+                ? LanguageManager.Get("Launch.RoleOffline")
+                : role.Type == "Microsoft"
+                ? LanguageManager.Get("Launch.RoleMicrosoft")
+                : role.Type;
             AvatarBorder.Background = new SolidColorBrush(GetAvatarColor(role.Username));
         }
 
@@ -178,26 +193,19 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             e.Handled = true;
         }
 
-        // ---------- 启动 ----------
-
         private async void LaunchButton_Click(object sender, RoutedEventArgs e)
         {
             string version = App.Config.CurrentVersion;
             if (string.IsNullOrEmpty(version))
             {
-                MessageBox.Show(
-                    "尚未选择版本。请先在 .minecraft\\versions 下安装版本。",
-                    "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+                LanguageManager.ShowInfo("Launch.NoVersionSelected");
                 return;
             }
 
             var role = RoleManager.Current;
             if (role == null)
             {
-                var r = MessageBox.Show(
-                    "尚未创建角色。是否现在创建？",
-                    "提示", MessageBoxButton.YesNo, MessageBoxImage.Question);
-                if (r == MessageBoxResult.Yes)
+                if (LanguageManager.Confirm("Launch.NoRoleConfirm"))
                 {
                     App.PromptCreateRole(Window.GetWindow(this), isFirstUse: false);
                     RefreshRoleList();
@@ -213,7 +221,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 string gameDir = App.Config.GameDir;
                 string javaBaseDir = App.Config.JavaBaseDir;
 
-                // ★ 每次启动都从 Settings.json 重新读版本隔离，保证与文件一致
                 bool isolated = SettingsManager.GetIsolationGameData();
                 App.Config.Isolated = isolated;
 
@@ -242,14 +249,14 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
                 if (exitCode != 0)
                 {
-                    MessageBox.Show($"启动失败，退出码：{exitCode}", "错误",
-                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                    LanguageManager.ShowWarning("Launch.FailedWithCode",
+                        exitCode.ToString());
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"启动出错：{ex.GetType().Name}: {ex.Message}", "错误",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                LanguageManager.ShowError("Launch.Error",
+                    ex.GetType().Name + ": " + ex.Message);
             }
             finally
             {
@@ -257,8 +264,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 VersionPickerButton.IsEnabled = true;
             }
         }
-
-        // ---------- 启动进度更新 ----------
 
         private void UpdateLaunchStatus(LaunchProgress p)
         {

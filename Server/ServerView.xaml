@@ -14,28 +14,28 @@
 
         <!-- 标题栏 -->
         <Grid Grid.Row="0" Margin="24,20,24,0">
-            <TextBlock Text="服务器"
-               FontSize="22" FontWeight="SemiBold"
-               Foreground="#333333"
-               VerticalAlignment="Center"/>
+            <TextBlock Text="{DynamicResource Server.Title}"
+                       FontSize="22" FontWeight="SemiBold"
+                       Foreground="#333333"
+                       VerticalAlignment="Center"/>
             <StackPanel Orientation="Horizontal"
-                HorizontalAlignment="Right"
-                VerticalAlignment="Center">
-                <Button Content="安装服务器"
-                Style="{StaticResource PrimaryButtonStyle}"
-                Height="30"
-                Padding="16,0"
-                Margin="0,0,8,0"
-                Click="InstallServer_Click"/>
-                <Button Content="打开 Server 目录"
-                Style="{StaticResource SecondaryButtonStyle}"
-                Height="30"
-                Margin="0,0,8,0"
-                Click="OpenFolder_Click"/>
-                <Button Content="刷新"
-                Style="{StaticResource SecondaryButtonStyle}"
-                Height="30"
-                Click="Refresh_Click"/>
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Center">
+                <Button Content="{DynamicResource Server.Install}"
+                        Style="{StaticResource PrimaryButtonStyle}"
+                        Height="30"
+                        Padding="16,0"
+                        Margin="0,0,8,0"
+                        Click="InstallServer_Click"/>
+                <Button Content="{DynamicResource Server.OpenFolder}"
+                        Style="{StaticResource SecondaryButtonStyle}"
+                        Height="30"
+                        Margin="0,0,8,0"
+                        Click="OpenFolder_Click"/>
+                <Button Content="{DynamicResource Server.Refresh}"
+                        Style="{StaticResource SecondaryButtonStyle}"
+                        Height="30"
+                        Click="Refresh_Click"/>
             </StackPanel>
         </Grid>
 
@@ -109,17 +109,17 @@
                         <StackPanel Grid.Column="2"
                                     Orientation="Horizontal"
                                     VerticalAlignment="Center">
-                            <Button Content="启动"
+                            <Button Content="{DynamicResource Server.Start}"
                                     Style="{StaticResource SecondaryButtonStyle}"
                                     Height="28" Padding="12,0"
                                     Margin="0,0,6,0"
                                     Click="ServerStart_Click"/>
-                            <Button Content="设置"
+                            <Button Content="{DynamicResource Server.Settings}"
                                     Style="{StaticResource SecondaryButtonStyle}"
                                     Height="28" Padding="12,0"
                                     Margin="0,0,6,0"
                                     Click="ServerSettings_Click"/>
-                            <Button Content="删除"
+                            <Button Content="{DynamicResource Server.Delete}"
                                     Style="{StaticResource SecondaryButtonStyle}"
                                     Height="28" Padding="12,0"
                                     Foreground="#E53935"
@@ -132,7 +132,7 @@
 
         <TextBlock x:Name="EmptyHint"
                    Grid.Row="1"
-                   Text="把服务端放到 程序目录\Server\自定义服务器名\ 下（支持 server.jar / run.bat / fabric-server-launch.jar / quilt-server-launch.jar）"
+                   Text="{DynamicResource Server.EmptyHint}"
                    FontSize="12" Foreground="#BBBBBB"
                    HorizontalAlignment="Center"
                    VerticalAlignment="Center"

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Jerry_Craft_Launcher.NET_Framework_4._5_WPF.Languages;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
@@ -58,11 +59,11 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     }
 
                     string friendly;
-                    if (status == 429) friendly = "请求过于频繁，请稍后再试。";
-                    else if (status == 400) friendly = "请求参数错误，请检查搜索条件。";
-                    else if (status == 404) friendly = "未找到请求的资源。";
-                    else if (status == 0) friendly = "网络连接失败，请检查网络或代理设置。";
-                    else friendly = "HTTP " + status + " 错误";
+                    if (status == 429) friendly = LanguageManager.Get("Api.TooManyRequests");
+                    else if (status == 400) friendly = LanguageManager.Get("Api.BadRequest");
+                    else if (status == 404) friendly = LanguageManager.Get("Api.NotFound");
+                    else if (status == 0) friendly = LanguageManager.Get("Api.NetworkError");
+                    else friendly = string.Format(LanguageManager.Get("Api.HttpError"), status);
 
                     throw new Exception(
                         friendly + "\n详细：" + ex.Message + "\n响应内容：" + detail, ex);

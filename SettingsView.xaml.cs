@@ -1,8 +1,9 @@
-﻿using System;
+﻿using Jerry_Craft_Launcher.NET_Framework_4._5_WPF.Languages;
+using Jerry_Craft_Launcher.NET_Framework_4._5_WPF.Updater;
+using System;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
-using Jerry_Craft_Launcher.NET_Framework_4._5_WPF.Updater;
 
 namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 {
@@ -14,15 +15,24 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         {
             InitializeComponent();
             Loaded += SettingsView_Loaded;
+            LanguageManager.LanguageChanged += OnLanguageChanged;
         }
 
         private void SettingsView_Loaded(object sender, RoutedEventArgs e)
         {
             RefreshIsolationCheck();
             RefreshVersionText();
+            RefreshLanguageBox();
         }
 
-        // ---------- 子导航切换 ----------
+        private void OnLanguageChanged()
+        {
+            Dispatcher.Invoke(() =>
+            {
+                RefreshVersionText();
+                SetUpdateStatus("", "#4F46E5");
+            });
+        }
 
         private void SubNav_Checked(object sender, RoutedEventArgs e)
         {
@@ -43,6 +53,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 case "Launcher":
                     LauncherPanel.Visibility = Visibility.Visible;
                     RefreshVersionText();
+                    RefreshLanguageBox();
                     break;
                 case "Java":
                     JavaPanel.Visibility = Visibility.Visible;
@@ -56,8 +67,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     break;
             }
         }
-
-        // ---------- 版本隔离 ----------
 
         private void RefreshIsolationCheck()
         {
@@ -85,23 +94,20 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             App.Config.Isolated = value;
         }
 
-        // ---------- 启动器：版本号显示 ----------
-
         private void RefreshVersionText()
         {
             if (CurrentVersionText == null) return;
-            CurrentVersionText.Text = "当前版本：" + UpdateService.CurrentVersion;
+            CurrentVersionText.Text = LanguageManager.Get("Settings.CurrentVersion")
+                + UpdateService.CurrentVersion;
         }
-
-        // ---------- 启动器：检查更新 ----------
 
         private async void CheckUpdate_Click(object sender, RoutedEventArgs e)
         {
             if (CheckUpdateButton == null) return;
 
             CheckUpdateButton.IsEnabled = false;
-            CheckUpdateButton.Content = "检查中...";
-            SetUpdateStatus("正在检查更新...", "#4F46E5");
+            CheckUpdateButton.Content = LanguageManager.Get("Settings.Checking");
+            SetUpdateStatus(LanguageManager.Get("Settings.Checking"), "#4F46E5");
 
             try
             {
@@ -110,22 +116,23 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 if (!result.Success)
                 {
                     SetUpdateStatus(result.Message, "#E53935");
-                    MessageBox.Show(result.Message, "检查更新",
-                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                    LanguageManager.ShowWarning("Settings.CheckFailed", result.Message);
                     return;
                 }
 
                 if (!result.HasUpdate)
                 {
-                    SetUpdateStatus("已是最新版本 " + result.CurrentVersion, "#10B981");
-                    MessageBox.Show(
-                        "当前已是最新版本 " + result.CurrentVersion + "。",
-                        "检查更新",
-                        MessageBoxButton.OK, MessageBoxImage.Information);
+                    SetUpdateStatus(
+                        LanguageManager.Get("Settings.UpToDate") + " "
+                        + result.CurrentVersion, "#10B981");
+                    LanguageManager.ShowInfo("Settings.UpToDateWithVersion",
+                        result.CurrentVersion);
                     return;
                 }
 
-                SetUpdateStatus("发现新版本 " + result.LatestVersion, "#4F46E5");
+                SetUpdateStatus(
+                    LanguageManager.Get("Settings.NewVersionFound") + " "
+                    + result.LatestVersion, "#4F46E5");
 
                 var win = new UpdateWindow(result.Info)
                 {
@@ -137,14 +144,14 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             }
             catch (Exception ex)
             {
-                SetUpdateStatus("检查失败：" + ex.Message, "#E53935");
-                MessageBox.Show("检查更新失败：\n" + ex.Message, "错误",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                SetUpdateStatus(LanguageManager.Get("Settings.CheckFailedShort")
+                    + "：" + ex.Message, "#E53935");
+                LanguageManager.ShowError("Settings.CheckError", ex.Message);
             }
             finally
             {
                 CheckUpdateButton.IsEnabled = true;
-                CheckUpdateButton.Content = "检查更新";
+                CheckUpdateButton.Content = LanguageManager.Get("Settings.CheckUpdate");
             }
         }
 
@@ -158,6 +165,61 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     (Brush)new BrushConverter().ConvertFromString(colorHex);
             }
             catch { }
+        }
+
+        // ---------- 语言切换 ----------
+
+        private void RefreshLanguageBox()
+        {
+            if (LanguageBox == null) return;
+
+            _suppressEvents = true;
+            try
+            {
+                LanguageBox.Items.Clear();
+
+                foreach (var kv in LanguageManager.Supported)
+                {
+                    LanguageBox.Items.Add(new ComboBoxItem
+                    {
+                        Content = kv.Value,   // 显示名（用母语写）
+                        Tag = kv.Key          // 语言代码
+                    });
+                }
+
+                // 选中当前语言
+                foreach (ComboBoxItem item in LanguageBox.Items)
+                {
+                    if (string.Equals(item.Tag as string,
+                        LanguageManager.Current,
+                        StringComparison.OrdinalIgnoreCase))
+                    {
+                        LanguageBox.SelectedItem = item;
+                        break;
+                    }
+                }
+            }
+            finally
+            {
+                _suppressEvents = false;
+            }
+        }
+
+        private void LanguageBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_suppressEvents) return;
+            if (LanguageBox == null) return;
+
+            var item = LanguageBox.SelectedItem as ComboBoxItem;
+            if (item == null) return;
+
+            string code = item.Tag as string;
+            if (string.IsNullOrEmpty(code)) return;
+
+            LanguageManager.Switch(code);
+
+            // 切换后立即刷新版本号文案（因为语言变了）
+            RefreshVersionText();
         }
     }
 }

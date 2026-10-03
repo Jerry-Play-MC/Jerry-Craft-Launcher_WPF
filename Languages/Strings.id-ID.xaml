@@ -1,0 +1,315 @@
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:s="clr-namespace:System;assembly=mscorlib">
+
+    <s:String x:Key="App.Title">Jerry Craft Launcher</s:String>
+    <s:String x:Key="Nav.Launch">Jalankan</s:String>
+    <s:String x:Key="Nav.Download">Unduh</s:String>
+    <s:String x:Key="Nav.Server">Server</s:String>
+    <s:String x:Key="Nav.Settings">Pengaturan</s:String>
+
+    <s:String x:Key="Launch.Home">Beranda</s:String>
+    <s:String x:Key="Launch.Roles">Akun</s:String>
+    <s:String x:Key="Launch.Start">Jalankan</s:String>
+    <s:String x:Key="Launch.NoVersion">Tidak ada versi</s:String>
+    <s:String x:Key="Launch.NotLoggedIn">Belum masuk</s:String>
+    <s:String x:Key="Launch.RoleOffline">Akun offline</s:String>
+    <s:String x:Key="Launch.RoleMicrosoft">Akun premium</s:String>
+    <s:String x:Key="Launch.RolesTitle">Kelola akun</s:String>
+    <s:String x:Key="Launch.CreateRole">Buat akun</s:String>
+
+    <s:String x:Key="Download.Minecraft">Minecraft</s:String>
+    <s:String x:Key="Download.Mod">Mod</s:String>
+    <s:String x:Key="Download.Modpack">Modpack</s:String>
+    <s:String x:Key="Download.Datapack">Paket data</s:String>
+    <s:String x:Key="Download.Shader">Shader</s:String>
+    <s:String x:Key="Download.MinecraftTitle">Versi Minecraft</s:String>
+    <s:String x:Key="Download.Loading">Memuat...</s:String>
+    <s:String x:Key="Download.Refresh">Segarkan</s:String>
+    <s:String x:Key="Download.Cat.Release">Rilis</s:String>
+    <s:String x:Key="Download.Cat.Snapshot">Snapshot</s:String>
+    <s:String x:Key="Download.Cat.Old">Versi lama</s:String>
+    <s:String x:Key="Download.Cat.AprilFools">April Mop</s:String>
+
+    <s:String x:Key="Server.Title">Server</s:String>
+    <s:String x:Key="Server.Install">Pasang server</s:String>
+    <s:String x:Key="Server.OpenFolder">Buka folder Server</s:String>
+    <s:String x:Key="Server.Refresh">Segarkan</s:String>
+    <s:String x:Key="Server.Start">Jalankan</s:String>
+    <s:String x:Key="Server.Settings">Pengaturan</s:String>
+    <s:String x:Key="Server.Delete">Hapus</s:String>
+    <s:String x:Key="Server.EmptyHint">Letakkan server di  DirektoriProgram\Server\NamaServer\  (mendukung server.jar / run.bat / fabric-server-launch.jar / quilt-server-launch.jar)</s:String>
+
+    <s:String x:Key="Settings.Launcher">Launcher</s:String>
+    <s:String x:Key="Settings.Java">Java</s:String>
+    <s:String x:Key="Settings.Game">Permainan</s:String>
+    <s:String x:Key="Settings.Versions">Manajemen Instance</s:String>
+    <s:String x:Key="Settings.Title">Launcher</s:String>
+    <s:String x:Key="Settings.CheckUpdate">Periksa pembaruan</s:String>
+    <s:String x:Key="Settings.CurrentVersion">Versi saat ini:</s:String>
+    <s:String x:Key="Settings.Game.Title">Permainan</s:String>
+    <s:String x:Key="Settings.Game.Isolation">Isolasi versi</s:String>
+    <s:String x:Key="Settings.Game.IsolationDesc">Jika diaktifkan, data permainan (simpanan, sumber daya, konfigurasi, dll.) disimpan di versions\nama-versi, sehingga setiap versi terisolasi.</s:String>
+
+    <s:String x:Key="Login.Title">Pilih jenis login</s:String>
+    <s:String x:Key="Login.Prompt">Pilih jenis akun yang ingin Anda buat:</s:String>
+    <s:String x:Key="Login.Premium">Login premium</s:String>
+    <s:String x:Key="Login.PremiumDesc">Masuk dengan akun Microsoft</s:String>
+    <s:String x:Key="Login.Offline">Login offline</s:String>
+    <s:String x:Key="Login.OfflineDesc">Buat akun offline lokal</s:String>
+
+    <s:String x:Key="CreateRole.Title">Buat akun offline</s:String>
+    <s:String x:Key="CreateRole.NameLabel">Nama pengguna</s:String>
+    <s:String x:Key="CreateRole.NameHint">4–16 karakter, tanpa karakter CJK atau spasi</s:String>
+    <s:String x:Key="CreateRole.Skip">Lewati</s:String>
+    <s:String x:Key="CreateRole.Create">Buat</s:String>
+
+    <s:String x:Key="MSLogin.Title">Login Microsoft</s:String>
+    <s:String x:Key="MSLogin.BrowserHint">Mengklik tombol di bawah akan membuka halaman login Microsoft di browser Anda</s:String>
+    <s:String x:Key="MSLogin.CodeHint">Kode yang ditampilkan di browser</s:String>
+    <s:String x:Key="MSLogin.CodeCopied">(disalin ke clipboard)</s:String>
+    <s:String x:Key="MSLogin.StatusReady">Klik tombol di bawah untuk memulai</s:String>
+    <s:String x:Key="MSLogin.Login">Masuk</s:String>
+    <s:String x:Key="MSLogin.LoginBusy">Sedang masuk...</s:String>
+
+    <s:String x:Key="ClientInstall.Title">Pasang klien</s:String>
+    <s:String x:Key="ClientInstall.GameVersion">Versi permainan</s:String>
+    <s:String x:Key="ClientInstall.Loader">Loader</s:String>
+    <s:String x:Key="ClientInstall.LoaderVersion">Versi loader</s:String>
+    <s:String x:Key="ClientInstall.LoaderVersionHint">Kosongkan untuk versi terbaru</s:String>
+    <s:String x:Key="ClientInstall.Optifine">Pasang OptiFine</s:String>
+    <s:String x:Key="ClientInstall.OptifineVersion">Versi OptiFine</s:String>
+    <s:String x:Key="ClientInstall.OptifineHint">Centang kotak di atas terlebih dahulu. Memilih versi OptiFine akan mengisi otomatis versi Forge yang kompatibel.</s:String>
+    <s:String x:Key="ClientInstall.Warning">Proses pemasangan akan mengunduh banyak berkas dari jaringan. Kemajuan ditampilkan di log di bawah. Setelah selesai, versi akan muncul di halaman jalankan.</s:String>
+    <s:String x:Key="ClientInstall.LogPlaceholder">Log pemasangan akan muncul di sini...</s:String>
+    <s:String x:Key="ClientInstall.Cancel">Batal</s:String>
+    <s:String x:Key="ClientInstall.Install">Pasang</s:String>
+
+    <s:String x:Key="ServerInstall.Title">Pasang server</s:String>
+    <s:String x:Key="ServerInstall.ServerName">Nama server</s:String>
+    <s:String x:Key="ServerInstall.ServerNameHint">Nama folder di direktori Server. Disarankan huruf, angka, dan garis bawah.</s:String>
+    <s:String x:Key="ServerInstall.GameVersion">Versi permainan</s:String>
+    <s:String x:Key="ServerInstall.Refresh">Segarkan</s:String>
+    <s:String x:Key="ServerInstall.Loader">Loader</s:String>
+    <s:String x:Key="ServerInstall.LoaderVersion">Versi loader</s:String>
+    <s:String x:Key="ServerInstall.LoaderVersionHint">Kosongkan untuk versi terbaru. Contoh: Forge 47.2.0, NeoForge 21.1.0, versi loader Fabric/Quilt</s:String>
+    <s:String x:Key="ServerInstall.LogPlaceholder">Log pemasangan akan muncul di sini...</s:String>
+    <s:String x:Key="ServerInstall.Cancel">Batal</s:String>
+    <s:String x:Key="ServerInstall.Install">Pasang</s:String>
+
+    <s:String x:Key="ServerSettings.Title">Pengaturan server</s:String>
+    <s:String x:Key="ServerSettings.Basic">Umum</s:String>
+    <s:String x:Key="ServerSettings.ServerName">Nama server (mengganti nama folder)</s:String>
+    <s:String x:Key="ServerSettings.Motd">MOTD</s:String>
+    <s:String x:Key="ServerSettings.Port">Port</s:String>
+    <s:String x:Key="ServerSettings.Players">Pemain</s:String>
+    <s:String x:Key="ServerSettings.OnlineMode">Mode online (online-mode)</s:String>
+    <s:String x:Key="ServerSettings.Whitelist">Aktifkan daftar putih (white-list)</s:String>
+    <s:String x:Key="ServerSettings.EnforceWhitelist">Paksa daftar putih (enforce-whitelist)</s:String>
+    <s:String x:Key="ServerSettings.Pvp">Izinkan PVP (pvp)</s:String>
+    <s:String x:Key="ServerSettings.AllowFlight">Izinkan terbang (allow-flight)</s:String>
+    <s:String x:Key="ServerSettings.Cheat">Izinkan cheat (enable-command-block)</s:String>
+    <s:String x:Key="ServerSettings.MaxPlayers">Pemain maksimum</s:String>
+    <s:String x:Key="ServerSettings.World">Dunia</s:String>
+    <s:String x:Key="ServerSettings.Gamemode">Mode permainan (survival / creative / adventure / spectator)</s:String>
+    <s:String x:Key="ServerSettings.Difficulty">Kesulitan (peaceful / easy / normal / hard)</s:String>
+    <s:String x:Key="ServerSettings.ViewDistance">Jarak pandang (view-distance)</s:String>
+    <s:String x:Key="ServerSettings.SimDistance">Jarak simulasi (simulation-distance)</s:String>
+    <s:String x:Key="ServerSettings.Cancel">Batal</s:String>
+    <s:String x:Key="ServerSettings.Save">Simpan</s:String>
+
+    <s:String x:Key="Update.Title">Pembaruan tersedia</s:String>
+    <s:String x:Key="Update.Notes">Yang baru</s:String>
+    <s:String x:Key="Update.Later">Nanti</s:String>
+    <s:String x:Key="Update.Now">Perbarui sekarang</s:String>
+    <s:String x:Key="Update.Downloading">Mengunduh pembaruan...</s:String>
+
+    <s:String x:Key="Common.Cancel">Batal</s:String>
+    <s:String x:Key="Common.Save">Simpan</s:String>
+    <s:String x:Key="Common.Close">Tutup</s:String>
+    <s:String x:Key="Common.OK">OK</s:String>
+
+    <s:String x:Key="Download.Failure">Gagal memuat</s:String>
+
+    <s:String x:Key="Dialog.Info">Pemberitahuan</s:String>
+    <s:String x:Key="Dialog.Error">Kesalahan</s:String>
+    <s:String x:Key="Dialog.Success">Berhasil</s:String>
+    <s:String x:Key="Dialog.Warning">Peringatan</s:String>
+    <s:String x:Key="Dialog.Confirm">Konfirmasi</s:String>
+    <s:String x:Key="Dialog.Yes">Ya</s:String>
+    <s:String x:Key="Dialog.No">Tidak</s:String>
+    <s:String x:Key="Common.Confirm">Konfirmasi</s:String>
+    <s:String x:Key="Common.Delete">Hapus</s:String>
+
+    <s:String x:Key="ModSearch.Search">Cari</s:String>
+    <s:String x:Key="ModSearch.ResourcePack">Paket sumber daya</s:String>
+    <s:String x:Key="ModSearch.PrevPage">Sebelumnya</s:String>
+    <s:String x:Key="ModSearch.NextPage">Berikutnya</s:String>
+    <s:String x:Key="ModSearch.Loading">Memuat...</s:String>
+    <s:String x:Key="ModSearch.NoResult">Tidak ada proyek ditemukan</s:String>
+    <s:String x:Key="ModSearch.PageInfo">Halaman {0} / {1}  (total {2})</s:String>
+
+    <s:String x:Key="ModVersions.Title">Versi Mod</s:String>
+    <s:String x:Key="ModVersions.TitlePrefix">Versi:</s:String>
+    <s:String x:Key="ModVersions.Loading">Memuat versi...</s:String>
+    <s:String x:Key="ModVersions.NoResult">Tidak ada versi ditemukan</s:String>
+    <s:String x:Key="ModVersions.CountZero">0 versi</s:String>
+    <s:String x:Key="ModVersions.CountInfo">{0} versi, menampilkan {1}</s:String>
+    <s:String x:Key="ModVersions.Sort.Date">Tanggal rilis</s:String>
+    <s:String x:Key="ModVersions.Sort.Downloads">Unduhan</s:String>
+    <s:String x:Key="ModVersions.Sort.Version">Versi</s:String>
+    <s:String x:Key="ModVersions.SortDir.Desc">Turun (terbaru)</s:String>
+    <s:String x:Key="ModVersions.SortDir.Asc">Naik (terlama)</s:String>
+    <s:String x:Key="ModVersions.Download">Unduh yang dipilih</s:String>
+    <s:String x:Key="ModVersions.Preparing">Menyiapkan unduhan</s:String>
+    <s:String x:Key="ModVersions.Downloading">Mengunduh {0}: {1}%  ({2} / {3})</s:String>
+    <s:String x:Key="ModVersions.DownloadComplete">Unduhan selesai:</s:String>
+    <s:String x:Key="ModVersions.DownloadFailed">Unduhan gagal</s:String>
+    <s:String x:Key="ModVersions.DownloadingPack">Mengunduh modpack...</s:String>
+    <s:String x:Key="ModVersions.UsingCached">Menggunakan modpack cache:</s:String>
+    <s:String x:Key="ModVersions.Progress">Selesai. Berhasil {0}, gagal {1}</s:String>
+
+    <s:String x:Key="ModInstallTarget.Title">Pilih target pemasangan</s:String>
+    <s:String x:Key="ModInstallTarget.Hint">Ditemukan versi yang cocok. Pilih salah satu untuk dipasang:</s:String>
+    <s:String x:Key="ModInstallTarget.Requirements">Memerlukan: MC {0}  |  Loader {1}</s:String>
+    <s:String x:Key="ModInstallTarget.InstallHere">Pasang di sini</s:String>
+    <s:String x:Key="ModInstallTarget.SelectOne">Silakan pilih versi terlebih dahulu.</s:String>
+
+    <s:String x:Key="ClientInstall.NoVersion">Tidak ada versi permainan yang dipilih.</s:String>
+    <s:String x:Key="ClientInstall.OptifineConflict">OptiFine tidak kompatibel dengan {0}. Ganti loader ke Forge/Vanilla atau hapus centang OptiFine.</s:String>
+    <s:String x:Key="ClientInstall.InstallSuccess">Klien Minecraft {0} terpasang.</s:String>
+    <s:String x:Key="ClientInstall.InstallFailed">Pemasangan gagal. Lihat log di bawah.</s:String>
+    <s:String x:Key="ClientInstall.InstallError">Kesalahan pemasangan: {0}</s:String>
+
+    <s:String x:Key="ServerInstall.NameRequired">Silakan masukkan nama server.</s:String>
+    <s:String x:Key="ServerInstall.NameInvalid">Nama server mengandung karakter tidak valid: {0}</s:String>
+    <s:String x:Key="ServerInstall.VersionRequired">Silakan pilih atau masukkan versi permainan.</s:String>
+    <s:String x:Key="ServerInstall.FolderExists">Folder target sudah ada dan tidak kosong:\n{0}\n\nLanjutkan dan timpa?</s:String>
+    <s:String x:Key="ServerInstall.InstallSuccess">Server "{0}" terpasang.</s:String>
+    <s:String x:Key="ServerInstall.InstallFailed">Pemasangan gagal. Lihat log di bawah.</s:String>
+    <s:String x:Key="ServerInstall.InstallError">Kesalahan pemasangan: {0}</s:String>
+
+    <s:String x:Key="Server.Running">Server "{0}" sudah berjalan.</s:String>
+    <s:String x:Key="Server.DeleteConfirm">Hapus server "{0}"?\n\nIni akan menghapus seluruh folder:\n{1}\n  Simpanan Anda akan hilang!\n\nTidak dapat dibatalkan!</s:String>
+    <s:String x:Key="Server.DeleteFailed">Gagal menghapus: {0}</s:String>
+    <s:String x:Key="Server.StartFailed">Gagal menjalankan server: {0}</s:String>
+    <s:String x:Key="Server.EulaPrompt">Server "{0}" memerlukan persetujuan EULA Minecraft terlebih dahulu.\n\nEULA: https://aka.ms/MinecraftEULA\n\nKlik Ya untuk menyetujui. Launcher akan mengatur eula=true di eula.txt.</s:String>
+
+    <s:String x:Key="Role.Invalid">Nama pengguna tidak valid:\n· 4-16 karakter\n· Tanpa karakter CJK atau spasi</s:String>
+    <s:String x:Key="Role.CreateFailed">Gagal membuat: {0}</s:String>
+    <s:String x:Key="Role.NeedFirst">Belum ada akun. Buat satu sebelum menjalankan.\nTetap lewati?</s:String>
+
+    <s:String x:Key="MSLogin.LoginFailed">Login gagal:\n{0}</s:String>
+    <s:String x:Key="MSLogin.CacheDetected">Kredensial Microsoft cache ditemukan.\n\nLogin dengan cache (tanpa browser)?\n\n· Ya → Login cache\n· Tidak → Login kode perangkat</s:String>
+    <s:String x:Key="MSLogin.CacheSuccess">Kredensial Microsoft di-cache.\n\nSetelah persetujuan Mojang, buka kembali jendela ini dan pilih "Gunakan login cache".</s:String>
+    <s:String x:Key="MSLogin.LoginSuccess">Login berhasil!\n\nAkun disimpan.</s:String>
+
+    <s:String x:Key="Common.Any">Apa saja</s:String>
+    <s:String x:Key="Common.All">Semua</s:String>
+
+    <s:String x:Key="Launch.NoVersionSelected">Tidak ada versi yang dipilih. Silakan pasang versi di .minecraft\versions terlebih dahulu.</s:String>
+    <s:String x:Key="Launch.NoRoleConfirm">Belum ada akun yang dibuat. Buat sekarang?</s:String>
+    <s:String x:Key="Launch.FailedWithCode">Gagal menjalankan, kode keluar: {0}</s:String>
+    <s:String x:Key="Launch.Error">Kesalahan menjalankan: {0}</s:String>
+
+    <s:String x:Key="Download.Count">Total {0} versi</s:String>
+    <s:String x:Key="Download.FetchFailed">Gagal mengambil daftar versi: {0}</s:String>
+
+    <s:String x:Key="Settings.Checking">Memeriksa...</s:String>
+    <s:String x:Key="Settings.CheckFailed">Pemeriksaan pembaruan gagal: {0}</s:String>
+    <s:String x:Key="Settings.CheckError">Pemeriksaan pembaruan gagal: {0}</s:String>
+    <s:String x:Key="Settings.CheckFailedShort">Pemeriksaan gagal</s:String>
+    <s:String x:Key="Settings.UpToDate">Sudah terbaru</s:String>
+    <s:String x:Key="Settings.UpToDateWithVersion">Sudah versi terbaru {0}.</s:String>
+    <s:String x:Key="Settings.NewVersionFound">Versi baru ditemukan</s:String>
+
+    <s:String x:Key="Server.DeleteRunning">Server "{0}" sedang berjalan. Hentikan sebelum menghapus.</s:String>
+
+    <s:String x:Key="Update.Preparing">Unduhan selesai, menyiapkan penerapan pembaruan...</s:String>
+    <s:String x:Key="Update.Restarting">Memulai ulang aplikasi...</s:String>
+    <s:String x:Key="Update.Cancelled">Dibatalkan</s:String>
+    <s:String x:Key="Update.Failed">Pembaruan gagal</s:String>
+
+    <s:String x:Key="MSLogin.Preparing">Menyiapkan login, harap tunggu...</s:String>
+    <s:String x:Key="MSLogin.CacheLogin">Login dengan cache...</s:String>
+    <s:String x:Key="MSLogin.NoResult">Login tidak mengembalikan hasil</s:String>
+    <s:String x:Key="MSLogin.CacheSaved">Kredensial Azure di-cache, login otomatis tersedia setelah persetujuan Mojang</s:String>
+    <s:String x:Key="MSLogin.Success">Login berhasil</s:String>
+    <s:String x:Key="MSLogin.CancelConfirm">Sedang login. Yakin ingin keluar?</s:String>
+
+    <s:String x:Key="ClientInstall.LatestVersion">(gunakan terbaru)</s:String>
+    <s:String x:Key="ClientInstall.LatestVersionShort">(terbaru)</s:String>
+    <s:String x:Key="ClientInstall.WithForge">dengan Forge</s:String>
+    <s:String x:Key="ClientInstall.LoadingVersions">Memuat versi {0}...</s:String>
+    <s:String x:Key="ClientInstall.VanillaHint">Vanilla tidak memerlukan versi loader.</s:String>
+    <s:String x:Key="ClientInstall.ForgeHint">Kosongkan untuk terbaru. Anda dapat memilih versi tertentu dari dropdown.</s:String>
+    <s:String x:Key="ClientInstall.LoaderHint">Kosongkan untuk terbaru. Tidak dapat digunakan dengan OptiFine.</s:String>
+    <s:String x:Key="ClientInstall.LoadedCount">({0} versi dimuat)</s:String>
+    <s:String x:Key="ClientInstall.NoVersions">(tidak ada versi tersedia)</s:String>
+    <s:String x:Key="ClientInstall.OptifineLoading">Memuat versi OptiFine...</s:String>
+    <s:String x:Key="ClientInstall.OptifineNone">Tidak ada OptiFine yang kompatibel dengan versi Forge saat ini, atau tidak ada OptiFine untuk versi permainan ini.</s:String>
+    <s:String x:Key="ClientInstall.OptifineLoaded">{0} versi OptiFine dimuat.</s:String>
+    <s:String x:Key="ClientInstall.LoaderListFailed">Gagal mengunduh daftar versi</s:String>
+    <s:String x:Key="ClientInstall.Installing">Memasang...</s:String>
+    <s:String x:Key="ClientInstall.InstallDone">Pemasangan selesai</s:String>
+    <s:String x:Key="ClientInstall.InstallDoneLog">✅ Pemasangan selesai</s:String>
+    <s:String x:Key="ClientInstall.InstallFailedLog">❌ Pemasangan gagal</s:String>
+    <s:String x:Key="ClientInstall.InstallErrorLog">❌ Kesalahan pemasangan:</s:String>
+    <s:String x:Key="ClientInstall.BeginInstall">Memulai pemasangan klien</s:String>
+    <s:String x:Key="ClientInstall.TargetDir">Direktori target</s:String>
+    <s:String x:Key="ClientInstall.DoNotInstall">Jangan pasang</s:String>
+
+    <s:String x:Key="ServerInstall.LoadingManifest">Memuat daftar versi...</s:String>
+    <s:String x:Key="ServerInstall.ReleaseCount">{0} rilis</s:String>
+    <s:String x:Key="ServerInstall.LoadFailed">Gagal memuat</s:String>
+    <s:String x:Key="ServerInstall.Installing">Memasang...</s:String>
+    <s:String x:Key="ServerInstall.BeginInstall">Memulai pemasangan server</s:String>
+
+    <s:String x:Key="ServerSettings.FolderExists">Folder server dengan nama sama sudah ada.</s:String>
+    <s:String x:Key="ServerSettings.SaveFailed">Gagal menyimpan: {0}</s:String>
+
+    <s:String x:Key="ModVersions.SelectOne">Silakan pilih versi terlebih dahulu.</s:String>
+    <s:String x:Key="ModVersions.NoFile">Versi ini tidak memiliki file yang dapat diunduh.</s:String>
+    <s:String x:Key="ModVersions.AllSourcesFailed">Semua sumber unduhan tidak tersedia</s:String>
+    <s:String x:Key="ModVersions.DownloadingNoTotal">Mengunduh {0}: {1}</s:String>
+    <s:String x:Key="ModVersions.DownloadSuccess">Unduhan selesai:\n{0}</s:String>
+    <s:String x:Key="ModVersions.DownloadFailedMsg">Unduhan gagal: {0}</s:String>
+    <s:String x:Key="ModVersions.NoWorlds">Tidak ada simpanan ditemukan. Buat dunia terlebih dahulu.</s:String>
+    <s:String x:Key="ModVersions.NoSavesFolder">Folder saves tidak ditemukan. Buat dunia terlebih dahulu.</s:String>
+    <s:String x:Key="ModVersions.DatapackConfirm">Paket data akan diunduh ke:\n{0}\nLanjutkan?</s:String>
+    <s:String x:Key="ModVersions.ModpackDialogDesc">Pilih direktori target ekstraksi modpack (disarankan versions)</s:String>
+    <s:String x:Key="ModVersions.NoMatch">Tidak ditemukan instance versi yang cocok dengan persyaratan mod ini.\n\nMod memerlukan versi permainan: {0}\nMod memerlukan loader: {1}\n\nUnduh langsung ke .minecraft\mods?\n(Catatan: jika isolasi versi aktif, mod di direktori ini tidak dimuat secara default)</s:String>
+    <s:String x:Key="ModVersions.ModpackDownloadFailed">Unduhan modpack gagal: {0}</s:String>
+    <s:String x:Key="ModVersions.DownloadingFile">Mengunduh file [{0}/{1}]: {2}</s:String>
+    <s:String x:Key="ModVersions.Incomplete">File berikut gagal diunduh. Silakan unduh manual:\n{0}</s:String>
+    <s:String x:Key="ModVersions.Installed">Modpack terpasang di:\n{0}\n\nSekarang Anda dapat memilih '{1}' di launcher untuk memulai.</s:String>
+    <s:String x:Key="ModVersions.ProcessFailed">Gagal memproses modpack: {0}</s:String>
+    <s:String x:Key="ModVersions.ExtractedNoIndex">Modpack diekstrak (modrinth.index.json tidak ada).</s:String>
+    <s:String x:Key="ModVersions.InstallComplete">Pemasangan modpack selesai:</s:String>
+    <s:String x:Key="ModVersions.NoVersionSelected">Tidak ada versi dipilih, tidak dapat menemukan direktori mods.</s:String>
+    <s:String x:Key="ModVersions.IndexParseFailed">Gagal mengurai modrinth.index.json</s:String>
+    <s:String x:Key="ModVersions.NoMcVersion">Tidak dapat mengurai versi Minecraft dari modrinth.index.json</s:String>
+
+    <s:String x:Key="Role.EmptyUsername">Nama pengguna tidak boleh kosong</s:String>
+
+    <s:String x:Key="Auth.ChildAccount">Akun anak memerlukan persetujuan orang tua.</s:String>
+    <s:String x:Key="Auth.RegionUnsupported">Wilayah tidak didukung.</s:String>
+    <s:String x:Key="Auth.XstsError">Kesalahan XSTS: {0}</s:String>
+    <s:String x:Key="Auth.Timeout">Waktu login pengguna habis.</s:String>
+    <s:String x:Key="Auth.DeviceCodeFailed">Permintaan kode perangkat gagal: {0}</s:String>
+    <s:String x:Key="Auth.PostFailed">Permintaan POST gagal (URL: {0}, HTTP {1})</s:String>
+    <s:String x:Key="Auth.RefreshFailed">Gagal menyegarkan: {0} - {1}</s:String>
+    <s:String x:Key="Auth.CacheCorrupted">File cache tidak dapat didekripsi atau rusak. Silakan login lagi.</s:String>
+    <s:String x:Key="Auth.CacheMissing">File cache tidak ada</s:String>
+
+    <s:String x:Key="Api.TooManyRequests">Terlalu banyak permintaan. Coba lagi nanti.</s:String>
+    <s:String x:Key="Api.BadRequest">Parameter permintaan salah. Periksa kriteria pencarian Anda.</s:String>
+    <s:String x:Key="Api.NotFound">Sumber daya yang diminta tidak ditemukan.</s:String>
+    <s:String x:Key="Api.NetworkError">Koneksi jaringan gagal. Periksa jaringan atau pengaturan proxy Anda.</s:String>
+    <s:String x:Key="Api.HttpError">Kesalahan HTTP {0}</s:String>
+    <s:String x:Key="Api.ModIdRequired">Mod ID tidak boleh kosong</s:String>
+
+    <s:String x:Key="Settings.Language">Bahasa</s:String>
+    <s:String x:Key="Settings.LanguageDesc">Ganti bahasa antarmuka launcher. Berlaku segera.</s:String>
+
+</ResourceDictionary>

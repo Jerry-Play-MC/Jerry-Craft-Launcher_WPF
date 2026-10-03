@@ -1,7 +1,7 @@
 ﻿<Window x:Class="Jerry_Craft_Launcher.NET_Framework_4._5_WPF.ServerInstallWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="安装服务端"
+        Title="{DynamicResource ServerInstall.Title}"
         Width="640" Height="680"
         WindowStartupLocation="CenterOwner"
         WindowStyle="None"
@@ -23,7 +23,7 @@
                     CornerRadius="10,10,0,0"
                     MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
                 <Grid>
-                    <TextBlock Text="安装服务端"
+                    <TextBlock Text="{DynamicResource ServerInstall.Title}"
                                FontSize="13" FontWeight="SemiBold"
                                VerticalAlignment="Center"
                                Margin="16,0,0,0"/>
@@ -48,15 +48,16 @@
                               Margin="24,16,24,0">
                     <StackPanel>
 
-                        <TextBlock Text="服务器名"
+                        <TextBlock Text="{DynamicResource ServerInstall.ServerName}"
                                    FontSize="12" Foreground="#666666" Margin="0,0,0,4"/>
                         <TextBox x:Name="ServerNameBox"
                                  Style="{StaticResource InputTextBoxStyle}"/>
-                        <TextBlock Text="会成为 Server 目录下的文件夹名，建议用英文、数字、下划线"
+                        <TextBlock Text="{DynamicResource ServerInstall.ServerNameHint}"
                                    FontSize="11" Foreground="#999999"
-                                   Margin="0,4,0,0"/>
+                                   Margin="0,4,0,0"
+                                   TextWrapping="Wrap"/>
 
-                        <TextBlock Text="游戏版本"
+                        <TextBlock Text="{DynamicResource ServerInstall.GameVersion}"
                                    FontSize="12" Foreground="#666666"
                                    Margin="0,14,0,4"/>
                         <Grid>
@@ -71,7 +72,7 @@
                                       FontSize="13"
                                       VerticalContentAlignment="Center"/>
                             <Button Grid.Column="1"
-                                    Content="刷新"
+                                    Content="{DynamicResource ServerInstall.Refresh}"
                                     Style="{StaticResource SecondaryButtonStyle}"
                                     Height="38"
                                     Margin="8,0,0,0"
@@ -82,7 +83,7 @@
                                    FontSize="11" Foreground="#999999"
                                    Margin="0,4,0,0"/>
 
-                        <TextBlock Text="加载器"
+                        <TextBlock Text="{DynamicResource ServerInstall.Loader}"
                                    FontSize="12" Foreground="#666666"
                                    Margin="0,14,0,4"/>
                         <ComboBox x:Name="LoaderBox"
@@ -90,12 +91,12 @@
                                   FontSize="13"
                                   VerticalContentAlignment="Center"/>
 
-                        <TextBlock Text="加载器版本"
+                        <TextBlock Text="{DynamicResource ServerInstall.LoaderVersion}"
                                    FontSize="12" Foreground="#666666"
                                    Margin="0,14,0,4"/>
                         <TextBox x:Name="LoaderVersionBox"
                                  Style="{StaticResource InputTextBoxStyle}"/>
-                        <TextBlock Text="留空使用最新版。例如 Forge 填 47.2.0、NeoForge 填 21.1.0、Fabric/Quilt 填 Loader 版本号"
+                        <TextBlock Text="{DynamicResource ServerInstall.LoaderVersionHint}"
                                    FontSize="11" Foreground="#999999"
                                    Margin="0,4,0,0"
                                    TextWrapping="Wrap"/>
@@ -114,7 +115,7 @@
                                  Background="Transparent"
                                  Foreground="#D4D4D4"
                                  BorderThickness="0"
-                                 FontFamily="Consolas, Courier New, monospace"
+                                 FontFamily="{DynamicResource App.MonoFontFamily}"
                                  FontSize="11"
                                  Padding="10,8"
                                  IsReadOnly="True"
@@ -123,9 +124,9 @@
                                  VerticalScrollBarVisibility="Auto"
                                  HorizontalScrollBarVisibility="Auto"/>
                         <TextBlock x:Name="LogPlaceholder"
-                                   Text="安装日志将显示在这里..."
+                                   Text="{DynamicResource ServerInstall.LogPlaceholder}"
                                    Foreground="#666666"
-                                   FontFamily="Consolas, Courier New, monospace"
+                                   FontFamily="{DynamicResource App.MonoFontFamily}"
                                    FontSize="11"
                                    Margin="12,10,0,0"
                                    VerticalAlignment="Top"
@@ -150,12 +151,12 @@
                     <StackPanel Orientation="Horizontal"
                                 HorizontalAlignment="Right"
                                 VerticalAlignment="Center">
-                        <Button Content="取消"
+                        <Button Content="{DynamicResource ServerInstall.Cancel}"
                                 Style="{StaticResource SecondaryButtonStyle}"
                                 Click="Cancel_Click"
                                 Margin="0,0,8,0"/>
                         <Button x:Name="InstallButton"
-                                Content="安装"
+                                Content="{DynamicResource ServerInstall.Install}"
                                 Style="{StaticResource PrimaryButtonStyle}"
                                 Click="Install_Click"/>
                     </StackPanel>

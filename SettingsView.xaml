@@ -15,23 +15,27 @@
         <Border Grid.Column="0" Background="#FAFAFA"
                 BorderBrush="#E0E0E0" BorderThickness="0,0,1,0">
             <StackPanel Margin="8,16,8,0">
-                <RadioButton GroupName="SettingsSubNav" Content="启动器"
+                <RadioButton GroupName="SettingsSubNav"
+                             Content="{DynamicResource Settings.Launcher}"
                              Style="{StaticResource SubNavButtonStyle}"
                              Tag="Launcher"
                              IsChecked="True"
                              Checked="SubNav_Checked"
                              Margin="0,0,0,2"/>
-                <RadioButton GroupName="SettingsSubNav" Content="Java"
+                <RadioButton GroupName="SettingsSubNav"
+                             Content="{DynamicResource Settings.Java}"
                              Style="{StaticResource SubNavButtonStyle}"
                              Tag="Java"
                              Checked="SubNav_Checked"
                              Margin="0,2,0,0"/>
-                <RadioButton GroupName="SettingsSubNav" Content="游戏"
+                <RadioButton GroupName="SettingsSubNav"
+                             Content="{DynamicResource Settings.Game}"
                              Style="{StaticResource SubNavButtonStyle}"
                              Tag="Game"
                              Checked="SubNav_Checked"
                              Margin="0,2,0,0"/>
-                <RadioButton GroupName="SettingsSubNav" Content="关于"
+                <RadioButton GroupName="SettingsSubNav"
+                             Content="{DynamicResource Settings.Versions}"
                              Style="{StaticResource SubNavButtonStyle}"
                              Tag="About"
                              Checked="SubNav_Checked"
@@ -46,15 +50,15 @@
             <Grid x:Name="LauncherPanel">
                 <StackPanel Margin="32,24,32,0">
 
-                    <TextBlock Text="启动器"
-                   FontSize="22" FontWeight="SemiBold"
-                   Foreground="#333333"
-                   Margin="0,0,0,20"/>
+                    <TextBlock Text="{DynamicResource Settings.Title}"
+                               FontSize="22" FontWeight="SemiBold"
+                               Foreground="#333333"
+                               Margin="0,0,0,20"/>
 
                     <!-- 检查更新卡片 -->
                     <Border Background="#F7F7F7"
-                CornerRadius="8"
-                Padding="16">
+                            CornerRadius="8"
+                            Padding="16">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
@@ -62,36 +66,66 @@
                             </Grid.ColumnDefinitions>
 
                             <StackPanel Grid.Column="0" Margin="0,0,16,0">
-                                <TextBlock Text="检查更新"
-                               FontSize="14" FontWeight="SemiBold"
-                               Foreground="#333333"/>
+                                <TextBlock Text="{DynamicResource Settings.CheckUpdate}"
+                                           FontSize="14" FontWeight="SemiBold"
+                                           Foreground="#333333"/>
                                 <TextBlock x:Name="CurrentVersionText"
-                               Text="当前版本：1.0.0"
-                               FontSize="11" Foreground="#999999"
-                               Margin="0,4,0,0"
-                               TextWrapping="Wrap"/>
+                                           FontSize="11" Foreground="#999999"
+                                           Margin="0,4,0,0"
+                                           TextWrapping="Wrap"/>
                                 <TextBlock x:Name="UpdateStatusText"
-                               FontSize="11" Foreground="#4F46E5"
-                               Margin="0,4,0,0"
-                               TextWrapping="Wrap"/>
+                                           FontSize="11" Foreground="#4F46E5"
+                                           Margin="0,4,0,0"
+                                           TextWrapping="Wrap"/>
                             </StackPanel>
 
                             <Button Grid.Column="1"
-                        x:Name="CheckUpdateButton"
-                        Content="检查更新"
-                        Style="{StaticResource PrimaryButtonStyle}"
-                        Height="34"
-                        Padding="16,0"
-                        VerticalAlignment="Center"
-                        Click="CheckUpdate_Click"/>
+                                    x:Name="CheckUpdateButton"
+                                    Content="{DynamicResource Settings.CheckUpdate}"
+                                    Style="{StaticResource PrimaryButtonStyle}"
+                                    Height="34"
+                                    Padding="16,0"
+                                    VerticalAlignment="Center"
+                                    Click="CheckUpdate_Click"/>
                         </Grid>
                     </Border>
 
+                    <!-- 语言切换卡片 -->
+                    <Border Background="#F7F7F7"
+        CornerRadius="8"
+        Padding="16"
+        Margin="0,10,0,0">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" Margin="0,0,16,0"
+                    VerticalAlignment="Center">
+                                <TextBlock Text="{DynamicResource Settings.Language}"
+                       FontSize="14" FontWeight="SemiBold"
+                       Foreground="#333333"/>
+                                <TextBlock Text="{DynamicResource Settings.LanguageDesc}"
+                       FontSize="11" Foreground="#999999"
+                       Margin="0,4,0,0"
+                       TextWrapping="Wrap"/>
+                            </StackPanel>
+
+                            <ComboBox Grid.Column="1"
+                  x:Name="LanguageBox"
+                  Style="{StaticResource ModernComboBoxStyle}"
+                  Width="200"
+                  VerticalAlignment="Center"
+                  SelectionChanged="LanguageBox_SelectionChanged"/>
+                        </Grid>
+                    </Border>
+                    
                 </StackPanel>
             </Grid>
 
             <!-- Java（占位） -->
-            <TextBlock x:Name="JavaPanel" Text="Java 设置"
+            <TextBlock x:Name="JavaPanel" Text="Java"
                        FontSize="20" Foreground="#DDDDDD"
                        HorizontalAlignment="Center" VerticalAlignment="Center"
                        Visibility="Collapsed"/>
@@ -100,7 +134,7 @@
             <Grid x:Name="GamePanel" Visibility="Collapsed">
                 <StackPanel Margin="32,24,32,0">
 
-                    <TextBlock Text="游戏"
+                    <TextBlock Text="{DynamicResource Settings.Game.Title}"
                                FontSize="22" FontWeight="SemiBold"
                                Foreground="#333333"
                                Margin="0,0,0,20"/>
@@ -116,10 +150,10 @@
                             </Grid.ColumnDefinitions>
 
                             <StackPanel Grid.Column="0" Margin="0,0,16,0">
-                                <TextBlock Text="版本隔离"
+                                <TextBlock Text="{DynamicResource Settings.Game.Isolation}"
                                            FontSize="14" FontWeight="SemiBold"
                                            Foreground="#333333"/>
-                                <TextBlock Text="开启后，游戏数据（存档、资源、配置等）会保存在 versions\版本名 目录下，各版本互不干扰。"
+                                <TextBlock Text="{DynamicResource Settings.Game.IsolationDesc}"
                                            FontSize="11" Foreground="#999999"
                                            Margin="0,4,0,0"
                                            TextWrapping="Wrap"/>
@@ -171,7 +205,8 @@
             </Grid>
 
             <!-- 关于（占位） -->
-            <TextBlock x:Name="AboutPanel" Text="关于"
+            <TextBlock x:Name="AboutPanel"
+                       Text="{DynamicResource Settings.About}"
                        FontSize="20" Foreground="#DDDDDD"
                        HorizontalAlignment="Center" VerticalAlignment="Center"
                        Visibility="Collapsed"/>

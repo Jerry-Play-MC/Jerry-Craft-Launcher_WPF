@@ -1,7 +1,7 @@
 ﻿<Window x:Class="Jerry_Craft_Launcher.NET_Framework_4._5_WPF.ModInstallTargetWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="选择安装目标"
+        Title="{DynamicResource ModInstallTarget.Title}"
         Width="520" Height="480"
         WindowStartupLocation="CenterOwner"
         WindowStyle="None"
@@ -22,7 +22,7 @@
                     CornerRadius="10,10,0,0"
                     MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
                 <Grid>
-                    <TextBlock Text="选择安装目标版本"
+                    <TextBlock Text="{DynamicResource ModInstallTarget.Title}"
                                FontSize="13" FontWeight="SemiBold"
                                VerticalAlignment="Center"
                                Margin="16,0,0,0"/>
@@ -41,7 +41,7 @@
 
                 <StackPanel Grid.Row="0" Margin="24,16,24,8">
                     <TextBlock x:Name="HintText"
-                               Text="找到以下符合要求的版本实例，请选择要安装到哪个："
+                               Text="{DynamicResource ModInstallTarget.Hint}"
                                FontSize="12" Foreground="#666666"
                                TextWrapping="Wrap"/>
                     <TextBlock x:Name="RequirementText"
@@ -128,12 +128,12 @@
                             HorizontalAlignment="Right"
                             VerticalAlignment="Center"
                             Margin="0,0,16,0">
-                    <Button Content="取消"
+                    <Button Content="{DynamicResource Common.Cancel}"
                             Style="{StaticResource SecondaryButtonStyle}"
                             Click="Cancel_Click"
                             Margin="0,0,8,0"/>
                     <Button x:Name="InstallButton"
-                            Content="安装到此版本"
+                            Content="{DynamicResource ModInstallTarget.InstallHere}"
                             Style="{StaticResource PrimaryButtonStyle}"
                             Click="Install_Click"/>
                 </StackPanel>

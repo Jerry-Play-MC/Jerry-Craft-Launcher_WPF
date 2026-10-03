@@ -1,0 +1,315 @@
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:s="clr-namespace:System;assembly=mscorlib">
+
+    <s:String x:Key="App.Title">Jerry Craft Launcher</s:String>
+    <s:String x:Key="Nav.Launch">लॉन्च</s:String>
+    <s:String x:Key="Nav.Download">डाउनलोड</s:String>
+    <s:String x:Key="Nav.Server">सर्वर</s:String>
+    <s:String x:Key="Nav.Settings">सेटिंग्स</s:String>
+
+    <s:String x:Key="Launch.Home">होम</s:String>
+    <s:String x:Key="Launch.Roles">खाते</s:String>
+    <s:String x:Key="Launch.Start">लॉन्च करें</s:String>
+    <s:String x:Key="Launch.NoVersion">कोई संस्करण नहीं</s:String>
+    <s:String x:Key="Launch.NotLoggedIn">साइन इन नहीं</s:String>
+    <s:String x:Key="Launch.RoleOffline">ऑफ़लाइन खाता</s:String>
+    <s:String x:Key="Launch.RoleMicrosoft">प्रीमियम खाता</s:String>
+    <s:String x:Key="Launch.RolesTitle">खाता प्रबंधन</s:String>
+    <s:String x:Key="Launch.CreateRole">खाता बनाएँ</s:String>
+
+    <s:String x:Key="Download.Minecraft">Minecraft</s:String>
+    <s:String x:Key="Download.Mod">मॉड</s:String>
+    <s:String x:Key="Download.Modpack">मॉडपैक</s:String>
+    <s:String x:Key="Download.Datapack">डेटापैक</s:String>
+    <s:String x:Key="Download.Shader">शेडर</s:String>
+    <s:String x:Key="Download.MinecraftTitle">Minecraft संस्करण</s:String>
+    <s:String x:Key="Download.Loading">लोड हो रहा है...</s:String>
+    <s:String x:Key="Download.Refresh">रिफ़्रेश</s:String>
+    <s:String x:Key="Download.Cat.Release">रिलीज़</s:String>
+    <s:String x:Key="Download.Cat.Snapshot">स्नैपशॉट</s:String>
+    <s:String x:Key="Download.Cat.Old">पुराने संस्करण</s:String>
+    <s:String x:Key="Download.Cat.AprilFools">अप्रैल फ़ूल</s:String>
+
+    <s:String x:Key="Server.Title">सर्वर</s:String>
+    <s:String x:Key="Server.Install">सर्वर इंस्टॉल करें</s:String>
+    <s:String x:Key="Server.OpenFolder">Server फ़ोल्डर खोलें</s:String>
+    <s:String x:Key="Server.Refresh">रिफ़्रेश</s:String>
+    <s:String x:Key="Server.Start">प्रारंभ करें</s:String>
+    <s:String x:Key="Server.Settings">सेटिंग्स</s:String>
+    <s:String x:Key="Server.Delete">हटाएँ</s:String>
+    <s:String x:Key="Server.EmptyHint">सर्वर को  प्रोग्राम निर्देशिका\Server\सर्वर नाम\  में रखें (server.jar / run.bat / fabric-server-launch.jar / quilt-server-launch.jar समर्थित)</s:String>
+
+    <s:String x:Key="Settings.Launcher">लॉन्चर</s:String>
+    <s:String x:Key="Settings.Java">Java</s:String>
+    <s:String x:Key="Settings.Game">गेम</s:String>
+    <s:String x:Key="Settings.Versions">इंस्टेंस प्रबंधन</s:String>
+    <s:String x:Key="Settings.Title">लॉन्चर</s:String>
+    <s:String x:Key="Settings.CheckUpdate">अपडेट जाँचें</s:String>
+    <s:String x:Key="Settings.CurrentVersion">वर्तमान संस्करण:</s:String>
+    <s:String x:Key="Settings.Game.Title">गेम</s:String>
+    <s:String x:Key="Settings.Game.Isolation">संस्करण पृथक्करण</s:String>
+    <s:String x:Key="Settings.Game.IsolationDesc">सक्षम होने पर, गेम डेटा (सेव, संसाधन, कॉन्फ़िग, आदि) versions\संस्करण-नाम में संग्रहीत होता है, जिससे प्रत्येक संस्करण अलग रहता है।</s:String>
+
+    <s:String x:Key="Login.Title">लॉगिन प्रकार चुनें</s:String>
+    <s:String x:Key="Login.Prompt">जिस खाता प्रकार को बनाना चाहते हैं उसे चुनें:</s:String>
+    <s:String x:Key="Login.Premium">प्रीमियम लॉगिन</s:String>
+    <s:String x:Key="Login.PremiumDesc">Microsoft खाते से साइन इन करें</s:String>
+    <s:String x:Key="Login.Offline">ऑफ़लाइन लॉगिन</s:String>
+    <s:String x:Key="Login.OfflineDesc">स्थानीय ऑफ़लाइन खाता बनाएँ</s:String>
+
+    <s:String x:Key="CreateRole.Title">ऑफ़लाइन खाता बनाएँ</s:String>
+    <s:String x:Key="CreateRole.NameLabel">उपयोगकर्ता नाम</s:String>
+    <s:String x:Key="CreateRole.NameHint">4-16 अक्षर, CJK अक्षर या स्थान नहीं</s:String>
+    <s:String x:Key="CreateRole.Skip">छोड़ें</s:String>
+    <s:String x:Key="CreateRole.Create">बनाएँ</s:String>
+
+    <s:String x:Key="MSLogin.Title">Microsoft लॉगिन</s:String>
+    <s:String x:Key="MSLogin.BrowserHint">नीचे बटन पर क्लिक करने से आपके ब्राउज़र में Microsoft लॉगिन पृष्ठ खुलेगा</s:String>
+    <s:String x:Key="MSLogin.CodeHint">ब्राउज़र में दिखाया गया कोड</s:String>
+    <s:String x:Key="MSLogin.CodeCopied">(क्लिपबोर्ड पर कॉपी किया गया)</s:String>
+    <s:String x:Key="MSLogin.StatusReady">शुरू करने के लिए नीचे बटन पर क्लिक करें</s:String>
+    <s:String x:Key="MSLogin.Login">साइन इन</s:String>
+    <s:String x:Key="MSLogin.LoginBusy">साइन इन हो रहा है...</s:String>
+
+    <s:String x:Key="ClientInstall.Title">क्लाइंट इंस्टॉल करें</s:String>
+    <s:String x:Key="ClientInstall.GameVersion">गेम संस्करण</s:String>
+    <s:String x:Key="ClientInstall.Loader">लोडर</s:String>
+    <s:String x:Key="ClientInstall.LoaderVersion">लोडर संस्करण</s:String>
+    <s:String x:Key="ClientInstall.LoaderVersionHint">नवीनतम संस्करण के लिए खाली छोड़ें</s:String>
+    <s:String x:Key="ClientInstall.Optifine">OptiFine इंस्टॉल करें</s:String>
+    <s:String x:Key="ClientInstall.OptifineVersion">OptiFine संस्करण</s:String>
+    <s:String x:Key="ClientInstall.OptifineHint">पहले ऊपर का चेकबॉक्स सक्षम करें। OptiFine संस्करण चुनने पर संगत Forge संस्करण स्वतः भर जाएगा।</s:String>
+    <s:String x:Key="ClientInstall.Warning">इंस्टॉलेशन नेटवर्क से कई फ़ाइलें डाउनलोड करेगा। प्रगति नीचे लॉग में दिखाई देगी। पूरा होने पर संस्करण लॉन्च पृष्ठ पर दिखाई देगा।</s:String>
+    <s:String x:Key="ClientInstall.LogPlaceholder">इंस्टॉलेशन लॉग यहाँ दिखाई देगा...</s:String>
+    <s:String x:Key="ClientInstall.Cancel">रद्द करें</s:String>
+    <s:String x:Key="ClientInstall.Install">इंस्टॉल करें</s:String>
+
+    <s:String x:Key="ServerInstall.Title">सर्वर इंस्टॉल करें</s:String>
+    <s:String x:Key="ServerInstall.ServerName">सर्वर नाम</s:String>
+    <s:String x:Key="ServerInstall.ServerNameHint">Server निर्देशिका में फ़ोल्डर नाम। अक्षर, अंक और अंडरस्कोर की सिफ़ारिश की जाती है।</s:String>
+    <s:String x:Key="ServerInstall.GameVersion">गेम संस्करण</s:String>
+    <s:String x:Key="ServerInstall.Refresh">रिफ़्रेश</s:String>
+    <s:String x:Key="ServerInstall.Loader">लोडर</s:String>
+    <s:String x:Key="ServerInstall.LoaderVersion">लोडर संस्करण</s:String>
+    <s:String x:Key="ServerInstall.LoaderVersionHint">नवीनतम के लिए खाली छोड़ें। उदा: Forge 47.2.0, NeoForge 21.1.0, Fabric/Quilt लोडर संस्करण</s:String>
+    <s:String x:Key="ServerInstall.LogPlaceholder">इंस्टॉलेशन लॉग यहाँ दिखाई देगा...</s:String>
+    <s:String x:Key="ServerInstall.Cancel">रद्द करें</s:String>
+    <s:String x:Key="ServerInstall.Install">इंस्टॉल करें</s:String>
+
+    <s:String x:Key="ServerSettings.Title">सर्वर सेटिंग्स</s:String>
+    <s:String x:Key="ServerSettings.Basic">मूल</s:String>
+    <s:String x:Key="ServerSettings.ServerName">सर्वर नाम (फ़ोल्डर का नाम बदलेगा)</s:String>
+    <s:String x:Key="ServerSettings.Motd">MOTD</s:String>
+    <s:String x:Key="ServerSettings.Port">पोर्ट</s:String>
+    <s:String x:Key="ServerSettings.Players">खिलाड़ी</s:String>
+    <s:String x:Key="ServerSettings.OnlineMode">ऑनलाइन मोड (online-mode)</s:String>
+    <s:String x:Key="ServerSettings.Whitelist">व्हाइटलिस्ट सक्षम करें (white-list)</s:String>
+    <s:String x:Key="ServerSettings.EnforceWhitelist">व्हाइटलिस्ट लागू करें (enforce-whitelist)</s:String>
+    <s:String x:Key="ServerSettings.Pvp">PVP अनुमति दें (pvp)</s:String>
+    <s:String x:Key="ServerSettings.AllowFlight">उड़ान अनुमति दें (allow-flight)</s:String>
+    <s:String x:Key="ServerSettings.Cheat">चीट अनुमति दें (enable-command-block)</s:String>
+    <s:String x:Key="ServerSettings.MaxPlayers">अधिकतम खिलाड़ी</s:String>
+    <s:String x:Key="ServerSettings.World">विश्व</s:String>
+    <s:String x:Key="ServerSettings.Gamemode">गेम मोड (survival / creative / adventure / spectator)</s:String>
+    <s:String x:Key="ServerSettings.Difficulty">कठिनाई (peaceful / easy / normal / hard)</s:String>
+    <s:String x:Key="ServerSettings.ViewDistance">दृश्य दूरी (view-distance)</s:String>
+    <s:String x:Key="ServerSettings.SimDistance">सिमुलेशन दूरी (simulation-distance)</s:String>
+    <s:String x:Key="ServerSettings.Cancel">रद्द करें</s:String>
+    <s:String x:Key="ServerSettings.Save">सहेजें</s:String>
+
+    <s:String x:Key="Update.Title">अपडेट उपलब्ध</s:String>
+    <s:String x:Key="Update.Notes">नया क्या है</s:String>
+    <s:String x:Key="Update.Later">बाद में</s:String>
+    <s:String x:Key="Update.Now">अभी अपडेट करें</s:String>
+    <s:String x:Key="Update.Downloading">अपडेट डाउनलोड हो रहा है...</s:String>
+
+    <s:String x:Key="Common.Cancel">रद्द करें</s:String>
+    <s:String x:Key="Common.Save">सहेजें</s:String>
+    <s:String x:Key="Common.Close">बंद करें</s:String>
+    <s:String x:Key="Common.OK">ठीक है</s:String>
+
+    <s:String x:Key="Download.Failure">लोड विफल</s:String>
+
+    <s:String x:Key="Dialog.Info">सूचना</s:String>
+    <s:String x:Key="Dialog.Error">त्रुटि</s:String>
+    <s:String x:Key="Dialog.Success">सफल</s:String>
+    <s:String x:Key="Dialog.Warning">चेतावनी</s:String>
+    <s:String x:Key="Dialog.Confirm">पुष्टि करें</s:String>
+    <s:String x:Key="Dialog.Yes">हाँ</s:String>
+    <s:String x:Key="Dialog.No">नहीं</s:String>
+    <s:String x:Key="Common.Confirm">पुष्टि करें</s:String>
+    <s:String x:Key="Common.Delete">हटाएँ</s:String>
+
+    <s:String x:Key="ModSearch.Search">खोजें</s:String>
+    <s:String x:Key="ModSearch.ResourcePack">संसाधन पैक</s:String>
+    <s:String x:Key="ModSearch.PrevPage">पिछला</s:String>
+    <s:String x:Key="ModSearch.NextPage">अगला</s:String>
+    <s:String x:Key="ModSearch.Loading">लोड हो रहा है...</s:String>
+    <s:String x:Key="ModSearch.NoResult">कोई प्रोजेक्ट नहीं मिला</s:String>
+    <s:String x:Key="ModSearch.PageInfo">पृष्ठ {0} / {1}  (कुल {2})</s:String>
+
+    <s:String x:Key="ModVersions.Title">मॉड संस्करण</s:String>
+    <s:String x:Key="ModVersions.TitlePrefix">संस्करण:</s:String>
+    <s:String x:Key="ModVersions.Loading">संस्करण लोड हो रहे हैं...</s:String>
+    <s:String x:Key="ModVersions.NoResult">कोई संस्करण नहीं मिला</s:String>
+    <s:String x:Key="ModVersions.CountZero">0 संस्करण</s:String>
+    <s:String x:Key="ModVersions.CountInfo">{0} संस्करण, {1} दिखाए जा रहे हैं</s:String>
+    <s:String x:Key="ModVersions.Sort.Date">रिलीज़ तिथि</s:String>
+    <s:String x:Key="ModVersions.Sort.Downloads">डाउनलोड</s:String>
+    <s:String x:Key="ModVersions.Sort.Version">संस्करण</s:String>
+    <s:String x:Key="ModVersions.SortDir.Desc">अवरोही (नवीनतम)</s:String>
+    <s:String x:Key="ModVersions.SortDir.Asc">आरोही (पुरानतम)</s:String>
+    <s:String x:Key="ModVersions.Download">चयनित डाउनलोड करें</s:String>
+    <s:String x:Key="ModVersions.Preparing">डाउनलोड तैयार हो रहा है</s:String>
+    <s:String x:Key="ModVersions.Downloading">{0} डाउनलोड हो रहा है: {1}%  ({2} / {3})</s:String>
+    <s:String x:Key="ModVersions.DownloadComplete">डाउनलोड पूर्ण:</s:String>
+    <s:String x:Key="ModVersions.DownloadFailed">डाउनलोड विफल</s:String>
+    <s:String x:Key="ModVersions.DownloadingPack">मॉडपैक डाउनलोड हो रहा है...</s:String>
+    <s:String x:Key="ModVersions.UsingCached">कैश्ड मॉडपैक उपयोग हो रहा है:</s:String>
+    <s:String x:Key="ModVersions.Progress">पूर्ण। सफल {0}, विफल {1}</s:String>
+
+    <s:String x:Key="ModInstallTarget.Title">इंस्टॉल लक्ष्य चुनें</s:String>
+    <s:String x:Key="ModInstallTarget.Hint">मेल खाते संस्करण मिले। किसमें इंस्टॉल करना है चुनें:</s:String>
+    <s:String x:Key="ModInstallTarget.Requirements">आवश्यक: MC {0}  |  लोडर {1}</s:String>
+    <s:String x:Key="ModInstallTarget.InstallHere">यहाँ इंस्टॉल करें</s:String>
+    <s:String x:Key="ModInstallTarget.SelectOne">कृपया पहले एक संस्करण चुनें।</s:String>
+
+    <s:String x:Key="ClientInstall.NoVersion">कोई गेम संस्करण चयनित नहीं।</s:String>
+    <s:String x:Key="ClientInstall.OptifineConflict">OptiFine {0} के साथ असंगत है। लोडर को Forge/Vanilla करें या OptiFine अनचेक करें।</s:String>
+    <s:String x:Key="ClientInstall.InstallSuccess">Minecraft {0} क्लाइंट इंस्टॉल हो गया।</s:String>
+    <s:String x:Key="ClientInstall.InstallFailed">इंस्टॉलेशन विफल। नीचे लॉग देखें।</s:String>
+    <s:String x:Key="ClientInstall.InstallError">इंस्टॉल त्रुटि: {0}</s:String>
+
+    <s:String x:Key="ServerInstall.NameRequired">कृपया सर्वर नाम दर्ज करें।</s:String>
+    <s:String x:Key="ServerInstall.NameInvalid">सर्वर नाम में अमान्य वर्ण: {0}</s:String>
+    <s:String x:Key="ServerInstall.VersionRequired">कृपया गेम संस्करण चुनें या दर्ज करें।</s:String>
+    <s:String x:Key="ServerInstall.FolderExists">लक्ष्य फ़ोल्डर पहले से मौजूद है और खाली नहीं है:\n{0}\n\nजारी रखें और अधिलेखित करें?</s:String>
+    <s:String x:Key="ServerInstall.InstallSuccess">सर्वर "{0}" इंस्टॉल हो गया।</s:String>
+    <s:String x:Key="ServerInstall.InstallFailed">इंस्टॉलेशन विफल। नीचे लॉग देखें।</s:String>
+    <s:String x:Key="ServerInstall.InstallError">इंस्टॉल त्रुटि: {0}</s:String>
+
+    <s:String x:Key="Server.Running">सर्वर "{0}" पहले से चल रहा है।</s:String>
+    <s:String x:Key="Server.DeleteConfirm">सर्वर "{0}" हटाएँ?\n\nयह पूरा फ़ोल्डर हटा देगा:\n{1}\n  आपके सेव चले जाएँगे!\n\nइसे पूर्ववत नहीं किया जा सकता!</s:String>
+    <s:String x:Key="Server.DeleteFailed">हटाना विफल: {0}</s:String>
+    <s:String x:Key="Server.StartFailed">सर्वर प्रारंभ करने में विफल: {0}</s:String>
+    <s:String x:Key="Server.EulaPrompt">सर्वर "{0}" के लिए पहले Minecraft EULA स्वीकार करना आवश्यक है।\n\nEULA: https://aka.ms/MinecraftEULA\n\nस्वीकार करने के लिए हाँ क्लिक करें। लॉन्चर eula.txt में eula=true सेट करेगा।</s:String>
+
+    <s:String x:Key="Role.Invalid">अमान्य उपयोगकर्ता नाम:\n· 4-16 अक्षर\n· CJK अक्षर या स्थान नहीं</s:String>
+    <s:String x:Key="Role.CreateFailed">बनाना विफल: {0}</s:String>
+    <s:String x:Key="Role.NeedFirst">अभी कोई खाता नहीं। लॉन्च करने से पहले एक बनाएँ।\nफिर भी छोड़ें?</s:String>
+
+    <s:String x:Key="MSLogin.LoginFailed">लॉगिन विफल:\n{0}</s:String>
+    <s:String x:Key="MSLogin.CacheDetected">कैश्ड Microsoft क्रेडेंशियल मिले।\n\nकैश से लॉगिन करें (ब्राउज़र के बिना)?\n\n· हाँ → कैश लॉगिन\n· नहीं → डिवाइस कोड लॉगिन</s:String>
+    <s:String x:Key="MSLogin.CacheSuccess">Microsoft क्रेडेंशियल कैश हो गए।\n\nMojang अनुमोदन के बाद, यह विंडो फिर खोलें और "कैश लॉगिन का उपयोग करें" चुनें।</s:String>
+    <s:String x:Key="MSLogin.LoginSuccess">लॉगिन सफल!\n\nखाता सहेजा गया।</s:String>
+
+    <s:String x:Key="Common.Any">कोई भी</s:String>
+    <s:String x:Key="Common.All">सभी</s:String>
+
+    <s:String x:Key="Launch.NoVersionSelected">कोई संस्करण चयनित नहीं। कृपया पहले .minecraft\versions में संस्करण इंस्टॉल करें।</s:String>
+    <s:String x:Key="Launch.NoRoleConfirm">अभी कोई खाता नहीं बनाया गया। अभी बनाएँ?</s:String>
+    <s:String x:Key="Launch.FailedWithCode">लॉन्च विफल, एग्ज़िट कोड: {0}</s:String>
+    <s:String x:Key="Launch.Error">लॉन्च त्रुटि: {0}</s:String>
+
+    <s:String x:Key="Download.Count">कुल {0} संस्करण</s:String>
+    <s:String x:Key="Download.FetchFailed">संस्करण सूची प्राप्त करने में विफल: {0}</s:String>
+
+    <s:String x:Key="Settings.Checking">जाँच हो रही है...</s:String>
+    <s:String x:Key="Settings.CheckFailed">अपडेट जाँच विफल: {0}</s:String>
+    <s:String x:Key="Settings.CheckError">अपडेट जाँच विफल: {0}</s:String>
+    <s:String x:Key="Settings.CheckFailedShort">जाँच विफल</s:String>
+    <s:String x:Key="Settings.UpToDate">अद्यतित</s:String>
+    <s:String x:Key="Settings.UpToDateWithVersion">पहले से नवीनतम संस्करण {0} है।</s:String>
+    <s:String x:Key="Settings.NewVersionFound">नया संस्करण मिला</s:String>
+
+    <s:String x:Key="Server.DeleteRunning">सर्वर "{0}" चल रहा है। हटाने से पहले बंद करें।</s:String>
+
+    <s:String x:Key="Update.Preparing">डाउनलोड पूर्ण, अपडेट लागू करने की तैयारी...</s:String>
+    <s:String x:Key="Update.Restarting">ऐप पुनः आरंभ हो रहा है...</s:String>
+    <s:String x:Key="Update.Cancelled">रद्द किया गया</s:String>
+    <s:String x:Key="Update.Failed">अपडेट विफल</s:String>
+
+    <s:String x:Key="MSLogin.Preparing">लॉगिन तैयार हो रहा है, प्रतीक्षा करें...</s:String>
+    <s:String x:Key="MSLogin.CacheLogin">कैश से लॉगिन हो रहा है...</s:String>
+    <s:String x:Key="MSLogin.NoResult">लॉगिन ने कोई परिणाम नहीं दिया</s:String>
+    <s:String x:Key="MSLogin.CacheSaved">Azure क्रेडेंशियल कैश हो गए, Mojang अनुमोदन के बाद स्वतः लॉगिन उपलब्ध होगा</s:String>
+    <s:String x:Key="MSLogin.Success">लॉगिन सफल</s:String>
+    <s:String x:Key="MSLogin.CancelConfirm">लॉगिन हो रहा है। क्या आप वाकई बाहर निकलना चाहते हैं?</s:String>
+
+    <s:String x:Key="ClientInstall.LatestVersion">(नवीनतम उपयोग करें)</s:String>
+    <s:String x:Key="ClientInstall.LatestVersionShort">(नवीनतम)</s:String>
+    <s:String x:Key="ClientInstall.WithForge">Forge के साथ</s:String>
+    <s:String x:Key="ClientInstall.LoadingVersions">{0} संस्करण लोड हो रहे हैं...</s:String>
+    <s:String x:Key="ClientInstall.VanillaHint">वनीला को लोडर संस्करण की आवश्यकता नहीं।</s:String>
+    <s:String x:Key="ClientInstall.ForgeHint">नवीनतम के लिए खाली छोड़ें। ड्रॉपडाउन से विशिष्ट संस्करण चुन सकते हैं।</s:String>
+    <s:String x:Key="ClientInstall.LoaderHint">नवीनतम के लिए खाली छोड़ें। OptiFine के साथ उपयोग नहीं किया जा सकता।</s:String>
+    <s:String x:Key="ClientInstall.LoadedCount">({0} संस्करण लोड हुए)</s:String>
+    <s:String x:Key="ClientInstall.NoVersions">(कोई संस्करण उपलब्ध नहीं)</s:String>
+    <s:String x:Key="ClientInstall.OptifineLoading">OptiFine संस्करण लोड हो रहे हैं...</s:String>
+    <s:String x:Key="ClientInstall.OptifineNone">वर्तमान Forge संस्करण के साथ संगत OptiFine नहीं, या इस गेम संस्करण के लिए OptiFine नहीं।</s:String>
+    <s:String x:Key="ClientInstall.OptifineLoaded">{0} OptiFine संस्करण लोड हुए।</s:String>
+    <s:String x:Key="ClientInstall.LoaderListFailed">संस्करण सूची डाउनलोड विफल</s:String>
+    <s:String x:Key="ClientInstall.Installing">इंस्टॉल हो रहा है...</s:String>
+    <s:String x:Key="ClientInstall.InstallDone">इंस्टॉल पूर्ण</s:String>
+    <s:String x:Key="ClientInstall.InstallDoneLog">✅ इंस्टॉल पूर्ण</s:String>
+    <s:String x:Key="ClientInstall.InstallFailedLog">❌ इंस्टॉल विफल</s:String>
+    <s:String x:Key="ClientInstall.InstallErrorLog">❌ इंस्टॉल त्रुटि:</s:String>
+    <s:String x:Key="ClientInstall.BeginInstall">क्लाइंट इंस्टॉलेशन प्रारंभ</s:String>
+    <s:String x:Key="ClientInstall.TargetDir">लक्ष्य निर्देशिका</s:String>
+    <s:String x:Key="ClientInstall.DoNotInstall">इंस्टॉल न करें</s:String>
+
+    <s:String x:Key="ServerInstall.LoadingManifest">संस्करण सूची लोड हो रही है...</s:String>
+    <s:String x:Key="ServerInstall.ReleaseCount">{0} रिलीज़</s:String>
+    <s:String x:Key="ServerInstall.LoadFailed">लोड विफल</s:String>
+    <s:String x:Key="ServerInstall.Installing">इंस्टॉल हो रहा है...</s:String>
+    <s:String x:Key="ServerInstall.BeginInstall">सर्वर इंस्टॉलेशन प्रारंभ</s:String>
+
+    <s:String x:Key="ServerSettings.FolderExists">समान नाम का सर्वर फ़ोल्डर पहले से मौजूद है।</s:String>
+    <s:String x:Key="ServerSettings.SaveFailed">सहेजना विफल: {0}</s:String>
+
+    <s:String x:Key="ModVersions.SelectOne">कृपया पहले एक संस्करण चुनें।</s:String>
+    <s:String x:Key="ModVersions.NoFile">इस संस्करण में कोई डाउनलोड योग्य फ़ाइल नहीं।</s:String>
+    <s:String x:Key="ModVersions.AllSourcesFailed">सभी डाउनलोड स्रोत अनुपलब्ध</s:String>
+    <s:String x:Key="ModVersions.DownloadingNoTotal">{0} डाउनलोड हो रहा है: {1}</s:String>
+    <s:String x:Key="ModVersions.DownloadSuccess">डाउनलोड पूर्ण:\n{0}</s:String>
+    <s:String x:Key="ModVersions.DownloadFailedMsg">डाउनलोड विफल: {0}</s:String>
+    <s:String x:Key="ModVersions.NoWorlds">कोई सेव नहीं मिला। पहले एक विश्व बनाएँ।</s:String>
+    <s:String x:Key="ModVersions.NoSavesFolder">saves फ़ोल्डर नहीं मिला। पहले एक विश्व बनाएँ।</s:String>
+    <s:String x:Key="ModVersions.DatapackConfirm">डेटापैक यहाँ डाउनलोड होगा:\n{0}\nजारी रखें?</s:String>
+    <s:String x:Key="ModVersions.ModpackDialogDesc">मॉडपैक निकालने का लक्ष्य निर्देशिका चुनें (versions अनुशंसित)</s:String>
+    <s:String x:Key="ModVersions.NoMatch">इस मॉड की आवश्यकताओं से मेल खाता कोई संस्करण इंस्टेंस नहीं मिला।\n\nमॉड आवश्यक गेम संस्करण: {0}\nमॉड आवश्यक लोडर: {1}\n\nसीधे .minecraft\mods में डाउनलोड करें?\n(नोट: संस्करण पृथक्करण सक्षम होने पर, इस निर्देशिका के मॉड डिफ़ॉल्ट रूप से लोड नहीं होते)</s:String>
+    <s:String x:Key="ModVersions.ModpackDownloadFailed">मॉडपैक डाउनलोड विफल: {0}</s:String>
+    <s:String x:Key="ModVersions.DownloadingFile">फ़ाइल डाउनलोड हो रही है [{0}/{1}]: {2}</s:String>
+    <s:String x:Key="ModVersions.Incomplete">निम्न फ़ाइलें डाउनलोड विफल रहीं। कृपया मैन्युअल रूप से डाउनलोड करें:\n{0}</s:String>
+    <s:String x:Key="ModVersions.Installed">मॉडपैक यहाँ इंस्टॉल हुआ:\n{0}\n\nअब लॉन्चर में '{1}' चुनकर प्रारंभ कर सकते हैं।</s:String>
+    <s:String x:Key="ModVersions.ProcessFailed">मॉडपैक संसाधित करने में विफल: {0}</s:String>
+    <s:String x:Key="ModVersions.ExtractedNoIndex">मॉडपैक निकाला गया (modrinth.index.json अनुपस्थित)।</s:String>
+    <s:String x:Key="ModVersions.InstallComplete">मॉडपैक इंस्टॉल पूर्ण:</s:String>
+    <s:String x:Key="ModVersions.NoVersionSelected">कोई संस्करण चयनित नहीं, mods निर्देशिका का पता नहीं लगाया जा सकता।</s:String>
+    <s:String x:Key="ModVersions.IndexParseFailed">modrinth.index.json पार्स विफल</s:String>
+    <s:String x:Key="ModVersions.NoMcVersion">modrinth.index.json से Minecraft संस्करण पार्स नहीं किया जा सका</s:String>
+
+    <s:String x:Key="Role.EmptyUsername">उपयोगकर्ता नाम खाली नहीं हो सकता</s:String>
+
+    <s:String x:Key="Auth.ChildAccount">बाल खातों के लिए माता-पिता की स्वीकृति आवश्यक है।</s:String>
+    <s:String x:Key="Auth.RegionUnsupported">क्षेत्र समर्थित नहीं है।</s:String>
+    <s:String x:Key="Auth.XstsError">XSTS त्रुटि: {0}</s:String>
+    <s:String x:Key="Auth.Timeout">उपयोगकर्ता लॉगिन समय समाप्त।</s:String>
+    <s:String x:Key="Auth.DeviceCodeFailed">डिवाइस कोड अनुरोध विफल: {0}</s:String>
+    <s:String x:Key="Auth.PostFailed">POST अनुरोध विफल (URL: {0}, HTTP {1})</s:String>
+    <s:String x:Key="Auth.RefreshFailed">रिफ़्रेश विफल: {0} - {1}</s:String>
+    <s:String x:Key="Auth.CacheCorrupted">कैश फ़ाइल डिक्रिप्ट नहीं हो सकती या दूषित है। कृपया फिर से लॉगिन करें।</s:String>
+    <s:String x:Key="Auth.CacheMissing">कैश फ़ाइल मौजूद नहीं</s:String>
+
+    <s:String x:Key="Api.TooManyRequests">बहुत अधिक अनुरोध। कृपया बाद में पुनः प्रयास करें।</s:String>
+    <s:String x:Key="Api.BadRequest">अनुरोध पैरामीटर गलत। अपने खोज मानदंड जाँचें।</s:String>
+    <s:String x:Key="Api.NotFound">अनुरोधित संसाधन नहीं मिला।</s:String>
+    <s:String x:Key="Api.NetworkError">नेटवर्क कनेक्शन विफल। अपना नेटवर्क या प्रॉक्सी सेटिंग जाँचें।</s:String>
+    <s:String x:Key="Api.HttpError">HTTP {0} त्रुटि</s:String>
+    <s:String x:Key="Api.ModIdRequired">Mod ID खाली नहीं हो सकता</s:String>
+
+    <s:String x:Key="Settings.Language">भाषा</s:String>
+    <s:String x:Key="Settings.LanguageDesc">लॉन्चर इंटरफ़ेस भाषा बदलें। बदलाव तुरंत लागू होगा।</s:String>
+
+</ResourceDictionary>

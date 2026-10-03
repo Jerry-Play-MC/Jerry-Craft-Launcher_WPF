@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Jerry_Craft_Launcher.NET_Framework_4._5_WPF"
         mc:Ignorable="d"
-        Title="Jerry Craft Launcher"
+        Title="{DynamicResource App.Title}"
         Height="600" Width="900"
         WindowStartupLocation="CenterScreen"
         WindowStyle="None"
@@ -35,7 +35,7 @@
 
                 <StackPanel Grid.Column="0" Orientation="Horizontal"
                             VerticalAlignment="Center" Margin="16,0,0,0">
-                    <TextBlock Text="Jerry Craft Launcher"
+                    <TextBlock Text="{DynamicResource App.Title}"
                                FontSize="14" FontWeight="SemiBold"
                                VerticalAlignment="Center"/>
                 </StackPanel>
@@ -43,19 +43,23 @@
                 <StackPanel Grid.Column="1" Orientation="Horizontal"
                             VerticalAlignment="Center"
                             HorizontalAlignment="Left" Margin="32,0,0,0">
-                    <RadioButton GroupName="TopNav" Content="启动"
+                    <RadioButton GroupName="TopNav"
+                                 Content="{DynamicResource Nav.Launch}"
                                  Style="{StaticResource TopNavButtonStyle}"
                                  IsChecked="True" Tag="Launch"
                                  Checked="TopNav_Checked"/>
-                    <RadioButton GroupName="TopNav" Content="下载"
+                    <RadioButton GroupName="TopNav"
+                                 Content="{DynamicResource Nav.Download}"
                                  Style="{StaticResource TopNavButtonStyle}"
                                  Tag="Download"
                                  Checked="TopNav_Checked"/>
-                    <RadioButton GroupName="TopNav" Content="服务器"
+                    <RadioButton GroupName="TopNav"
+                                 Content="{DynamicResource Nav.Server}"
                                  Style="{StaticResource TopNavButtonStyle}"
                                  Tag="Server"
                                  Checked="TopNav_Checked"/>
-                    <RadioButton GroupName="TopNav" Content="设置"
+                    <RadioButton GroupName="TopNav"
+                                 Content="{DynamicResource Nav.Settings}"
                                  Style="{StaticResource TopNavButtonStyle}"
                                  Tag="Settings"
                                  Checked="TopNav_Checked"/>
@@ -63,10 +67,12 @@
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal"
                             VerticalAlignment="Center">
-                    <Button Content="—" Width="46" Height="48"
+                    <Button Content="—"
+                            Width="46" Height="48"
                             Style="{StaticResource TitleBarButtonStyle}"
                             Click="Minimize_Click"/>
-                    <Button Content="✕" Width="46" Height="48"
+                    <Button Content="✕"
+                            Width="46" Height="48"
                             Style="{StaticResource CloseButtonStyle}"
                             Click="Close_Click"/>
                 </StackPanel>

@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Jerry_Craft_Launcher.NET_Framework_4._5_WPF"
         mc:Ignorable="d"
-        Title="创建角色"
+        Title="{DynamicResource CreateRole.Title}"
         Width="440" Height="290"
         WindowStartupLocation="CenterOwner"
         WindowStyle="None"
@@ -27,11 +27,12 @@
                     CornerRadius="10,10,0,0"
                     MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
                 <Grid>
-                    <TextBlock Text="创建离线角色"
+                    <TextBlock Text="{DynamicResource CreateRole.Title}"
                                FontSize="13" FontWeight="SemiBold"
                                VerticalAlignment="Center"
                                Margin="16,0,0,0"/>
-                    <Button Content="✕" Width="40" Height="40"
+                    <Button Content="✕"
+                            Width="40" Height="40"
                             HorizontalAlignment="Right"
                             Style="{StaticResource TitleBarButtonStyle}"
                             Click="Close_Click"/>
@@ -39,25 +40,25 @@
             </Border>
 
             <StackPanel Grid.Row="1" Margin="24,20,24,20">
-                <TextBlock Text="角色名"
+                <TextBlock Text="{DynamicResource CreateRole.NameLabel}"
                            FontSize="12" Foreground="#666666"
                            Margin="0,0,0,6"/>
                 <TextBox x:Name="RoleNameBox"
                          Style="{StaticResource InputTextBoxStyle}"
                          MaxLength="16"
                          KeyDown="RoleNameBox_KeyDown"/>
-                <TextBlock Text="4-16 个字符，不能包含中文和空格"
+                <TextBlock Text="{DynamicResource CreateRole.NameHint}"
                            FontSize="11" Foreground="#999999"
                            Margin="0,6,0,0"/>
 
                 <StackPanel Orientation="Horizontal"
                             HorizontalAlignment="Right"
                             Margin="0,24,0,0">
-                    <Button Content="跳过"
+                    <Button Content="{DynamicResource CreateRole.Skip}"
                             Style="{StaticResource SecondaryButtonStyle}"
                             Click="Skip_Click"
                             Margin="0,0,8,0"/>
-                    <Button Content="创建"
+                    <Button Content="{DynamicResource CreateRole.Create}"
                             Style="{StaticResource PrimaryButtonStyle}"
                             Click="Create_Click"/>
                 </StackPanel>

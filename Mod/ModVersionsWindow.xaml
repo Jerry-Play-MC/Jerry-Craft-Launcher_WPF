@@ -1,7 +1,7 @@
 ﻿<Window x:Class="Jerry_Craft_Launcher.NET_Framework_4._5_WPF.ModVersionsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Mod 版本列表"
+        Title="{DynamicResource ModVersions.Title}"
         Width="820" Height="580"
         WindowStartupLocation="CenterOwner"
         WindowStyle="None"
@@ -23,7 +23,8 @@
                     CornerRadius="10,10,0,0"
                     MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
                 <Grid>
-                    <TextBlock x:Name="TitleText" Text="版本列表"
+                    <TextBlock x:Name="TitleText"
+                               Text="{DynamicResource ModVersions.Title}"
                                FontSize="13" FontWeight="SemiBold"
                                VerticalAlignment="Center"
                                Margin="16,0,0,0"/>
@@ -55,9 +56,9 @@
                           Height="32" Width="110"
                           Margin="8,0,0,0"
                           SelectionChanged="Filter_Changed">
-                    <ComboBoxItem Content="发布日期"/>
-                    <ComboBoxItem Content="下载次数"/>
-                    <ComboBoxItem Content="版本号"/>
+                    <ComboBoxItem Content="{DynamicResource ModVersions.Sort.Date}"/>
+                    <ComboBoxItem Content="{DynamicResource ModVersions.Sort.Downloads}"/>
+                    <ComboBoxItem Content="{DynamicResource ModVersions.Sort.Version}"/>
                 </ComboBox>
 
                 <ComboBox x:Name="SortDirBox"
@@ -66,8 +67,8 @@
                           Height="32" Width="120"
                           Margin="8,0,0,0"
                           SelectionChanged="Filter_Changed">
-                    <ComboBoxItem Content="降序(最新)"/>
-                    <ComboBoxItem Content="升序(最早)"/>
+                    <ComboBoxItem Content="{DynamicResource ModVersions.SortDir.Desc}"/>
+                    <ComboBoxItem Content="{DynamicResource ModVersions.SortDir.Asc}"/>
                 </ComboBox>
 
                 <ComboBox x:Name="GameVersionBox"
@@ -175,11 +176,11 @@
                     <StackPanel Orientation="Horizontal"
                                 HorizontalAlignment="Right"
                                 VerticalAlignment="Center">
-                        <Button Content="下载选中"
+                        <Button Content="{DynamicResource ModVersions.Download}"
                                 Style="{StaticResource PrimaryButtonStyle}"
                                 Click="Download_Click"
                                 Margin="0,0,8,0"/>
-                        <Button Content="关闭"
+                        <Button Content="{DynamicResource Common.Close}"
                                 Style="{StaticResource SecondaryButtonStyle}"
                                 Click="Close_Click"/>
                     </StackPanel>

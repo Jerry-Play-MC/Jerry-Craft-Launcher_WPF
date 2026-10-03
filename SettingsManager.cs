@@ -93,5 +93,50 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             var h = SettingsChanged;
             if (h != null) h();
         }
+
+        // ---------- Launcher.Language ----------
+
+        public static string GetLanguage()
+        {
+            return ReadString("Launcher", "Language", null);
+        }
+
+        public static void SetLanguage(string value)
+        {
+            WriteString("Launcher", "Language", value);
+        }
+
+        // ---------- 通用 ----------
+
+        private static string ReadString(string section, string key, string def)
+        {
+            var sec = JsonHelper.GetObject(_root, section);
+            if (sec == null) return def;
+            var v = JsonHelper.GetString(sec, key);
+            return v ?? def;
+        }
+
+        private static void WriteString(string section, string key, string value)
+        {
+            var sec = JsonHelper.GetObject(_root, section);
+            if (sec == null)
+            {
+                sec = new Dictionary<string, object>();
+                _root[section] = sec;
+            }
+            sec[key] = value;
+            Save();
+            RaiseChanged();
+        }
+
+        public static string GetFont()
+        {
+            return ReadString("Launcher", "Font", "Default");
+        }
+
+        public static void SetFont(string value)
+        {
+            WriteString("Launcher", "Font", value);
+        }
     }
 }

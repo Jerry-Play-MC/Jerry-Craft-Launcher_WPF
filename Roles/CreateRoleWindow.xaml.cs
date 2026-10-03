@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Jerry_Craft_Launcher.NET_Framework_4._5_WPF.Languages;
+using System;
 using System.Windows;
 using System.Windows.Input;
 
@@ -33,9 +34,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             if (!RoleManager.IsValidUsername(username))
             {
-                MessageBox.Show(
-                    "角色名不符合要求：\n· 长度必须在 4-16 个字符之间\n· 不能包含中文字符或空格",
-                    "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+                LanguageManager.ShowWarning("Role.Invalid");
                 return;
             }
 
@@ -47,8 +46,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             }
             catch (Exception ex)
             {
-                MessageBox.Show("创建失败：" + ex.Message,
-                    "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                LanguageManager.ShowError("Role.CreateFailed", ex.Message);
             }
         }
 
@@ -56,12 +54,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         {
             if (_isFirstUse)
             {
-                var r = MessageBox.Show(
-                    "还没有角色，启动游戏前必须先创建角色。\n确定要跳过吗？",
-                    "提示", MessageBoxButton.YesNo, MessageBoxImage.Question);
-                if (r != MessageBoxResult.Yes) return;
+                if (!LanguageManager.Confirm("Role.NeedFirst")) return;
             }
-
             DialogResult = false;
             Close();
         }

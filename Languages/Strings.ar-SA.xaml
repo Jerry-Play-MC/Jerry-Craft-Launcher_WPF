@@ -1,0 +1,315 @@
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:s="clr-namespace:System;assembly=mscorlib">
+
+    <s:String x:Key="App.Title">Jerry Craft Launcher</s:String>
+    <s:String x:Key="Nav.Launch">تشغيل</s:String>
+    <s:String x:Key="Nav.Download">تنزيل</s:String>
+    <s:String x:Key="Nav.Server">خادم</s:String>
+    <s:String x:Key="Nav.Settings">الإعدادات</s:String>
+
+    <s:String x:Key="Launch.Home">الرئيسية</s:String>
+    <s:String x:Key="Launch.Roles">الحسابات</s:String>
+    <s:String x:Key="Launch.Start">تشغيل</s:String>
+    <s:String x:Key="Launch.NoVersion">لا يوجد إصدار</s:String>
+    <s:String x:Key="Launch.NotLoggedIn">لم تسجل الدخول</s:String>
+    <s:String x:Key="Launch.RoleOffline">حساب محلي</s:String>
+    <s:String x:Key="Launch.RoleMicrosoft">حساب مميز</s:String>
+    <s:String x:Key="Launch.RolesTitle">إدارة الحسابات</s:String>
+    <s:String x:Key="Launch.CreateRole">إنشاء حساب</s:String>
+
+    <s:String x:Key="Download.Minecraft">Minecraft</s:String>
+    <s:String x:Key="Download.Mod">إضافات</s:String>
+    <s:String x:Key="Download.Modpack">حزم إضافات</s:String>
+    <s:String x:Key="Download.Datapack">حزم بيانات</s:String>
+    <s:String x:Key="Download.Shader">تظليل</s:String>
+    <s:String x:Key="Download.MinecraftTitle">إصدارات Minecraft</s:String>
+    <s:String x:Key="Download.Loading">جارٍ التحميل...</s:String>
+    <s:String x:Key="Download.Refresh">تحديث</s:String>
+    <s:String x:Key="Download.Cat.Release">الإصدار الرسمي</s:String>
+    <s:String x:Key="Download.Cat.Snapshot">لقطة</s:String>
+    <s:String x:Key="Download.Cat.Old">إصدارات قديمة</s:String>
+    <s:String x:Key="Download.Cat.AprilFools">كذبة أبريل</s:String>
+
+    <s:String x:Key="Server.Title">الخوادم</s:String>
+    <s:String x:Key="Server.Install">تثبيت خادم</s:String>
+    <s:String x:Key="Server.OpenFolder">فتح مجلد Server</s:String>
+    <s:String x:Key="Server.Refresh">تحديث</s:String>
+    <s:String x:Key="Server.Start">تشغيل</s:String>
+    <s:String x:Key="Server.Settings">الإعدادات</s:String>
+    <s:String x:Key="Server.Delete">حذف</s:String>
+    <s:String x:Key="Server.EmptyHint">ضع الخادم في  مجلد البرنامج\Server\اسم الخادم\  (يدعم server.jar / run.bat / fabric-server-launch.jar / quilt-server-launch.jar)</s:String>
+
+    <s:String x:Key="Settings.Launcher">المشغل</s:String>
+    <s:String x:Key="Settings.Java">Java</s:String>
+    <s:String x:Key="Settings.Game">اللعبة</s:String>
+    <s:String x:Key="Settings.Versions">إدارة المثيلات</s:String>
+    <s:String x:Key="Settings.Title">المشغل</s:String>
+    <s:String x:Key="Settings.CheckUpdate">التحقق من التحديثات</s:String>
+    <s:String x:Key="Settings.CurrentVersion">الإصدار الحالي:</s:String>
+    <s:String x:Key="Settings.Game.Title">اللعبة</s:String>
+    <s:String x:Key="Settings.Game.Isolation">عزل الإصدارات</s:String>
+    <s:String x:Key="Settings.Game.IsolationDesc">عند التفعيل، تُحفظ بيانات اللعبة (الحفظ، الموارد، الإعدادات، إلخ) في versions\اسم-الإصدار، مع عزل كل إصدار.</s:String>
+
+    <s:String x:Key="Login.Title">اختر نوع تسجيل الدخول</s:String>
+    <s:String x:Key="Login.Prompt">اختر نوع الحساب الذي تريد إنشاءه:</s:String>
+    <s:String x:Key="Login.Premium">تسجيل دخول مميز</s:String>
+    <s:String x:Key="Login.PremiumDesc">تسجيل الدخول بحساب Microsoft</s:String>
+    <s:String x:Key="Login.Offline">تسجيل دخول محلي</s:String>
+    <s:String x:Key="Login.OfflineDesc">إنشاء حساب محلي</s:String>
+
+    <s:String x:Key="CreateRole.Title">إنشاء حساب محلي</s:String>
+    <s:String x:Key="CreateRole.NameLabel">اسم المستخدم</s:String>
+    <s:String x:Key="CreateRole.NameHint">4-16 حرفًا، بدون أحرف CJK أو مسافات</s:String>
+    <s:String x:Key="CreateRole.Skip">تخطي</s:String>
+    <s:String x:Key="CreateRole.Create">إنشاء</s:String>
+
+    <s:String x:Key="MSLogin.Title">تسجيل دخول Microsoft</s:String>
+    <s:String x:Key="MSLogin.BrowserHint">سيؤدي النقر على الزر أدناه إلى فتح صفحة تسجيل دخول Microsoft في المتصفح</s:String>
+    <s:String x:Key="MSLogin.CodeHint">الرمز المعروض في المتصفح</s:String>
+    <s:String x:Key="MSLogin.CodeCopied">(تم النسخ إلى الحافظة)</s:String>
+    <s:String x:Key="MSLogin.StatusReady">انقر على الزر أدناه للبدء</s:String>
+    <s:String x:Key="MSLogin.Login">تسجيل الدخول</s:String>
+    <s:String x:Key="MSLogin.LoginBusy">جارٍ تسجيل الدخول...</s:String>
+
+    <s:String x:Key="ClientInstall.Title">تثبيت العميل</s:String>
+    <s:String x:Key="ClientInstall.GameVersion">إصدار اللعبة</s:String>
+    <s:String x:Key="ClientInstall.Loader">المحمل</s:String>
+    <s:String x:Key="ClientInstall.LoaderVersion">إصدار المحمل</s:String>
+    <s:String x:Key="ClientInstall.LoaderVersionHint">اتركه فارغًا لاستخدام أحدث إصدار</s:String>
+    <s:String x:Key="ClientInstall.Optifine">تثبيت OptiFine</s:String>
+    <s:String x:Key="ClientInstall.OptifineVersion">إصدار OptiFine</s:String>
+    <s:String x:Key="ClientInstall.OptifineHint">فعّل مربع الاختيار أعلاه أولًا. سيؤدي اختيار إصدار OptiFine إلى ملء إصدار Forge المتوافق تلقائيًا.</s:String>
+    <s:String x:Key="ClientInstall.Warning">سيقوم التثبيت بتنزيل العديد من الملفات من الشبكة. تظهر التقدم في السجل أدناه. بعد الانتهاء، سيظهر الإصدار في صفحة التشغيل.</s:String>
+    <s:String x:Key="ClientInstall.LogPlaceholder">سيظهر سجل التثبيت هنا...</s:String>
+    <s:String x:Key="ClientInstall.Cancel">إلغاء</s:String>
+    <s:String x:Key="ClientInstall.Install">تثبيت</s:String>
+
+    <s:String x:Key="ServerInstall.Title">تثبيت الخادم</s:String>
+    <s:String x:Key="ServerInstall.ServerName">اسم الخادم</s:String>
+    <s:String x:Key="ServerInstall.ServerNameHint">اسم المجلد في دليل Server. يوصى باستخدام الحروف والأرقام والشرطات السفلية.</s:String>
+    <s:String x:Key="ServerInstall.GameVersion">إصدار اللعبة</s:String>
+    <s:String x:Key="ServerInstall.Refresh">تحديث</s:String>
+    <s:String x:Key="ServerInstall.Loader">المحمل</s:String>
+    <s:String x:Key="ServerInstall.LoaderVersion">إصدار المحمل</s:String>
+    <s:String x:Key="ServerInstall.LoaderVersionHint">اتركه فارغًا للأحدث. مثال: Forge 47.2.0، NeoForge 21.1.0، إصدار محمل Fabric/Quilt</s:String>
+    <s:String x:Key="ServerInstall.LogPlaceholder">سيظهر سجل التثبيت هنا...</s:String>
+    <s:String x:Key="ServerInstall.Cancel">إلغاء</s:String>
+    <s:String x:Key="ServerInstall.Install">تثبيت</s:String>
+
+    <s:String x:Key="ServerSettings.Title">إعدادات الخادم</s:String>
+    <s:String x:Key="ServerSettings.Basic">أساسي</s:String>
+    <s:String x:Key="ServerSettings.ServerName">اسم الخادم (يعيد تسمية المجلد)</s:String>
+    <s:String x:Key="ServerSettings.Motd">MOTD</s:String>
+    <s:String x:Key="ServerSettings.Port">المنفذ</s:String>
+    <s:String x:Key="ServerSettings.Players">اللاعبون</s:String>
+    <s:String x:Key="ServerSettings.OnlineMode">الوضع عبر الإنترنت (online-mode)</s:String>
+    <s:String x:Key="ServerSettings.Whitelist">تفعيل القائمة البيضاء (white-list)</s:String>
+    <s:String x:Key="ServerSettings.EnforceWhitelist">فرض القائمة البيضاء (enforce-whitelist)</s:String>
+    <s:String x:Key="ServerSettings.Pvp">السماح بـ PVP (pvp)</s:String>
+    <s:String x:Key="ServerSettings.AllowFlight">السماح بالطيران (allow-flight)</s:String>
+    <s:String x:Key="ServerSettings.Cheat">السماح بالغش (enable-command-block)</s:String>
+    <s:String x:Key="ServerSettings.MaxPlayers">الحد الأقصى للاعبين</s:String>
+    <s:String x:Key="ServerSettings.World">العالم</s:String>
+    <s:String x:Key="ServerSettings.Gamemode">وضع اللعبة (survival / creative / adventure / spectator)</s:String>
+    <s:String x:Key="ServerSettings.Difficulty">الصعوبة (peaceful / easy / normal / hard)</s:String>
+    <s:String x:Key="ServerSettings.ViewDistance">مسافة الرؤية (view-distance)</s:String>
+    <s:String x:Key="ServerSettings.SimDistance">مسافة المحاكاة (simulation-distance)</s:String>
+    <s:String x:Key="ServerSettings.Cancel">إلغاء</s:String>
+    <s:String x:Key="ServerSettings.Save">حفظ</s:String>
+
+    <s:String x:Key="Update.Title">يتوفر تحديث</s:String>
+    <s:String x:Key="Update.Notes">الجديد</s:String>
+    <s:String x:Key="Update.Later">لاحقًا</s:String>
+    <s:String x:Key="Update.Now">تحديث الآن</s:String>
+    <s:String x:Key="Update.Downloading">جارٍ تنزيل التحديث...</s:String>
+
+    <s:String x:Key="Common.Cancel">إلغاء</s:String>
+    <s:String x:Key="Common.Save">حفظ</s:String>
+    <s:String x:Key="Common.Close">إغلاق</s:String>
+    <s:String x:Key="Common.OK">موافق</s:String>
+
+    <s:String x:Key="Download.Failure">فشل التحميل</s:String>
+
+    <s:String x:Key="Dialog.Info">تنبيه</s:String>
+    <s:String x:Key="Dialog.Error">خطأ</s:String>
+    <s:String x:Key="Dialog.Success">نجاح</s:String>
+    <s:String x:Key="Dialog.Warning">تحذير</s:String>
+    <s:String x:Key="Dialog.Confirm">تأكيد</s:String>
+    <s:String x:Key="Dialog.Yes">نعم</s:String>
+    <s:String x:Key="Dialog.No">لا</s:String>
+    <s:String x:Key="Common.Confirm">تأكيد</s:String>
+    <s:String x:Key="Common.Delete">حذف</s:String>
+
+    <s:String x:Key="ModSearch.Search">بحث</s:String>
+    <s:String x:Key="ModSearch.ResourcePack">حزم الموارد</s:String>
+    <s:String x:Key="ModSearch.PrevPage">السابق</s:String>
+    <s:String x:Key="ModSearch.NextPage">التالي</s:String>
+    <s:String x:Key="ModSearch.Loading">جارٍ التحميل...</s:String>
+    <s:String x:Key="ModSearch.NoResult">لم يتم العثور على مشاريع</s:String>
+    <s:String x:Key="ModSearch.PageInfo">الصفحة {0} / {1}  (الإجمالي {2})</s:String>
+
+    <s:String x:Key="ModVersions.Title">إصدارات Mod</s:String>
+    <s:String x:Key="ModVersions.TitlePrefix">الإصدارات:</s:String>
+    <s:String x:Key="ModVersions.Loading">جارٍ تحميل الإصدارات...</s:String>
+    <s:String x:Key="ModVersions.NoResult">لم يتم العثور على إصدارات</s:String>
+    <s:String x:Key="ModVersions.CountZero">0 إصدار</s:String>
+    <s:String x:Key="ModVersions.CountInfo">{0} إصدار، يتم عرض {1}</s:String>
+    <s:String x:Key="ModVersions.Sort.Date">تاريخ الإصدار</s:String>
+    <s:String x:Key="ModVersions.Sort.Downloads">التنزيلات</s:String>
+    <s:String x:Key="ModVersions.Sort.Version">الإصدار</s:String>
+    <s:String x:Key="ModVersions.SortDir.Desc">تنازلي (الأحدث)</s:String>
+    <s:String x:Key="ModVersions.SortDir.Asc">تصاعدي (الأقدم)</s:String>
+    <s:String x:Key="ModVersions.Download">تنزيل المحدد</s:String>
+    <s:String x:Key="ModVersions.Preparing">جارٍ تحضير التنزيل</s:String>
+    <s:String x:Key="ModVersions.Downloading">جارٍ تنزيل {0}: {1}%  ({2} / {3})</s:String>
+    <s:String x:Key="ModVersions.DownloadComplete">اكتمل التنزيل:</s:String>
+    <s:String x:Key="ModVersions.DownloadFailed">فشل التنزيل</s:String>
+    <s:String x:Key="ModVersions.DownloadingPack">جارٍ تنزيل حزمة التعديلات...</s:String>
+    <s:String x:Key="ModVersions.UsingCached">استخدام حزمة التعديلات المخزنة مؤقتًا:</s:String>
+    <s:String x:Key="ModVersions.Progress">تم. نجح {0}، فشل {1}</s:String>
+
+    <s:String x:Key="ModInstallTarget.Title">اختر هدف التثبيت</s:String>
+    <s:String x:Key="ModInstallTarget.Hint">تم العثور على إصدارات مطابقة. اختر الإصدار الذي تريد التثبيت فيه:</s:String>
+    <s:String x:Key="ModInstallTarget.Requirements">يتطلب: MC {0}  |  المحمل {1}</s:String>
+    <s:String x:Key="ModInstallTarget.InstallHere">تثبيت هنا</s:String>
+    <s:String x:Key="ModInstallTarget.SelectOne">يرجى اختيار إصدار أولاً.</s:String>
+
+    <s:String x:Key="ClientInstall.NoVersion">لم يتم اختيار إصدار اللعبة.</s:String>
+    <s:String x:Key="ClientInstall.OptifineConflict">OptiFine غير متوافق مع {0}. غيّر المحمل إلى Forge/Vanilla أو أزل تحديد OptiFine.</s:String>
+    <s:String x:Key="ClientInstall.InstallSuccess">تم تثبيت عميل Minecraft {0}.</s:String>
+    <s:String x:Key="ClientInstall.InstallFailed">فشل التثبيت. راجع السجل أدناه.</s:String>
+    <s:String x:Key="ClientInstall.InstallError">خطأ في التثبيت: {0}</s:String>
+
+    <s:String x:Key="ServerInstall.NameRequired">يرجى إدخال اسم الخادم.</s:String>
+    <s:String x:Key="ServerInstall.NameInvalid">اسم الخادم يحتوي على حرف غير صالح: {0}</s:String>
+    <s:String x:Key="ServerInstall.VersionRequired">يرجى اختيار أو إدخال إصدار اللعبة.</s:String>
+    <s:String x:Key="ServerInstall.FolderExists">المجلد الهدف موجود بالفعل وليس فارغًا:\n{0}\n\nهل تريد المتابعة والكتابة فوق الملفات؟</s:String>
+    <s:String x:Key="ServerInstall.InstallSuccess">تم تثبيت الخادم "{0}".</s:String>
+    <s:String x:Key="ServerInstall.InstallFailed">فشل التثبيت. راجع السجل أدناه.</s:String>
+    <s:String x:Key="ServerInstall.InstallError">خطأ في التثبيت: {0}</s:String>
+
+    <s:String x:Key="Server.Running">الخادم "{0}" قيد التشغيل بالفعل.</s:String>
+    <s:String x:Key="Server.DeleteConfirm">حذف الخادم "{0}"؟\n\nسيؤدي هذا إلى حذف المجلد بالكامل:\n{1}\n  ستفقد عمليات الحفظ!\n\nلا يمكن التراجع عن هذا!</s:String>
+    <s:String x:Key="Server.DeleteFailed">فشل الحذف: {0}</s:String>
+    <s:String x:Key="Server.StartFailed">فشل تشغيل الخادم: {0}</s:String>
+    <s:String x:Key="Server.EulaPrompt">يتطلب الخادم "{0}" قبول Minecraft EULA أولاً.\n\nEULA: https://aka.ms/MinecraftEULA\n\nانقر نعم للقبول. سيقوم المشغل بتعيين eula=true في eula.txt.</s:String>
+
+    <s:String x:Key="Role.Invalid">اسم مستخدم غير صالح:\n· 4-16 حرفًا\n· بدون أحرف CJK أو مسافات</s:String>
+    <s:String x:Key="Role.CreateFailed">فشل الإنشاء: {0}</s:String>
+    <s:String x:Key="Role.NeedFirst">لا يوجد حساب بعد. أنشئ حسابًا قبل التشغيل.\nهل تريد التخطي على أي حال؟</s:String>
+
+    <s:String x:Key="MSLogin.LoginFailed">فشل تسجيل الدخول:\n{0}</s:String>
+    <s:String x:Key="MSLogin.CacheDetected">تم العثور على بيانات اعتماد Microsoft مخزنة مؤقتًا.\n\nتسجيل الدخول باستخدام الذاكرة المؤقتة (بدون متصفح)؟\n\n· نعم → تسجيل دخول مخزن\n· لا → تسجيل دخول برمز الجهاز</s:String>
+    <s:String x:Key="MSLogin.CacheSuccess">تم تخزين بيانات اعتماد Microsoft مؤقتًا.\n\nبعد موافقة Mojang، أعد فتح هذه النافذة واختر "استخدام تسجيل الدخول المخزن".</s:String>
+    <s:String x:Key="MSLogin.LoginSuccess">تم تسجيل الدخول بنجاح!\n\nتم حفظ الحساب.</s:String>
+
+    <s:String x:Key="Common.Any">أي</s:String>
+    <s:String x:Key="Common.All">الكل</s:String>
+
+    <s:String x:Key="Launch.NoVersionSelected">لم يتم تحديد أي إصدار. يرجى تثبيت إصدار في .minecraft\versions أولاً.</s:String>
+    <s:String x:Key="Launch.NoRoleConfirm">لم يتم إنشاء أي حساب بعد. هل تريد إنشاء واحد الآن؟</s:String>
+    <s:String x:Key="Launch.FailedWithCode">فشل التشغيل، رمز الخروج: {0}</s:String>
+    <s:String x:Key="Launch.Error">خطأ في التشغيل: {0}</s:String>
+
+    <s:String x:Key="Download.Count">إجمالي {0} إصدار</s:String>
+    <s:String x:Key="Download.FetchFailed">فشل جلب قائمة الإصدارات: {0}</s:String>
+
+    <s:String x:Key="Settings.Checking">جارٍ التحقق...</s:String>
+    <s:String x:Key="Settings.CheckFailed">فشل التحقق من التحديث: {0}</s:String>
+    <s:String x:Key="Settings.CheckError">فشل التحقق من التحديث: {0}</s:String>
+    <s:String x:Key="Settings.CheckFailedShort">فشل التحقق</s:String>
+    <s:String x:Key="Settings.UpToDate">محدث بالفعل</s:String>
+    <s:String x:Key="Settings.UpToDateWithVersion">الإصدار {0} هو الأحدث بالفعل.</s:String>
+    <s:String x:Key="Settings.NewVersionFound">تم العثور على إصدار جديد</s:String>
+
+    <s:String x:Key="Server.DeleteRunning">الخادم "{0}" قيد التشغيل. أوقفه قبل الحذف.</s:String>
+
+    <s:String x:Key="Update.Preparing">اكتمل التنزيل، جارٍ تحضير تطبيق التحديث...</s:String>
+    <s:String x:Key="Update.Restarting">سيتم إعادة تشغيل التطبيق...</s:String>
+    <s:String x:Key="Update.Cancelled">تم الإلغاء</s:String>
+    <s:String x:Key="Update.Failed">فشل التحديث</s:String>
+
+    <s:String x:Key="MSLogin.Preparing">جارٍ تحضير تسجيل الدخول، يرجى الانتظار...</s:String>
+    <s:String x:Key="MSLogin.CacheLogin">جارٍ تسجيل الدخول باستخدام ذاكرة التخزين المؤقت...</s:String>
+    <s:String x:Key="MSLogin.NoResult">لم يُرجع تسجيل الدخول أي نتيجة</s:String>
+    <s:String x:Key="MSLogin.CacheSaved">تم تخزين بيانات اعتماد Azure مؤقتًا، وسيتوفر تسجيل الدخول التلقائي بعد موافقة Mojang</s:String>
+    <s:String x:Key="MSLogin.Success">تم تسجيل الدخول بنجاح</s:String>
+    <s:String x:Key="MSLogin.CancelConfirm">جارٍ تسجيل الدخول. هل أنت متأكد من الخروج؟</s:String>
+
+    <s:String x:Key="ClientInstall.LatestVersion">(استخدام الأحدث)</s:String>
+    <s:String x:Key="ClientInstall.LatestVersionShort">(الأحدث)</s:String>
+    <s:String x:Key="ClientInstall.WithForge">مع Forge</s:String>
+    <s:String x:Key="ClientInstall.LoadingVersions">جارٍ تحميل إصدارات {0}...</s:String>
+    <s:String x:Key="ClientInstall.VanillaHint">لا يحتاج الإصدار الأصلي إلى إصدار محمل.</s:String>
+    <s:String x:Key="ClientInstall.ForgeHint">اتركه فارغًا للأحدث. يمكنك اختيار إصدار محدد من القائمة المنسدلة.</s:String>
+    <s:String x:Key="ClientInstall.LoaderHint">اتركه فارغًا للأحدث. لا يمكن استخدامه مع OptiFine.</s:String>
+    <s:String x:Key="ClientInstall.LoadedCount">(تم تحميل {0} إصدار)</s:String>
+    <s:String x:Key="ClientInstall.NoVersions">(لا توجد إصدارات متاحة)</s:String>
+    <s:String x:Key="ClientInstall.OptifineLoading">جارٍ تحميل إصدارات OptiFine...</s:String>
+    <s:String x:Key="ClientInstall.OptifineNone">لا يوجد OptiFine متوافق مع إصدار Forge الحالي، أو لا يوجد OptiFine لهذا الإصدار من اللعبة.</s:String>
+    <s:String x:Key="ClientInstall.OptifineLoaded">تم تحميل {0} إصدار OptiFine.</s:String>
+    <s:String x:Key="ClientInstall.LoaderListFailed">فشل تنزيل قائمة الإصدارات</s:String>
+    <s:String x:Key="ClientInstall.Installing">جارٍ التثبيت...</s:String>
+    <s:String x:Key="ClientInstall.InstallDone">اكتمل التثبيت</s:String>
+    <s:String x:Key="ClientInstall.InstallDoneLog">✅ اكتمل التثبيت</s:String>
+    <s:String x:Key="ClientInstall.InstallFailedLog">❌ فشل التثبيت</s:String>
+    <s:String x:Key="ClientInstall.InstallErrorLog">❌ خطأ في التثبيت:</s:String>
+    <s:String x:Key="ClientInstall.BeginInstall">بدء تثبيت العميل</s:String>
+    <s:String x:Key="ClientInstall.TargetDir">الدليل الهدف</s:String>
+    <s:String x:Key="ClientInstall.DoNotInstall">عدم التثبيت</s:String>
+
+    <s:String x:Key="ServerInstall.LoadingManifest">جارٍ تحميل قائمة الإصدارات...</s:String>
+    <s:String x:Key="ServerInstall.ReleaseCount">{0} إصدار رسمي</s:String>
+    <s:String x:Key="ServerInstall.LoadFailed">فشل التحميل</s:String>
+    <s:String x:Key="ServerInstall.Installing">جارٍ التثبيت...</s:String>
+    <s:String x:Key="ServerInstall.BeginInstall">بدء تثبيت الخادم</s:String>
+
+    <s:String x:Key="ServerSettings.FolderExists">يوجد بالفعل مجلد خادم بنفس الاسم.</s:String>
+    <s:String x:Key="ServerSettings.SaveFailed">فشل الحفظ: {0}</s:String>
+
+    <s:String x:Key="ModVersions.SelectOne">يرجى اختيار إصدار أولاً.</s:String>
+    <s:String x:Key="ModVersions.NoFile">لا توجد ملفات قابلة للتنزيل لهذا الإصدار.</s:String>
+    <s:String x:Key="ModVersions.AllSourcesFailed">جميع مصادر التنزيل غير متاحة</s:String>
+    <s:String x:Key="ModVersions.DownloadingNoTotal">جارٍ تنزيل {0}: {1}</s:String>
+    <s:String x:Key="ModVersions.DownloadSuccess">اكتمل التنزيل:\n{0}</s:String>
+    <s:String x:Key="ModVersions.DownloadFailedMsg">فشل التنزيل: {0}</s:String>
+    <s:String x:Key="ModVersions.NoWorlds">لم يتم العثور على أي حفظ. أنشئ عالمًا أولاً.</s:String>
+    <s:String x:Key="ModVersions.NoSavesFolder">لم يتم العثور على مجلد saves. أنشئ عالمًا أولاً.</s:String>
+    <s:String x:Key="ModVersions.DatapackConfirm">سيتم تنزيل حزمة البيانات إلى:\n{0}\nهل تريد المتابعة؟</s:String>
+    <s:String x:Key="ModVersions.ModpackDialogDesc">اختر دليل استخراج حزمة التعديلات (يوصى بـ versions)</s:String>
+    <s:String x:Key="ModVersions.NoMatch">لم يتم العثور على نسخة إصدار مطابقة لمتطلبات هذا المود.\n\nيتطلب المود إصدار اللعبة: {0}\nيتطلب المود المحمل: {1}\n\nهل تريد التنزيل مباشرة إلى .minecraft\mods بدلاً من ذلك؟\n(ملاحظة: عند تفعيل عزل الإصدارات، لا يتم تحميل المودات في هذا الدليل افتراضيًا)</s:String>
+    <s:String x:Key="ModVersions.ModpackDownloadFailed">فشل تنزيل حزمة التعديلات: {0}</s:String>
+    <s:String x:Key="ModVersions.DownloadingFile">جارٍ تنزيل الملف [{0}/{1}]: {2}</s:String>
+    <s:String x:Key="ModVersions.Incomplete">فشل تنزيل الملفات التالية. يرجى تنزيلها يدويًا:\n{0}</s:String>
+    <s:String x:Key="ModVersions.Installed">تم تثبيت حزمة التعديلات في:\n{0}\n\nيمكنك الآن اختيار '{1}' في المشغل للبدء.</s:String>
+    <s:String x:Key="ModVersions.ProcessFailed">فشل معالجة حزمة التعديلات: {0}</s:String>
+    <s:String x:Key="ModVersions.ExtractedNoIndex">تم استخراج حزمة التعديلات (modrinth.index.json مفقود).</s:String>
+    <s:String x:Key="ModVersions.InstallComplete">اكتمل تثبيت حزمة التعديلات:</s:String>
+    <s:String x:Key="ModVersions.NoVersionSelected">لم يتم تحديد إصدار، لا يمكن تحديد دليل mods.</s:String>
+    <s:String x:Key="ModVersions.IndexParseFailed">فشل تحليل modrinth.index.json</s:String>
+    <s:String x:Key="ModVersions.NoMcVersion">تعذر تحليل إصدار Minecraft من modrinth.index.json</s:String>
+
+    <s:String x:Key="Role.EmptyUsername">لا يمكن أن يكون اسم المستخدم فارغًا</s:String>
+
+    <s:String x:Key="Auth.ChildAccount">تتطلب حسابات الأطفال موافقة أحد الوالدين.</s:String>
+    <s:String x:Key="Auth.RegionUnsupported">المنطقة غير مدعومة.</s:String>
+    <s:String x:Key="Auth.XstsError">خطأ XSTS: {0}</s:String>
+    <s:String x:Key="Auth.Timeout">انتهت مهلة تسجيل دخول المستخدم.</s:String>
+    <s:String x:Key="Auth.DeviceCodeFailed">فشل طلب رمز الجهاز: {0}</s:String>
+    <s:String x:Key="Auth.PostFailed">فشل طلب POST (URL: {0}, HTTP {1})</s:String>
+    <s:String x:Key="Auth.RefreshFailed">فشل التحديث: {0} - {1}</s:String>
+    <s:String x:Key="Auth.CacheCorrupted">لا يمكن فك تشفير ملف ذاكرة التخزين المؤقت أو أنه تالف. يرجى تسجيل الدخول مرة أخرى.</s:String>
+    <s:String x:Key="Auth.CacheMissing">ملف ذاكرة التخزين المؤقت غير موجود</s:String>
+
+    <s:String x:Key="Api.TooManyRequests">طلبات كثيرة جدًا. يرجى المحاولة لاحقًا.</s:String>
+    <s:String x:Key="Api.BadRequest">معلمات الطلب غير صحيحة. تحقق من معايير البحث.</s:String>
+    <s:String x:Key="Api.NotFound">المورد المطلوب غير موجود.</s:String>
+    <s:String x:Key="Api.NetworkError">فشل اتصال الشبكة. تحقق من إعدادات الشبكة أو الوكيل.</s:String>
+    <s:String x:Key="Api.HttpError">خطأ HTTP {0}</s:String>
+    <s:String x:Key="Api.ModIdRequired">لا يمكن أن يكون Mod ID فارغًا</s:String>
+
+    <s:String x:Key="Settings.Language">اللغة</s:String>
+    <s:String x:Key="Settings.LanguageDesc">تغيير لغة واجهة المشغل. يسري التغيير فورًا.</s:String>
+
+</ResourceDictionary>
