@@ -115,6 +115,7 @@
       <DependentUpon>ModVersionsWindow.xaml</DependentUpon>
     </Compile>
     <Compile Include="NativeLibraryLoader.cs" />
+    <Compile Include="Roles\MinecraftTokenHelper.cs" />
     <Compile Include="Roles\Role.cs" />
     <Compile Include="Roles\RoleManager.cs" />
     <Compile Include="SecureStorage.cs" />

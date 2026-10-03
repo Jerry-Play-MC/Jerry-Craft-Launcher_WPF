@@ -125,7 +125,7 @@
                                  HorizontalScrollBarVisibility="Auto"/>
                         <TextBlock x:Name="LogPlaceholder"
                                    Text="{DynamicResource ServerInstall.LogPlaceholder}"
-                                   Foreground="#666666"
+                                   Foreground="#000000"
                                    FontFamily="{DynamicResource App.MonoFontFamily}"
                                    FontSize="11"
                                    Margin="12,10,0,0"

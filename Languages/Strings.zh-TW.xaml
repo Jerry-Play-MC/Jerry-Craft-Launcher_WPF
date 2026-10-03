@@ -211,6 +211,11 @@
     <s:String x:Key="Launch.NoRoleConfirm">尚未建立角色。是否現在建立？</s:String>
     <s:String x:Key="Launch.FailedWithCode">啟動失敗，退出碼：{0}</s:String>
     <s:String x:Key="Launch.Error">啟動出錯：{0}</s:String>
+    <s:String x:Key="Launch.RefreshingToken">正在重新整理登入權杖…</s:String>
+    <s:String x:Key="Launch.RefreshFailed">權杖重新整理失敗，請重新登入一次正版帳號。</s:String>
+    <s:String x:Key="Launch.RefreshRoles">重新整理帳號清單</s:String>
+    <s:String x:Key="Launch.RefreshToken">重新整理權杖</s:String>
+    <s:String x:Key="Launch.RefreshSuccess">權杖重新整理成功。</s:String>
 
     <s:String x:Key="Download.Count">共 {0} 個版本</s:String>
     <s:String x:Key="Download.FetchFailed">取得版本清單失敗：{0}</s:String>

@@ -211,6 +211,11 @@
     <s:String x:Key="Launch.NoRoleConfirm">No account created yet. Create one now?</s:String>
     <s:String x:Key="Launch.FailedWithCode">Launch failed, exit code: {0}</s:String>
     <s:String x:Key="Launch.Error">Launch error: {0}</s:String>
+    <s:String x:Key="Launch.RefreshingToken">Refreshing login token...</s:String>
+    <s:String x:Key="Launch.RefreshFailed">Token refresh failed. Please sign in to your premium account again.</s:String>
+    <s:String x:Key="Launch.RefreshRoles">Refresh Accounts</s:String>
+    <s:String x:Key="Launch.RefreshToken">Refresh Token</s:String>
+    <s:String x:Key="Launch.RefreshSuccess">Token refreshed successfully.</s:String>
 
     <s:String x:Key="Download.Count">{0} versions</s:String>
     <s:String x:Key="Download.FetchFailed">Failed to fetch version manifest: {0}</s:String>

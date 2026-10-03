@@ -211,6 +211,11 @@
     <s:String x:Key="Launch.NoRoleConfirm">Aún no se ha creado ninguna cuenta. ¿Crear una ahora?</s:String>
     <s:String x:Key="Launch.FailedWithCode">Error al iniciar, código de salida: {0}</s:String>
     <s:String x:Key="Launch.Error">Error de inicio: {0}</s:String>
+    <s:String x:Key="Launch.RefreshingToken">Actualizando token de inicio de sesión...</s:String>
+    <s:String x:Key="Launch.RefreshFailed">Error al actualizar el token. Vuelve a iniciar sesión con tu cuenta premium.</s:String>
+    <s:String x:Key="Launch.RefreshRoles">Actualizar cuentas</s:String>
+    <s:String x:Key="Launch.RefreshToken">Actualizar token</s:String>
+    <s:String x:Key="Launch.RefreshSuccess">Token actualizado correctamente.</s:String>
 
     <s:String x:Key="Download.Count">{0} versiones</s:String>
     <s:String x:Key="Download.FetchFailed">Error al obtener la lista de versiones: {0}</s:String>

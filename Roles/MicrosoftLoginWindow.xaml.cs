@@ -132,6 +132,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             StatusText.Text = LanguageManager.Get("MSLogin.Success");
             LanguageManager.ShowInfo("MSLogin.LoginSuccess");
 
+            RoleManager.Reload();
+
             DialogResult = true;
             Close();
         }

@@ -211,6 +211,11 @@
     <s:String x:Key="Launch.NoRoleConfirm">Belum ada akun yang dibuat. Buat sekarang?</s:String>
     <s:String x:Key="Launch.FailedWithCode">Gagal menjalankan, kode keluar: {0}</s:String>
     <s:String x:Key="Launch.Error">Kesalahan menjalankan: {0}</s:String>
+    <s:String x:Key="Launch.RefreshingToken">Menyegarkan token login...</s:String>
+    <s:String x:Key="Launch.RefreshFailed">Gagal menyegarkan token. Silakan masuk kembali dengan akun premium Anda.</s:String>
+    <s:String x:Key="Launch.RefreshRoles">Segarkan daftar akun</s:String>
+    <s:String x:Key="Launch.RefreshToken">Segarkan token</s:String>
+    <s:String x:Key="Launch.RefreshSuccess">Token berhasil disegarkan.</s:String>
 
     <s:String x:Key="Download.Count">Total {0} versi</s:String>
     <s:String x:Key="Download.FetchFailed">Gagal mengambil daftar versi: {0}</s:String>

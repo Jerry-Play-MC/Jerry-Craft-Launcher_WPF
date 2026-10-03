@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Text;
 using System.Windows;
 
 namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF.Languages
@@ -234,11 +235,53 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF.Languages
         private static string Format(string messageKey, object[] args)
         {
             string msg = Get(messageKey);
+
             if (args != null && args.Length > 0)
             {
-                try { msg = string.Format(msg, args); } catch { }
+                try { msg = string.Format(msg, args); }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine(
+                        "[LanguageManager] Format 失败 key=" + messageKey +
+                        " 模板=" + msg + " 原因=" + ex.Message);
+                }
             }
-            return msg;
+
+            // ★ 把 XAML 里写的字面量 \n \r \t \\ 还原成真实字符
+            return Unescape(msg);
+        }
+
+        /// <summary>
+        /// 把资源文件里的字面量转义序列还原成真实字符。
+        /// XAML 不处理 C# 转义，所以 \n 得在运行时自己转。
+        /// 如果需要显示字面反斜杠，资源里写 \\。
+        /// </summary>
+        private static string Unescape(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return s;
+            if (s.IndexOf('\\') < 0) return s;   // 没有反斜杠，快速返回
+
+            var sb = new StringBuilder(s.Length);
+            for (int i = 0; i < s.Length; i++)
+            {
+                char c = s[i];
+                if (c != '\\' || i + 1 >= s.Length)
+                {
+                    sb.Append(c);
+                    continue;
+                }
+
+                char n = s[i + 1];
+                switch (n)
+                {
+                    case 'n': sb.Append('\n'); i++; break;
+                    case 'r': sb.Append('\r'); i++; break;
+                    case 't': sb.Append('\t'); i++; break;
+                    case '\\': sb.Append('\\'); i++; break;
+                    default: sb.Append(c); break;   // 未知转义，保留反斜杠
+                }
+            }
+            return sb.ToString();
         }
 
         // ============================================================

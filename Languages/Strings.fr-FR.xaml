@@ -211,6 +211,11 @@
     <s:String x:Key="Launch.NoRoleConfirm">Aucun compte créé pour l'instant. En créer un maintenant ?</s:String>
     <s:String x:Key="Launch.FailedWithCode">Échec du lancement, code de sortie : {0}</s:String>
     <s:String x:Key="Launch.Error">Erreur de lancement : {0}</s:String>
+    <s:String x:Key="Launch.RefreshingToken">Actualisation du jeton de connexion...</s:String>
+    <s:String x:Key="Launch.RefreshFailed">Échec de l'actualisation du jeton. Veuillez vous reconnecter avec votre compte premium.</s:String>
+    <s:String x:Key="Launch.RefreshRoles">Actualiser les comptes</s:String>
+    <s:String x:Key="Launch.RefreshToken">Actualiser le jeton</s:String>
+    <s:String x:Key="Launch.RefreshSuccess">Jeton actualisé avec succès.</s:String>
 
     <s:String x:Key="Download.Count">{0} versions</s:String>
     <s:String x:Key="Download.FetchFailed">Échec de récupération de la liste des versions : {0}</s:String>

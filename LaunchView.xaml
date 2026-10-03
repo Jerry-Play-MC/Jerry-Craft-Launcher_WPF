@@ -239,11 +239,23 @@
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <TextBlock Grid.Row="0"
-                           Text="{DynamicResource Launch.RolesTitle}"
-                           FontSize="22" FontWeight="SemiBold"
-                           Foreground="#333333"
-                           Margin="24,24,24,12"/>
+                <!-- 标题 + 刷新账号列表按钮 -->
+                <Grid Grid.Row="0" Margin="24,24,24,12">
+                    <TextBlock Text="{DynamicResource Launch.RolesTitle}"
+                               FontSize="22" FontWeight="SemiBold"
+                               Foreground="#333333"
+                               VerticalAlignment="Center"
+                               HorizontalAlignment="Left"/>
+                    <Button x:Name="RefreshAllRolesButton"
+                            Content="{DynamicResource Launch.RefreshRoles}"
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            Height="30"
+                            Padding="14,0"
+                            FontSize="12"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Center"
+                            Click="RefreshAllRoles_Click"/>
+                </Grid>
 
                 <ListBox Grid.Row="1"
                          x:Name="RoleListBox"
@@ -285,6 +297,7 @@
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
 
                                 <Border Grid.Column="0"
@@ -300,7 +313,7 @@
 
                                 <StackPanel Grid.Column="1"
                                             VerticalAlignment="Center"
-                                            Margin="12,0,0,0">
+                                            Margin="12,0,12,0">
                                     <TextBlock Text="{Binding Username}"
                                                FontSize="14" FontWeight="SemiBold"
                                                Foreground="#333333"/>
@@ -309,7 +322,25 @@
                                                Foreground="#999999"
                                                TextTrimming="CharacterEllipsis"/>
                                 </StackPanel>
+
+                                <!-- ★ 刷新令牌按钮：仅微软账号可见 -->
+                                <Button x:Name="RefreshTokenBtn"
+                                        Grid.Column="2"
+                                        Content="{DynamicResource Launch.RefreshToken}"
+                                        Style="{StaticResource SecondaryButtonStyle}"
+                                        Height="28"
+                                        Padding="10,0"
+                                        FontSize="11"
+                                        VerticalAlignment="Center"
+                                        Click="RefreshRoleToken_Click"/>
                             </Grid>
+                            <DataTemplate.Triggers>
+                                <DataTrigger Binding="{Binding IsMicrosoft}" Value="False">
+                                    <Setter TargetName="RefreshTokenBtn"
+                                            Property="Visibility"
+                                            Value="Collapsed"/>
+                                </DataTrigger>
+                            </DataTemplate.Triggers>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>

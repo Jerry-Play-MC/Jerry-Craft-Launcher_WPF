@@ -211,6 +211,11 @@
     <s:String x:Key="Launch.NoRoleConfirm">Аккаунт ещё не создан. Создать сейчас?</s:String>
     <s:String x:Key="Launch.FailedWithCode">Ошибка запуска, код выхода: {0}</s:String>
     <s:String x:Key="Launch.Error">Ошибка запуска: {0}</s:String>
+    <s:String x:Key="Launch.RefreshingToken">Обновление токена входа...</s:String>
+    <s:String x:Key="Launch.RefreshFailed">Не удалось обновить токен. Пожалуйста, войдите снова в премиум-аккаунт.</s:String>
+    <s:String x:Key="Launch.RefreshRoles">Обновить список аккаунтов</s:String>
+    <s:String x:Key="Launch.RefreshToken">Обновить токен</s:String>
+    <s:String x:Key="Launch.RefreshSuccess">Токен успешно обновлён.</s:String>
 
     <s:String x:Key="Download.Count">Всего {0} версий</s:String>
     <s:String x:Key="Download.FetchFailed">Не удалось получить список версий: {0}</s:String>

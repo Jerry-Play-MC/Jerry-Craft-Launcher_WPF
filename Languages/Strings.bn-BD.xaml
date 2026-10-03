@@ -211,6 +211,11 @@
     <s:String x:Key="Launch.NoRoleConfirm">এখনও কোনো অ্যাকাউন্ট তৈরি করা হয়নি। এখনই একটি তৈরি করবেন?</s:String>
     <s:String x:Key="Launch.FailedWithCode">চালু করা ব্যর্থ, exit code: {0}</s:String>
     <s:String x:Key="Launch.Error">চালু করতে ত্রুটি: {0}</s:String>
+    <s:String x:Key="Launch.RefreshingToken">লগইন টোকেন রিফ্রেশ করা হচ্ছে...</s:String>
+    <s:String x:Key="Launch.RefreshFailed">টোকেন রিফ্রেশ ব্যর্থ। অনুগ্রহ করে আবার প্রিমিয়াম অ্যাকাউন্টে সাইন ইন করুন।</s:String>
+    <s:String x:Key="Launch.RefreshRoles">অ্যাকাউন্ট তালিকা রিফ্রেশ করুন</s:String>
+    <s:String x:Key="Launch.RefreshToken">টোকেন রিফ্রেশ করুন</s:String>
+    <s:String x:Key="Launch.RefreshSuccess">টোকেন সফলভাবে রিফ্রেশ হয়েছে।</s:String>
 
     <s:String x:Key="Download.Count">মোট {0}টি সংস্করণ</s:String>
     <s:String x:Key="Download.FetchFailed">সংস্করণ তালিকা আনতে ব্যর্থ: {0}</s:String>

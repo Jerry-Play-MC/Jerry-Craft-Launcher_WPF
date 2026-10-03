@@ -46,6 +46,7 @@ namespace Launch_Minecraft
     /// 服务端启动器：
     /// · 加载器识别基于目录特征，不读任何 *.json（避免误读 banned-ips.json 等）
     /// · Java 需求优先走 Mojang 版本清单，失败则本地读 jar / 扫 class
+    /// · Forge / NeoForge 的 run.bat 会按 MC 版本查出所需 Java，注入 PATH/JAVA_HOME
     /// · 通过 onProgress 回调上报 Detecting / Starting / Running / Stopped / Failed
     /// </summary>
     public static class ServerLauncher
@@ -134,38 +135,35 @@ namespace Launch_Minecraft
             string logPath = Path.Combine(serverDir, "launcher-server.log");
             var proc = new Process { StartInfo = psi };
 
-            // ★ 不用 using：句柄必须活得比本方法长，Exited 事件可能在几分钟后才触发
+            // ★ 三个信号：EULA / Done / Exited
+            var eulaHandle = new ManualResetEvent(false);
             var doneHandle = new ManualResetEvent(false);
             var exitHandle = new ManualResetEvent(false);
 
-            // 用 ref-like 包装保证多线程可见性
             var state = new ServerRunState();
 
             DataReceivedEventHandler onData = (s, e) =>
             {
                 if (e.Data == null) return;
 
-                // 落盘
                 try { File.AppendAllText(logPath, e.Data + Environment.NewLine); }
                 catch { }
 
-                // ★ 控制台实时输出（之前漏了这句，导致日志被吃）
                 try { Console.WriteLine(e.Data); } catch { }
 
-                // eula 未同意
+                // ★ 检测到 EULA 提示 → 立刻置信号，主线程会 Kill 进程并返回 NeedEula
                 if (!state.EulaDetected &&
                     e.Data.IndexOf("agree to the EULA",
                         StringComparison.OrdinalIgnoreCase) >= 0)
                 {
                     state.EulaDetected = true;
+                    try { eulaHandle.Set(); } catch (ObjectDisposedException) { }
                 }
 
-                // 服务端启动完成：Done (X.XXXs)! For help, type "help"
                 if (!state.DoneDetected && IsDoneLine(e.Data))
                 {
                     state.DoneDetected = true;
-                    try { doneHandle.Set(); }
-                    catch (ObjectDisposedException) { }
+                    try { doneHandle.Set(); } catch (ObjectDisposedException) { }
                 }
             };
 
@@ -181,17 +179,15 @@ namespace Launch_Minecraft
 
                 lock (_running) _running.Remove(proc);
 
-                // 只有已经进入 Running 后才需要通知 UI 服务端停了
                 if (state.DoneDetected)
                 {
                     Report(onProgress, ServerStartPhase.Stopped,
                         $"已停止（退出码 {code}）", code);
                 }
 
-                try { exitHandle.Set(); }
-                catch (ObjectDisposedException) { }
+                try { exitHandle.Set(); } catch (ObjectDisposedException) { }
 
-                // 后台线程不再需要这两个句柄，此处释放
+                try { eulaHandle.Close(); } catch { }
                 try { doneHandle.Close(); } catch { }
                 try { exitHandle.Close(); } catch { }
                 try { proc.Dispose(); } catch { }
@@ -208,6 +204,7 @@ namespace Launch_Minecraft
             catch (Exception ex)
             {
                 Report(onProgress, ServerStartPhase.Failed, "启动失败：" + ex.Message);
+                try { eulaHandle.Close(); } catch { }
                 try { doneHandle.Close(); } catch { }
                 try { exitHandle.Close(); } catch { }
                 return ServerStartResult.Failed;
@@ -216,21 +213,37 @@ namespace Launch_Minecraft
             lock (_running) _running.Add(proc);
             Console.WriteLine($"[Server] 已启动 PID = {proc.Id}，日志：{logPath}");
 
-            // 等待 Done 出现或进程退出，最长 180 秒
+            // ★ 等待三个信号之一
+            //   0 = EULA      → 主动 Kill 并返回 NeedEula
+            //   1 = Done      → 正常进入 Running
+            //   2 = Exited    → 进程退出（可能秒退或用户关服）
             int idx;
             try
             {
-                idx = WaitHandle.WaitAny(new[] { doneHandle, exitHandle }, 180000);
+                idx = WaitHandle.WaitAny(
+                    new WaitHandle[] { eulaHandle, doneHandle, exitHandle }, 180000);
             }
             catch (ObjectDisposedException)
             {
-                // 极罕见：Exited 先到，句柄已释放
-                idx = 1;
+                idx = 2;
             }
 
-            // 进程已退出
-            if (idx == 1 || proc.HasExited)
+            // ---------- 情况 1：检测到 EULA ----------
+            if (idx == 0)
             {
+                Console.WriteLine("[Server] 检测到 EULA 未同意，强制终止进程树");
+                KillProcessTree(proc);
+                try { proc.WaitForExit(5000); } catch { }
+
+                Report(onProgress, ServerStartPhase.Failed,
+                    "需要同意 EULA", state.ExitCode);
+                return ServerStartResult.NeedEula;
+            }
+
+            // ---------- 情况 2：进程已退出 ----------
+            if (idx == 2 || SafeHasExited(proc))
+            {
+                // 进程退出了，但期间也看到了 EULA 提示 → 视为 NeedEula
                 if (state.EulaDetected)
                 {
                     Report(onProgress, ServerStartPhase.Failed,
@@ -243,12 +256,47 @@ namespace Launch_Minecraft
                 return ServerStartResult.Failed;
             }
 
-            // Done 出现（或超时），视为已进入运行状态
+            // ---------- 情况 3：Done（或超时视为已运行）----------
             Report(onProgress, ServerStartPhase.Running, "正在运行...");
             return ServerStartResult.Success;
         }
 
-        /// <summary>进程内共享状态（跨事件线程安全）</summary>
+        /// <summary>安全判断进程是否已退出（避免 Exited 里 Dispose 后抛异常）</summary>
+        private static bool SafeHasExited(Process proc)
+        {
+            if (proc == null) return true;
+            try { return proc.HasExited; }
+            catch { return true; }
+        }
+
+        /// <summary>
+        /// 强制结束进程及其子进程。
+        /// run.bat 是 cmd.exe，java.exe 是它的子进程，单独 Kill cmd 会留下孤儿 java，
+        /// 所以用 taskkill /F /T 把整棵进程树一起干掉。
+        /// </summary>
+        private static void KillProcessTree(Process proc)
+        {
+            if (proc == null) return;
+            try
+            {
+                int pid = proc.Id;
+                var psi = new ProcessStartInfo
+                {
+                    FileName = "taskkill.exe",
+                    Arguments = "/F /T /PID " + pid,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                };
+                using (var p = Process.Start(psi))
+                {
+                    try { p.WaitForExit(3000); } catch { }
+                }
+            }
+            catch { }
+        }
+
         private class ServerRunState
         {
             public volatile bool EulaDetected;
@@ -274,19 +322,15 @@ namespace Launch_Minecraft
             catch { }
         }
 
-        /// <summary>判断某行是否为服务端启动完成的 Done 行</summary>
-        /// <summary>判断某行是否为服务端启动完成的 Done 行</summary>
         private static bool IsDoneLine(string line)
         {
             if (string.IsNullOrEmpty(line)) return false;
 
-            // 标准：Done (X.XXXs)! For help, type "help"
             int idx = line.IndexOf("Done (", StringComparison.OrdinalIgnoreCase);
             if (idx >= 0 &&
                 line.IndexOf("s)!", idx + 6, StringComparison.OrdinalIgnoreCase) > 0)
                 return true;
 
-            // 兜底：任意位置出现 "Done!" 也算
             if (line.IndexOf("Done!", StringComparison.OrdinalIgnoreCase) >= 0)
                 return true;
 
@@ -302,7 +346,7 @@ namespace Launch_Minecraft
             // 1) Forge / NeoForge 1.17+ —— 官方安装器生成的 run.bat
             string bat = Path.Combine(serverDir, "run.bat");
             if (File.Exists(bat) && IsForgeOrNeoForgeRunBat(bat))
-                return BuildBatStartInfo(serverDir, bat, javaBaseDir);
+                return BuildForgeLikeStartInfo(serverDir, bat, javaBaseDir);
 
             // 2) Fabric 服务端
             string fabricJar = Path.Combine(serverDir, "fabric-server-launch.jar");
@@ -327,9 +371,51 @@ namespace Launch_Minecraft
                 "  · server.jar");
         }
 
-        private static ProcessStartInfo BuildBatStartInfo(string workDir, string batPath,
-                                                          string javaBaseDir)
+        /// <summary>
+        /// Forge / NeoForge run.bat 启动：
+        /// · 从 libraries/ 的 maven 目录推断出 MC 版本
+        /// · 按 MC 版本查 Mojang 清单得到所需 Java 主版本
+        /// · 用 JavaLocator 精确挑出 java.exe，注入 PATH / JAVA_HOME
+        /// 这样 run.bat 里的裸 `java` 一定命中该版本，不再受系统 PATH 影响。
+        /// </summary>
+        internal static ProcessStartInfo BuildForgeLikeStartInfo(
+            string workDir, string batPath, string javaBaseDir)
         {
+            // ---------- 1) 按 MC 版本查该用哪个 Java ----------
+            int required = 0;
+            string mcVersion = DetectMcVersionFromForgeLibs(workDir);
+            if (!string.IsNullOrEmpty(mcVersion))
+            {
+                Console.WriteLine($"[Server] Forge/NeoForge 服务端对应 MC 版本：{mcVersion}");
+                required = GetRequiredJavaByVersionId(mcVersion);
+            }
+
+            if (required <= 0)
+            {
+                // 兜底：离线 / 清单查不到
+                required = 17;
+                Console.WriteLine($"[Server] 未能从清单确定 Java 版本，回退到 Java {required}");
+            }
+
+            string java;
+            try
+            {
+                java = JavaLocator.Find(required, javaBaseDir);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception(
+                    $"未找到 Java {required}。请安装后重试，或在设置中指定 Java 基准目录。\n" +
+                    ex.Message, ex);
+            }
+
+            string javaBin = Path.GetDirectoryName(java);
+            string javaHome = string.IsNullOrEmpty(javaBin)
+                ? null : Path.GetDirectoryName(javaBin);
+
+            Console.WriteLine($"[Server] run.bat 将使用 Java {required}：{java}");
+
+            // ---------- 2) 构造 cmd 并注入环境变量 ----------
             var psi = new ProcessStartInfo
             {
                 FileName = "cmd.exe",
@@ -344,20 +430,104 @@ namespace Launch_Minecraft
                 StandardErrorEncoding = Encoding.GetEncoding(936),
             };
 
-            string bin = ResolveJavaBinDir(javaBaseDir);
-            if (!string.IsNullOrEmpty(bin))
+            if (!string.IsNullOrEmpty(javaBin))
             {
                 string oldPath = psi.EnvironmentVariables.ContainsKey("PATH")
                     ? psi.EnvironmentVariables["PATH"]
                     : (Environment.GetEnvironmentVariable("PATH") ?? "");
-                psi.EnvironmentVariables["PATH"] = bin + ";" + oldPath;
-
-                string home = Path.GetDirectoryName(bin);
-                if (!string.IsNullOrEmpty(home))
-                    psi.EnvironmentVariables["JAVA_HOME"] = home;
+                psi.EnvironmentVariables["PATH"] = javaBin + ";" + oldPath;
             }
+            if (!string.IsNullOrEmpty(javaHome))
+                psi.EnvironmentVariables["JAVA_HOME"] = javaHome;
 
             return psi;
+        }
+
+        // ============================================================
+        //     从 Forge / NeoForge 的 maven 目录名推断 MC 版本
+        // ============================================================
+
+        internal static string DetectMcVersionFromForgeLibs(string serverDir)
+        {
+            string libDir = Path.Combine(serverDir, "libraries");
+            if (!Directory.Exists(libDir)) return null;
+
+            // Forge / 早期 NeoForge: libraries/net/minecraftforge/forge/<mc>-<forge>/
+            //   "1.20.1-47.2.0" → "1.20.1"
+            //   "26.3-66.0.9"   → "26.3"
+            string forgeDir = Path.Combine(libDir, "net", "minecraftforge", "forge");
+            if (Directory.Exists(forgeDir))
+            {
+                string best = null;
+                foreach (var d in SafeGetDirectories(forgeDir))
+                {
+                    string name = Path.GetFileName(d);
+                    int dash = name.IndexOf('-');
+                    if (dash <= 0) continue;
+
+                    string mc = name.Substring(0, dash);
+                    if (string.IsNullOrEmpty(mc)) continue;
+                    if (mc.IndexOf('.') < 0) continue;    // 至少形如 X.Y
+
+                    // 多个目录时取字典序最大的（一般只有一个）
+                    if (best == null || string.Compare(mc, best, StringComparison.Ordinal) > 0)
+                        best = mc;
+                }
+                if (best != null) return best;
+            }
+
+            // 新版 NeoForge: libraries/net/neoforged/neoforge/<ver>/
+            string neoDir = Path.Combine(libDir, "net", "neoforged", "neoforge");
+            if (Directory.Exists(neoDir))
+            {
+                foreach (var d in SafeGetDirectories(neoDir))
+                {
+                    string name = Path.GetFileName(d);
+                    string mc = MapNeoForgeVersionToMc(name);
+                    if (!string.IsNullOrEmpty(mc)) return mc;
+                }
+            }
+
+            return null;
+        }
+
+        private static string[] SafeGetDirectories(string path)
+        {
+            try { return Directory.GetDirectories(path); }
+            catch { return new string[0]; }
+        }
+
+        /// <summary>NeoForge 版号 → Minecraft 版号</summary>
+        internal static string MapNeoForgeVersionToMc(string neoVer)
+        {
+            if (string.IsNullOrEmpty(neoVer)) return null;
+
+            // 早期 NeoForge：1.20.1-47.1.x（继承 Forge 版号风格）
+            if (neoVer.StartsWith("1."))
+            {
+                int dash = neoVer.IndexOf('-');
+                if (dash > 0) return neoVer.Substring(0, dash);
+            }
+
+            // 新版 NeoForge：<MC.minor>.<MC.patch>.<build>
+            //   20.2.88    → 1.20.2
+            //   20.4.237   → 1.20.4
+            //   20.6.119   → 1.20.6
+            //   21.0.167   → 1.21
+            //   21.1.72    → 1.21.1
+            //   21.4.123   → 1.21.4
+            var parts = neoVer.Split('.');
+            if (parts.Length < 2) return null;
+
+            int major, minor;
+            if (!int.TryParse(parts[0], out major)) return null;
+            if (!int.TryParse(parts[1], out minor)) return null;
+
+            if (major == 20) return "1.20." + minor;
+            if (major == 21) return minor == 0 ? "1.21" : "1.21." + minor;
+            if (major == 22) return minor == 0 ? "1.22" : "1.22." + minor;
+
+            return null;
         }
 
         private static ProcessStartInfo BuildJavaStartInfo(string workDir, string jarPath,
@@ -388,24 +558,6 @@ namespace Launch_Minecraft
             };
         }
 
-        private static string ResolveJavaBinDir(string javaBaseDir)
-        {
-            if (string.IsNullOrEmpty(javaBaseDir) || !Directory.Exists(javaBaseDir))
-                return null;
-
-            if (File.Exists(Path.Combine(javaBaseDir, "bin", "java.exe")))
-                return Path.Combine(javaBaseDir, "bin");
-
-            try
-            {
-                foreach (var sub in Directory.GetDirectories(javaBaseDir))
-                    if (File.Exists(Path.Combine(sub, "bin", "java.exe")))
-                        return Path.Combine(sub, "bin");
-            }
-            catch { }
-            return null;
-        }
-
         private static bool IsForgeOrNeoForgeRunBat(string batPath)
         {
             if (string.IsNullOrEmpty(batPath) || !File.Exists(batPath)) return false;
@@ -433,9 +585,9 @@ namespace Launch_Minecraft
         private static readonly Dictionary<string, int> _manifestJavaCache =
             new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
-        private static int GetRequiredJavaFromManifest(string jarPath)
+        /// <summary>按版本 ID 直接查 Java 主版本（Forge / NeoForge 分支用）</summary>
+        internal static int GetRequiredJavaByVersionId(string versionId)
         {
-            string versionId = ReadVersionIdFromJar(jarPath);
             if (string.IsNullOrEmpty(versionId)) return 0;
 
             lock (_manifestJavaCache)
@@ -469,6 +621,12 @@ namespace Launch_Minecraft
                 Console.WriteLine($"[Server] 查询 Mojang 清单出错：{ex.Message}");
                 return 0;
             }
+        }
+
+        private static int GetRequiredJavaFromManifest(string jarPath)
+        {
+            string versionId = ReadVersionIdFromJar(jarPath);
+            return GetRequiredJavaByVersionId(versionId);
         }
 
         private static string ReadVersionIdFromJar(string jarPath)

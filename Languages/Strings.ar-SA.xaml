@@ -211,6 +211,11 @@
     <s:String x:Key="Launch.NoRoleConfirm">لم يتم إنشاء أي حساب بعد. هل تريد إنشاء واحد الآن؟</s:String>
     <s:String x:Key="Launch.FailedWithCode">فشل التشغيل، رمز الخروج: {0}</s:String>
     <s:String x:Key="Launch.Error">خطأ في التشغيل: {0}</s:String>
+    <s:String x:Key="Launch.RefreshingToken">جارٍ تحديث رمز تسجيل الدخول...</s:String>
+    <s:String x:Key="Launch.RefreshFailed">فشل تحديث الرمز. يرجى تسجيل الدخول إلى حسابك المميز مرة أخرى.</s:String>
+    <s:String x:Key="Launch.RefreshRoles">تحديث قائمة الحسابات</s:String>
+    <s:String x:Key="Launch.RefreshToken">تحديث الرمز</s:String>
+    <s:String x:Key="Launch.RefreshSuccess">تم تحديث الرمز بنجاح.</s:String>
 
     <s:String x:Key="Download.Count">إجمالي {0} إصدار</s:String>
     <s:String x:Key="Download.FetchFailed">فشل جلب قائمة الإصدارات: {0}</s:String>

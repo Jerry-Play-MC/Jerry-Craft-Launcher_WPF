@@ -149,6 +149,59 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             RaiseChanged();
         }
 
+        /// <summary>
+        /// 把内存里的 Role 覆盖写回磁盘。会优先找已存在的同名 json，
+        /// 找不到才按 Type 决定放 Roles\ 还是 Roles\Microsoft\。
+        /// </summary>
+        public static void SaveRole(Role role)
+        {
+            if (role == null || string.IsNullOrEmpty(role.Uuid)) return;
+            if (string.IsNullOrEmpty(_roleDir)) Initialize();
+
+            string path = null;
+
+            // 1. 优先复用已存在的文件（不改变原有的存储位置）
+            try
+            {
+                if (Directory.Exists(_roleDir))
+                {
+                    var hits = Directory.GetFiles(
+                        _roleDir, role.Uuid + ".json",
+                        SearchOption.AllDirectories);
+                    if (hits.Length > 0) path = hits[0];
+                }
+            }
+            catch { }
+
+            // 2. 没有已存在文件 → 按 Type 新建
+            if (string.IsNullOrEmpty(path))
+            {
+                if (string.Equals(role.Type, "Microsoft",
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    string msDir = Path.Combine(_roleDir, "Microsoft");
+                    if (!Directory.Exists(msDir)) Directory.CreateDirectory(msDir);
+                    path = Path.Combine(msDir, role.Uuid + ".json");
+                }
+                else
+                {
+                    path = Path.Combine(_roleDir, role.Uuid + ".json");
+                }
+            }
+
+            SecureStorage.WriteAllTextEncrypted(path,
+                new JavaScriptSerializer().Serialize(role));
+        }
+
+        /// <summary>
+        /// 主动触发 CurrentRoleChanged，让订阅了该事件的 UI 刷新（比如头像/名字）。
+        /// 用于令牌刷新后，Role 对象内容变了但 Uuid 没变，SetCurrent 会直接 return 的情况。
+        /// </summary>
+        public static void NotifyCurrentChanged()
+        {
+            RaiseChanged();
+        }
+
         public static bool IsValidUsername(string username)
         {
             if (string.IsNullOrEmpty(username)) return false;

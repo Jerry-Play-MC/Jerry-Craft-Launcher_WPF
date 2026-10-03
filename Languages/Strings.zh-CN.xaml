@@ -129,13 +129,8 @@
     <s:String x:Key="Common.Close">关闭</s:String>
     <s:String x:Key="Common.OK">确定</s:String>
 
-    <!-- ============================================================ -->
-    <!--  第二批新增                                                   -->
-    <!-- ============================================================ -->
-
     <s:String x:Key="Download.Failure">加载失败</s:String>
 
-    <!-- 通用对话框 -->
     <s:String x:Key="Dialog.Info">提示</s:String>
     <s:String x:Key="Dialog.Error">错误</s:String>
     <s:String x:Key="Dialog.Success">成功</s:String>
@@ -146,7 +141,6 @@
     <s:String x:Key="Common.Confirm">确认</s:String>
     <s:String x:Key="Common.Delete">删除</s:String>
 
-    <!-- ModSearch -->
     <s:String x:Key="ModSearch.Search">搜索</s:String>
     <s:String x:Key="ModSearch.ResourcePack">资源包</s:String>
     <s:String x:Key="ModSearch.PrevPage">上一页</s:String>
@@ -155,7 +149,6 @@
     <s:String x:Key="ModSearch.NoResult">没有找到任何项目</s:String>
     <s:String x:Key="ModSearch.PageInfo">第 {0} / {1} 页（共 {2} 项）</s:String>
 
-    <!-- ModVersions -->
     <s:String x:Key="ModVersions.Title">Mod 版本列表</s:String>
     <s:String x:Key="ModVersions.TitlePrefix">版本列表：</s:String>
     <s:String x:Key="ModVersions.Loading">正在加载版本...</s:String>
@@ -176,21 +169,18 @@
     <s:String x:Key="ModVersions.UsingCached">使用缓存整合包：</s:String>
     <s:String x:Key="ModVersions.Progress">下载完成，成功 {0} 个，失败 {1} 个</s:String>
 
-    <!-- ModInstallTarget -->
     <s:String x:Key="ModInstallTarget.Title">选择安装目标</s:String>
     <s:String x:Key="ModInstallTarget.Hint">找到以下符合要求的版本实例，请选择要安装到哪个：</s:String>
     <s:String x:Key="ModInstallTarget.Requirements">Mod 要求：游戏版本 = {0}  |  加载器 = {1}</s:String>
     <s:String x:Key="ModInstallTarget.InstallHere">安装到此版本</s:String>
     <s:String x:Key="ModInstallTarget.SelectOne">请先选择一个版本实例。</s:String>
 
-    <!-- 客户端安装 -->
     <s:String x:Key="ClientInstall.NoVersion">未选择游戏版本。</s:String>
     <s:String x:Key="ClientInstall.OptifineConflict">OptiFine 与 {0} 不兼容。\n请把加载器改为 Forge 或 Vanilla，或取消勾选 OptiFine。</s:String>
     <s:String x:Key="ClientInstall.InstallSuccess">Minecraft {0} 客户端安装完成。</s:String>
     <s:String x:Key="ClientInstall.InstallFailed">安装失败，请查看下方日志中的错误信息。</s:String>
     <s:String x:Key="ClientInstall.InstallError">安装出错：{0}</s:String>
 
-    <!-- 服务端安装 -->
     <s:String x:Key="ServerInstall.NameRequired">请填写服务器名。</s:String>
     <s:String x:Key="ServerInstall.NameInvalid">服务器名包含非法字符：{0}</s:String>
     <s:String x:Key="ServerInstall.VersionRequired">请选择或输入游戏版本。</s:String>
@@ -199,43 +189,37 @@
     <s:String x:Key="ServerInstall.InstallFailed">安装失败，请查看下方日志中的错误信息。</s:String>
     <s:String x:Key="ServerInstall.InstallError">安装出错：{0}</s:String>
 
-    <!-- 服务器管理 -->
     <s:String x:Key="Server.Running">服务器【{0}】已在运行中。</s:String>
     <s:String x:Key="Server.DeleteConfirm">确定要删除服务器【{0}】吗？\n\n此操作会删除整个文件夹：\n{1}\n  您的存档将会消失！\n\n删除后无法恢复！</s:String>
     <s:String x:Key="Server.DeleteFailed">删除失败：{0}</s:String>
     <s:String x:Key="Server.StartFailed">启动服务器失败：{0}</s:String>
     <s:String x:Key="Server.EulaPrompt">服务器【{0}】需要你先同意 Minecraft EULA 才能启动。\n\nEULA 官方地址：\nhttps://aka.ms/MinecraftEULA\n\n点击「是」表示你已阅读并同意 EULA，\n启动器会自动把 eula.txt 中的 eula 改为 true。</s:String>
 
-    <!-- 角色 -->
     <s:String x:Key="Role.Invalid">角色名不符合要求：\n· 长度必须在 4-16 个字符之间\n· 不能包含中文字符或空格</s:String>
     <s:String x:Key="Role.CreateFailed">创建失败：{0}</s:String>
     <s:String x:Key="Role.NeedFirst">还没有角色，启动游戏前必须先创建角色。\n确定要跳过吗？</s:String>
 
-    <!-- 登录 -->
     <s:String x:Key="MSLogin.LoginFailed">登录失败：\n{0}</s:String>
     <s:String x:Key="MSLogin.CacheDetected">检测到已缓存的 Microsoft 账号凭证。\n\n是否尝试使用缓存直接登录（无需打开浏览器）？\n\n· 是 → 尝试用缓存登录\n· 否 → 重新进行设备码登录</s:String>
     <s:String x:Key="MSLogin.CacheSuccess">已成功缓存您的 Microsoft 账户凭证。\n\n待 Mojang 服务审核通过后，再次打开本窗口选择「使用缓存登录」即可，无需再次打开浏览器。</s:String>
     <s:String x:Key="MSLogin.LoginSuccess">登录成功！\n\n账号已保存。</s:String>
 
-    <!-- ============================================================ -->
-    <!--  第三批补充                                                   -->
-    <!-- ============================================================ -->
-
-    <!-- Common -->
     <s:String x:Key="Common.Any">不限</s:String>
     <s:String x:Key="Common.All">全部</s:String>
 
-    <!-- Launch -->
     <s:String x:Key="Launch.NoVersionSelected">尚未选择版本。请先在 .minecraft\versions 下安装版本。</s:String>
     <s:String x:Key="Launch.NoRoleConfirm">尚未创建角色。是否现在创建？</s:String>
     <s:String x:Key="Launch.FailedWithCode">启动失败，退出码：{0}</s:String>
     <s:String x:Key="Launch.Error">启动出错：{0}</s:String>
+    <s:String x:Key="Launch.RefreshingToken">正在刷新登录令牌…</s:String>
+    <s:String x:Key="Launch.RefreshFailed">令牌刷新失败，请重新登录一次正版账号。</s:String>
+    <s:String x:Key="Launch.RefreshRoles">刷新账号列表</s:String>
+    <s:String x:Key="Launch.RefreshToken">刷新令牌</s:String>
+    <s:String x:Key="Launch.RefreshSuccess">令牌刷新成功。</s:String>
 
-    <!-- Download -->
     <s:String x:Key="Download.Count">共 {0} 个版本</s:String>
     <s:String x:Key="Download.FetchFailed">获取版本清单失败：{0}</s:String>
 
-    <!-- Settings -->
     <s:String x:Key="Settings.Checking">检查中...</s:String>
     <s:String x:Key="Settings.CheckFailed">检查更新失败：{0}</s:String>
     <s:String x:Key="Settings.CheckError">检查更新失败：{0}</s:String>
@@ -244,16 +228,13 @@
     <s:String x:Key="Settings.UpToDateWithVersion">当前已是最新版本 {0}。</s:String>
     <s:String x:Key="Settings.NewVersionFound">发现新版本</s:String>
 
-    <!-- Server -->
     <s:String x:Key="Server.DeleteRunning">服务器【{0}】正在运行中，请先关闭服务端后再删除。</s:String>
 
-    <!-- Update -->
     <s:String x:Key="Update.Preparing">下载完成，正在准备应用更新...</s:String>
     <s:String x:Key="Update.Restarting">即将重启应用...</s:String>
     <s:String x:Key="Update.Cancelled">已取消</s:String>
     <s:String x:Key="Update.Failed">更新失败</s:String>
 
-    <!-- MSLogin -->
     <s:String x:Key="MSLogin.Preparing">正在准备登录，请稍候...</s:String>
     <s:String x:Key="MSLogin.CacheLogin">正在使用缓存登录...</s:String>
     <s:String x:Key="MSLogin.NoResult">登录未返回结果</s:String>
@@ -261,7 +242,6 @@
     <s:String x:Key="MSLogin.Success">登录成功</s:String>
     <s:String x:Key="MSLogin.CancelConfirm">正在登录中，确定要退出吗？</s:String>
 
-    <!-- ClientInstall -->
     <s:String x:Key="ClientInstall.LatestVersion">（使用最新版）</s:String>
     <s:String x:Key="ClientInstall.LatestVersionShort">（最新）</s:String>
     <s:String x:Key="ClientInstall.WithForge">配合 Forge</s:String>
@@ -284,18 +264,15 @@
     <s:String x:Key="ClientInstall.TargetDir">目标目录</s:String>
     <s:String x:Key="ClientInstall.DoNotInstall">不安装</s:String>
 
-    <!-- ServerInstall -->
     <s:String x:Key="ServerInstall.LoadingManifest">加载版本清单中...</s:String>
     <s:String x:Key="ServerInstall.ReleaseCount">共 {0} 个正式版</s:String>
     <s:String x:Key="ServerInstall.LoadFailed">加载失败</s:String>
     <s:String x:Key="ServerInstall.Installing">安装中...</s:String>
     <s:String x:Key="ServerInstall.BeginInstall">开始安装服务端</s:String>
 
-    <!-- ServerSettings -->
     <s:String x:Key="ServerSettings.FolderExists">已存在同名服务器文件夹。</s:String>
     <s:String x:Key="ServerSettings.SaveFailed">保存失败：{0}</s:String>
 
-    <!-- ModVersions -->
     <s:String x:Key="ModVersions.SelectOne">请先选择一个版本。</s:String>
     <s:String x:Key="ModVersions.NoFile">该版本没有可下载的文件。</s:String>
     <s:String x:Key="ModVersions.AllSourcesFailed">所有下载源均不可用</s:String>
@@ -318,10 +295,8 @@
     <s:String x:Key="ModVersions.IndexParseFailed">modrinth.index.json 解析失败</s:String>
     <s:String x:Key="ModVersions.NoMcVersion">无法从 modrinth.index.json 中解析 Minecraft 版本号</s:String>
 
-    <!-- Role -->
     <s:String x:Key="Role.EmptyUsername">用户名不能为空</s:String>
 
-    <!-- Auth（改了 MinecraftAuthenticator 才需要） -->
     <s:String x:Key="Auth.ChildAccount">儿童账户需家长授权。</s:String>
     <s:String x:Key="Auth.RegionUnsupported">该地区不被支持。</s:String>
     <s:String x:Key="Auth.XstsError">XSTS错误：{0}</s:String>
@@ -332,7 +307,6 @@
     <s:String x:Key="Auth.CacheCorrupted">缓存文件无法解密或已损坏，请重新登录。</s:String>
     <s:String x:Key="Auth.CacheMissing">缓存文件不存在</s:String>
 
-    <!-- Api（改了 ModApiService 才需要） -->
     <s:String x:Key="Api.TooManyRequests">请求过于频繁，请稍后再试。</s:String>
     <s:String x:Key="Api.BadRequest">请求参数错误，请检查搜索条件。</s:String>
     <s:String x:Key="Api.NotFound">未找到请求的资源。</s:String>

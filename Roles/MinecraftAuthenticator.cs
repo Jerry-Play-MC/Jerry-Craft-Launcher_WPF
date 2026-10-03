@@ -1,5 +1,6 @@
 ﻿using Jerry_Craft_Launcher.NET_Framework_4._5_WPF.Languages;
 using System;
+using System.Collections;               // ★ IList / IDictionary 相关
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
@@ -16,10 +17,10 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         }
 
         // ========== 硬编码配置 ==========
-        private const string DEFAULT_CLIENT_ID = "04bc9a34-3d65-4526-9201-28bca0c4bef7";// 此启动器申请的Client_Id:{04bc9a34-3d65-4526-9201-28bca0c4bef7}
+        private const string DEFAULT_CLIENT_ID = "04bc9a34-3d65-4526-9201-28bca0c4bef7";
         private static readonly string[] DEFAULT_SCOPES = new[] { "XboxLive.signin", "offline_access" };
 
-        // 网络请求超时（毫秒）。微软/Xbox/Minecraft 服务偶尔抽风，必须有超时。
+        // 网络请求超时（毫秒）
         private const int HTTP_TIMEOUT_MS = 15000;
 
         private readonly string _clientId;
@@ -106,14 +107,12 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         public string CacheAzureCredentialsOnly()
         {
             DeviceAuthResult azureResult = GetAzureTokenByDeviceCode();
-            // ... 省略后续代码，保持原样即可 ...
-            // 注意：这里不需要大改，主要是ExchangeToMinecraft里加日志
             return SaveCache(azureResult.refresh_token);
         }
 
         // ========== 私有辅助 ==========
 
-        // ★ 添加统一日志方法
+        // ★ 统一日志方法
         private static void Log(string message)
         {
             string logLine = string.Format("[{0:yyyy-MM-dd HH:mm:ss.fff}] {1}", DateTime.Now, message);
@@ -127,9 +126,50 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             catch { }
         }
 
+        /// <summary>
+        /// ★ 从 JavaScriptSerializer 反序列化出来的 result 中，
+        ///   提取 DisplayClaims.xui[0] 里指定字段（如 uhs、xid）的值。
+        ///   关键点：JavaScriptSerializer 把 JSON 数组反序列化成 ArrayList，
+        ///   它只实现 IList，不实现 object[]。所以必须用 IList / IDictionary 接口接收。
+        /// </summary>
+        private static string ExtractFromDisplayClaims(
+            Dictionary<string, object> result, string key)
+        {
+            if (result == null || !result.ContainsKey("DisplayClaims"))
+                return null;
+
+            // 1. DisplayClaims → 用 IDictionary 接口接收
+            var displayClaims = result["DisplayClaims"] as IDictionary<string, object>;
+            if (displayClaims == null || !displayClaims.ContainsKey("xui"))
+                return null;
+
+            // 2. xui → JavaScriptSerializer 返回的是 ArrayList，用 IList 接口接收
+            //    这行是修复的关键：as object[] 会返回 null，as IList 才能拿到
+            var xuiList = displayClaims["xui"] as IList;
+            if (xuiList == null || xuiList.Count == 0)
+                return null;
+
+            // 3. xui[0] → 用 IDictionary 接口接收
+            var xui = xuiList[0] as IDictionary<string, object>;
+            if (xui == null || !xui.ContainsKey(key))
+                return null;
+
+            var value = xui[key];
+            return value == null ? null : value.ToString();
+        }
+
         private string CacheAzureRefreshTokenOnly(string refreshToken)
         {
             return SaveCache(refreshToken);
+        }
+
+        /// <summary>
+        /// 用现有的 Azure access_token 走一遍 Xbox Live -> XSTS -> Minecraft 交换，
+        /// 返回新的 Minecraft 令牌和档案信息。供 App 层刷新过期令牌时调用。
+        /// </summary>
+        public MinecraftAuthResult RefreshToMinecraft(string azureAccessToken)
+        {
+            return ExchangeToMinecraft(azureAccessToken);
         }
 
         private string SaveCache(string refreshToken)
@@ -239,13 +279,13 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                         statusCode = (int)response.StatusCode;
                     else
                     {
-                        var match = System.Text.RegularExpressions.Regex.Match(ex.Message, @"HTTP\s+(\d+)");
+                        var match = System.Text.RegularExpressions.Regex.Match(
+                            ex.Message, @"HTTP\s+(\d+)");
                         if (match.Success) statusCode = int.Parse(match.Groups[1].Value);
                     }
 
                     if (statusCode == 400 && ex.Message.Contains("authorization_pending"))
                     {
-                        // 用户还没在浏览器里点授权，正常等待
                         System.Threading.Thread.Sleep(interval * 1000);
                         continue;
                     }
@@ -264,15 +304,15 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         private MinecraftAuthResult ExchangeToMinecraft(string azureAccessToken)
         {
             Log("[交换] 开始 Xbox Live -> XSTS -> Minecraft 令牌交换");
-            Log("[交换] Azure Token (部分): " + TruncateToken(azureAccessToken));
+            Log("[交换] Azure Token: " + azureAccessToken);
 
             string xblToken = GetXboxLiveToken(azureAccessToken, out string xuid);
-            Log("[交换] XBL Token 获取成功, XUID: " + xuid);
+            Log("[交换] XBL Token 获取成功, XUID: " + (xuid ?? "(无)"));
 
-            string xstsToken = GetXSTSToken(xblToken);
-            Log("[交换] XSTS Token 获取成功");
+            string xstsToken = GetXSTSToken(xblToken, out string userHash);
+            Log("[交换] XSTS Token 获取成功, UserHash: " + (userHash ?? "(无)"));
 
-            string mcToken = GetMinecraftToken(xstsToken);
+            string mcToken = GetMinecraftToken(xstsToken, userHash);
             Log("[交换] Minecraft Token 获取成功");
 
             var profile = GetMinecraftProfile(mcToken);
@@ -297,32 +337,22 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             string json = PostJson("https://user.auth.xboxlive.com/user/authenticate", payload);
             var result = new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(json);
 
-            if (result.ContainsKey("DisplayClaims"))
-            {
-                var displayClaims = result["DisplayClaims"] as Dictionary<string, object>;
-                if (displayClaims != null && displayClaims.ContainsKey("xui"))
-                {
-                    var xuiArray = displayClaims["xui"] as object[];
-                    if (xuiArray != null && xuiArray.Length > 0)
-                    {
-                        var xui = xuiArray[0] as Dictionary<string, object>;
-                        if (xui != null && xui.ContainsKey("xid"))
-                            xuid = xui["xid"].ToString();
-                    }
-                }
-            }
-            Log("[XBL] 响应成功");
+            // ★ 用接口版辅助方法提取 XUID（XBL 响应里通常没有 xid，返回 null 也无妨）
+            xuid = ExtractFromDisplayClaims(result, "xid");
+
+            Log("[XBL] 响应成功, XUID: " + (xuid ?? "(无)"));
             return result["Token"].ToString();
         }
 
-        private string GetXSTSToken(string xblToken)
+        private string GetXSTSToken(string xblToken, out string userHash)
         {
+            userHash = null;
             var payload = new Dictionary<string, object>();
             var properties = new Dictionary<string, object>();
             properties.Add("SandboxId", "RETAIL");
             properties.Add("UserTokens", new string[] { xblToken });
             payload.Add("Properties", properties);
-            payload.Add("RelyingParty", "rp://api.minecraftservices.com/"); // ★ 极其关键，如果写错就会导致后续 401
+            payload.Add("RelyingParty", "rp://api.minecraftservices.com/");
             payload.Add("TokenType", "JWT");
 
             Log("[XSTS] 请求 XSTS Token，RelyingParty: rp://api.minecraftservices.com/");
@@ -337,16 +367,24 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 if (err == "2148916235") throw new Exception(LanguageManager.Get("Auth.RegionUnsupported"));
                 throw new Exception(string.Format(LanguageManager.Get("Auth.XstsError"), err));
             }
-            Log("[XSTS] 响应成功，Token 已获取");
+
+            // ★ 用接口版辅助方法提取 UserHash（uhs）
+            userHash = ExtractFromDisplayClaims(result, "uhs");
+
+            if (string.IsNullOrEmpty(userHash))
+                Log("[XSTS] 警告：未能解析到 UserHash！原始响应: " + json);
+
+            Log("[XSTS] 响应成功，Token 已获取，UserHash: " + (userHash ?? "(无)"));
             return result["Token"].ToString();
         }
 
-        private string GetMinecraftToken(string xstsToken)
+        private string GetMinecraftToken(string xstsToken, string userHash)
         {
             var payload = new Dictionary<string, object>();
-            payload.Add("identityToken", "XBL3.0 x=" + xstsToken);
+            // ★ 正确格式：XBL3.0 x=<UserHash>;<XSTS_Token>
+            payload.Add("identityToken", "XBL3.0 x=" + userHash + ";" + xstsToken);
 
-            Log("[MC登录] 请求 Minecraft Token，identityToken 前缀: XBL3.0 x=" + TruncateToken(xstsToken));
+            Log("[MC登录] 请求 Minecraft Token，UserHash: " + (userHash ?? "(无)"));
             string json = PostJson("https://api.minecraftservices.com/authentication/login_with_xbox", payload);
             var result = new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(json);
 
@@ -371,12 +409,16 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             request.Timeout = HTTP_TIMEOUT_MS;
             request.ReadWriteTimeout = HTTP_TIMEOUT_MS;
 
+            Log("[HTTP GET] GET https://api.minecraftservices.com/minecraft/profile");
+            Log("[HTTP GET] 请求头 Authorization: Bearer " + mcToken);
+
             using (var response = (HttpWebResponse)request.GetResponse())
             using (var stream = response.GetResponseStream())
             using (var reader = new StreamReader(stream))
             {
                 string json = reader.ReadToEnd();
-                Log("[档案] 响应: " + json);
+                Log("[HTTP GET] 响应成功，状态码: " + (int)response.StatusCode);
+                Log("[HTTP GET] 响应体: " + json);
                 var data = new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(json);
                 return new MinecraftAuthResult
                 {
@@ -385,14 +427,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     Username = data["name"].ToString()
                 };
             }
-        }
-
-        // 安全截断 Token，避免日志文件过大或泄露完整 Token
-        private static string TruncateToken(string token)
-        {
-            if (string.IsNullOrEmpty(token)) return "(空)";
-            if (token.Length <= 20) return token;
-            return token.Substring(0, 10) + "..." + token.Substring(token.Length - 10);
         }
 
         private void SaveAccount(string filePath, MinecraftAuthResult mcResult, string refreshToken)
@@ -413,9 +447,13 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         }
 
         // ----- HTTP 辅助 -----
+
+        // 完整打印请求体与响应体
         private string PostForm(string url, string formData)
         {
             Log("[HTTP Form] POST " + url);
+            Log("[HTTP Form] 请求体: " + formData);
+
             var request = (HttpWebRequest)WebRequest.Create(url);
             request.Method = "POST";
             request.ContentType = "application/x-www-form-urlencoded";
@@ -433,7 +471,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 using (var reader = new StreamReader(stream))
                 {
                     string resp = reader.ReadToEnd();
-                    Log("[HTTP Form] 响应成功: " + TruncateToken(resp)); // Form 请求通常包含 Token，截断处理
+                    Log("[HTTP Form] 响应成功，状态码: " + (int)response.StatusCode);
+                    Log("[HTTP Form] 响应体: " + resp);
                     return resp;
                 }
             }
@@ -453,18 +492,21 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     }
                     catch { }
                 }
-                Log("[HTTP Form] 请求失败! HTTP " + statusCode + " 响应: " + responseBody);
+                Log("[HTTP Form] 请求失败! HTTP " + statusCode);
+                Log("[HTTP Form] 失败响应体: " + (responseBody ?? "(无)"));
                 throw new Exception(
                     string.Format(LanguageManager.Get("Auth.PostFailed"), url, statusCode) +
                     (responseBody != null ? ": " + responseBody : ""), ex);
             }
         }
 
+        // 完整打印请求体与响应体
         private string PostJson(string url, object payload)
         {
             string jsonData = new JavaScriptSerializer().Serialize(payload);
             Log("[HTTP JSON] POST " + url);
             Log("[HTTP JSON] 请求体: " + jsonData);
+
             var request = (HttpWebRequest)WebRequest.Create(url);
             request.Method = "POST";
             request.ContentType = "application/json";
@@ -482,7 +524,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 using (var reader = new StreamReader(stream))
                 {
                     string resp = reader.ReadToEnd();
-                    Log("[HTTP JSON] 响应成功: " + resp);
+                    Log("[HTTP JSON] 响应成功，状态码: " + (int)response.StatusCode);
+                    Log("[HTTP JSON] 响应体: " + resp);
                     return resp;
                 }
             }
@@ -502,7 +545,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     }
                     catch { }
                 }
-                Log("[HTTP JSON] 请求失败! HTTP " + statusCode + " 响应: " + responseBody);
+                Log("[HTTP JSON] 请求失败! HTTP " + statusCode);
+                Log("[HTTP JSON] 失败响应体: " + (responseBody ?? "(无)"));
                 throw new Exception(
                     string.Format(LanguageManager.Get("Auth.PostFailed"), url, statusCode) +
                     (responseBody != null ? ": " + responseBody : ""), ex);
@@ -519,14 +563,15 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             public string scope { get; set; }
             public string token_type { get; set; }
         }
+    }
 
-        private class MinecraftAuthResult
-        {
-            public string AccessToken { get; set; }
-            public string RefreshToken { get; set; }
-            public string Uuid { get; set; }
-            public string Username { get; set; }
-            public string Xuid { get; set; }
-        }
+    // ★ 从嵌套 private 提升为顶层 public，便于 App 层调用
+    public class MinecraftAuthResult
+    {
+        public string AccessToken { get; set; }
+        public string RefreshToken { get; set; }
+        public string Uuid { get; set; }
+        public string Username { get; set; }
+        public string Xuid { get; set; }
     }
 }

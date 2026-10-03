@@ -163,6 +163,103 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             }
         }
 
+        /// <summary>
+        /// 刷新全部微软账号的令牌（在线程池里跑，成功后通知 UI 更新）。
+        /// </summary>
+        private async void RefreshAllRoles_Click(object sender, RoutedEventArgs e)
+        {
+            var btn = sender as Button;
+            if (btn != null) btn.IsEnabled = false;
+
+            try
+            {
+                var snapshot = RoleManager.Roles.ToList();
+
+                int ok = 0, fail = 0;
+                await Task.Run(() =>
+                {
+                    foreach (var role in snapshot)
+                    {
+                        if (!role.IsMicrosoft) continue;
+                        if (string.IsNullOrEmpty(role.RefreshToken)) continue;
+
+                        try
+                        {
+                            if (App.RefreshRoleToken(role)) ok++;
+                            else fail++;
+                        }
+                        catch
+                        {
+                            fail++;
+                        }
+                    }
+                });
+
+                RoleManager.NotifyCurrentChanged();
+                RefreshRoleList();
+
+                if (ok > 0 && fail == 0)
+                    LanguageManager.ShowInfo("Launch.RefreshSuccess");
+                else if (ok > 0 && fail > 0)
+                    LanguageManager.ShowWarning("Launch.RefreshFailed");
+                else if (fail > 0)
+                    LanguageManager.ShowWarning("Launch.RefreshFailed");
+            }
+            finally
+            {
+                if (btn != null) btn.IsEnabled = true;
+            }
+        }
+
+        /// <summary>
+        /// 刷新单个账号的令牌。
+        /// </summary>
+        private async void RefreshRoleToken_Click(object sender, RoutedEventArgs e)
+        {
+            var btn = sender as Button;
+            if (btn == null) return;
+
+            var role = btn.DataContext as Role;
+            if (role == null) return;
+
+            if (!role.IsMicrosoft)
+            {
+                LanguageManager.ShowWarning("Launch.RefreshFailed");
+                return;
+            }
+
+            btn.IsEnabled = false;
+            string originalContent = btn.Content as string;
+
+            try
+            {
+                btn.Content = LanguageManager.Get("Launch.RefreshingToken");
+
+                bool ok = await Task.Run(() => App.RefreshRoleToken(role));
+
+                if (ok)
+                {
+                    RoleManager.NotifyCurrentChanged();
+                    RefreshRoleList();
+                    LanguageManager.ShowInfo("Launch.RefreshSuccess");
+                }
+                else
+                {
+                    LanguageManager.ShowWarning("Launch.RefreshFailed");
+                }
+            }
+            catch (Exception ex)
+            {
+                LanguageManager.ShowError("Launch.RefreshFailed");
+                System.Diagnostics.Debug.WriteLine(ex);
+            }
+            finally
+            {
+                btn.Content = originalContent;
+                btn.IsEnabled = true;
+            }
+        }
+
         private void RoleListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             var role = RoleListBox.SelectedItem as Role;
@@ -218,6 +315,21 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             try
             {
+                // ★ 启动前：正版账号检查令牌是否过期，过期就同步刷新一次
+                if (string.Equals(role.Type, "Microsoft", StringComparison.OrdinalIgnoreCase)
+                    && MinecraftTokenHelper.IsExpired(role.AccessToken, 60))
+                {
+                    CurrentVersionText.Text =
+                        LanguageManager.Get("Launch.RefreshingToken");
+
+                    bool ok = await Task.Run(() => App.RefreshRoleToken(role));
+                    if (!ok)
+                    {
+                        LanguageManager.ShowWarning("Launch.RefreshFailed");
+                        return;
+                    }
+                }
+
                 string gameDir = App.Config.GameDir;
                 string javaBaseDir = App.Config.JavaBaseDir;
 
