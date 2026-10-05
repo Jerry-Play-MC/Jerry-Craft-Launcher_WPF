@@ -7,7 +7,6 @@ using System.Linq;
 using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading;
 using System.Threading.Tasks;
 using System.Web.Script.Serialization;
 using System.Windows;
@@ -19,14 +18,29 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 {
     public partial class ClientInstallWindow : Window
     {
+        // ★ 加入 LabyMod
         private static readonly string[] LoaderTypes = {
-            "Vanilla", "Forge", "NeoForge", "Fabric", "Quilt"
+            "Vanilla", "Forge", "NeoForge", "Fabric", "LegacyFabric", "Quilt", "LabyMod"
         };
 
         private static readonly HashSet<string> LoadersIncompatibleWithOptifine =
             new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
-                "NeoForge", "Fabric", "Quilt"
+                "NeoForge", "Fabric", "LegacyFabric", "Quilt", "LabyMod"   // ★ 加入 LabyMod
+            };
+
+        // ★ LiteLoader 只在 Vanilla / Forge 下工作
+        private static readonly HashSet<string> LoadersCompatibleWithLiteLoader =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "Vanilla", "Forge"
+            };
+
+        // ★ 不需要用户选择版本的加载器（版本由远端 manifest 决定）
+        private static readonly HashSet<string> LoadersWithoutVersionChoice =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "LabyMod"
             };
 
         private const string BMCL_BASE = "https://bmclapi2.bangbang93.com";
@@ -128,22 +142,35 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             string loader = LoaderBox.SelectedItem as string;
 
-            bool incompatible = LoadersIncompatibleWithOptifine.Contains(loader ?? "");
+            bool isLabyMod = "LabyMod".Equals(loader, StringComparison.OrdinalIgnoreCase);
+            bool incompatibleOptifine = LoadersIncompatibleWithOptifine.Contains(loader ?? "");
+            bool incompatibleLiteLoader = !LoadersCompatibleWithLiteLoader.Contains(loader ?? "");
             bool isVanilla = "Vanilla".Equals(loader, StringComparison.OrdinalIgnoreCase);
+            bool needsVersionChoice = !isVanilla && !LoadersWithoutVersionChoice.Contains(loader ?? "");
 
             _suppressEvents = true;
             try
             {
-                if (incompatible) OptifineCheck.IsChecked = false;
-                OptifineCheck.IsEnabled = !incompatible;
+                // ---------- OptiFine ----------
+                if (incompatibleOptifine) OptifineCheck.IsChecked = false;
+                OptifineCheck.IsEnabled = !incompatibleOptifine && !isLabyMod;
                 if (OptifineCheck.IsChecked != true)
                     OptifineVersionBox.IsEnabled = false;
 
+                // ---------- LiteLoader ----------
+                if (incompatibleLiteLoader) LiteLoaderCheck.IsChecked = false;
+                LiteLoaderCheck.IsEnabled = !incompatibleLiteLoader && !isLabyMod;
+
+                // ---------- 加载器版本 ----------
                 LoaderVersionBox.SelectedItem = null;
                 LoaderVersionBox.ItemsSource = null;
                 _lastLoaderVersionError = null;
 
-                LoaderVersionBox.IsEnabled = !isVanilla;
+                LoaderVersionBox.IsEnabled = needsVersionChoice;
+
+                // LabyMod 没有版本可选，直接清空版本提示
+                if (isLabyMod)
+                    LoaderVersionHint.Text = "LabyMod 会自动使用最新版本，无需选择";
             }
             finally
             {
@@ -153,7 +180,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             RefreshOptifineDropdown();
             UpdateHints();
 
-            if (!isVanilla)
+            if (needsVersionChoice)
                 _ = LoadLoaderVersionsAsync(loader);
         }
 
@@ -161,6 +188,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         {
             if (string.IsNullOrEmpty(_gameVersion)) return;
             if ("Vanilla".Equals(loaderName, StringComparison.OrdinalIgnoreCase)) return;
+            if (LoadersWithoutVersionChoice.Contains(loaderName)) return;
 
             string cacheKey = loaderName + "|" + _gameVersion;
 
@@ -240,6 +268,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 case "Forge": return FetchForgeVersions(mcVersion);
                 case "NeoForge": return FetchNeoForgeVersions(mcVersion);
                 case "Fabric": return FetchFabricVersions(mcVersion);
+                case "LegacyFabric": return FetchLegacyFabricVersions(mcVersion);
                 case "Quilt": return FetchQuiltVersions(mcVersion);
             }
             return new LoaderVersionResult { Error = "Unknown loader: " + loaderName };
@@ -386,6 +415,42 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             return result;
         }
 
+        private static LoaderVersionResult FetchLegacyFabricVersions(string mcVersion)
+        {
+            var result = new LoaderVersionResult();
+            try
+            {
+                string url = "https://meta.legacyfabric.net/v2/versions/loader/"
+                           + Uri.EscapeDataString(mcVersion);
+                string json = DownloadString(url, 20000);
+
+                if (string.IsNullOrEmpty(json))
+                {
+                    result.Error = LanguageManager.Get("ClientInstall.LoaderListFailed") + " LegacyFabric";
+                    return result;
+                }
+
+                var arr = new JavaScriptSerializer().Deserialize<ArrayList>(json);
+                if (arr == null) return result;
+
+                foreach (var item in arr)
+                {
+                    var dict = item as Dictionary<string, object>;
+                    if (dict == null || !dict.ContainsKey("loader")) continue;
+                    var loader = dict["loader"] as Dictionary<string, object>;
+                    if (loader == null || !loader.ContainsKey("version")) continue;
+                    string v = Convert.ToString(loader["version"]);
+                    if (!string.IsNullOrEmpty(v)) result.Versions.Add(v);
+                }
+            }
+            catch (Exception ex)
+            {
+                result.Error = LanguageManager.Get("ClientInstall.LoaderListFailed") + " LegacyFabric: "
+                    + ex.Message;
+            }
+            return result;
+        }
+
         private static LoaderVersionResult FetchQuiltVersions(string mcVersion)
         {
             var result = new LoaderVersionResult();
@@ -447,6 +512,13 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         {
             try { return new Version(a).CompareTo(new Version(b)); }
             catch { return string.Compare(a, b, StringComparison.Ordinal); }
+        }
+
+        private void LiteLoaderCheck_Changed(object sender, RoutedEventArgs e)
+        {
+            if (_suppressEvents) return;
+            if (LiteLoaderCheck == null) return;
+            UpdateHints();
         }
 
         private void OptifineCheck_Changed(object sender, RoutedEventArgs e)
@@ -583,12 +655,17 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                         break;
                     case "NeoForge":
                     case "Fabric":
+                    case "LegacyFabric":
                     case "Quilt":
                         LoaderVersionHint.Text = LanguageManager.Get("ClientInstall.LoaderHint");
+                        break;
+                    case "LabyMod":   // ★
+                        LoaderVersionHint.Text = "LabyMod 会自动使用最新版本，无需选择";
                         break;
                 }
 
                 if (!"Vanilla".Equals(loader, StringComparison.OrdinalIgnoreCase) &&
+                    !LoadersWithoutVersionChoice.Contains(loader ?? "") &&
                     LoaderVersionBox.ItemsSource != null)
                 {
                     var entries = LoaderVersionBox.ItemsSource as List<LoaderVersionEntry>;
@@ -598,6 +675,21 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                             LanguageManager.Get("ClientInstall.LoadedCount"), count);
                     else
                         LoaderVersionHint.Text += LanguageManager.Get("ClientInstall.NoVersions");
+                }
+            }
+
+            if (LiteLoaderHint != null && LiteLoaderCheck != null)
+            {
+                if (LiteLoaderCheck.IsChecked == true)
+                {
+                    if ("Forge".Equals(loader, StringComparison.OrdinalIgnoreCase))
+                        LiteLoaderHint.Text = "将与 Forge 一起安装（合并为一个版本）";
+                    else
+                        LiteLoaderHint.Text = "将作为独立加载器安装";
+                }
+                else
+                {
+                    LiteLoaderHint.Text = "仅支持 Minecraft 1.12.2 及以下，可与 Forge 共存";
                 }
             }
 
@@ -751,6 +843,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             string gameVersion = (_gameVersion ?? "").Trim();
             string loaderName = LoaderBox.SelectedItem as string;
             string loaderVersion = (GetSelectedLoaderVersion() ?? "").Trim();
+            bool withLiteLoader = LiteLoaderCheck.IsChecked == true;
             bool withOptifine = OptifineCheck.IsChecked == true;
             var optifineItem = OptifineVersionBox.SelectedItem as OptiFineItem;
             string optifineVersion = optifineItem != null ? optifineItem.Patch : "";
@@ -764,6 +857,14 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             if (string.IsNullOrEmpty(loaderName))
                 loaderName = "Vanilla";
 
+            bool isLabyMod = "LabyMod".Equals(loaderName, StringComparison.OrdinalIgnoreCase);
+
+            if (withLiteLoader && !LoadersCompatibleWithLiteLoader.Contains(loaderName))
+            {
+                LanguageManager.ShowWarning("ClientInstall.OptifineConflict", loaderName);
+                return;
+            }
+
             if (withOptifine && LoadersIncompatibleWithOptifine.Contains(loaderName))
             {
                 LanguageManager.ShowWarning("ClientInstall.OptifineConflict", loaderName);
@@ -771,11 +872,16 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             }
 
             string loaderType = loaderName;
+            // LabyMod 没有版本选择，不拼 [版本]
             if (!string.IsNullOrEmpty(loaderVersion) &&
-                !"Vanilla".Equals(loaderName, StringComparison.OrdinalIgnoreCase))
+                !"Vanilla".Equals(loaderName, StringComparison.OrdinalIgnoreCase) &&
+                !isLabyMod)
             {
                 loaderType += "[" + loaderVersion + "]";
             }
+
+            if (withLiteLoader)
+                loaderType += "LiteLoader";
 
             if (withOptifine)
             {
@@ -806,20 +912,14 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 AppendLogLines(new List<string> {
                     "==================================================",
                     "[Launcher] " + LanguageManager.Get("ClientInstall.BeginInstall"),
-                    "[Launcher] " + LanguageManager.Get("ClientInstall.GameVersion")
-                        + "   : " + gameVersion,
-                    "[Launcher] " + LanguageManager.Get("ClientInstall.Loader")
-                        + "     : " + loaderName,
-                    "[Launcher] " + LanguageManager.Get("ClientInstall.LoaderVersion")
-                        + " : " + (string.IsNullOrEmpty(loaderVersion)
-                            ? LanguageManager.Get("ClientInstall.LatestVersionShort") : loaderVersion),
-                    "[Launcher] " + LanguageManager.Get("ClientInstall.Optifine")
-                        + "   : " + (withOptifine
-                            ? (string.IsNullOrEmpty(optifineVersion)
-                                ? LanguageManager.Get("ClientInstall.LatestVersionShort") : optifineVersion)
-                            : LanguageManager.Get("ClientInstall.DoNotInstall")),
-                    "[Launcher] " + LanguageManager.Get("ClientInstall.TargetDir")
-                        + "   : " + gameDir,
+                    "[Launcher] 游戏版本   : " + gameVersion,
+                    "[Launcher] 加载器     : " + loaderName,
+                    "[Launcher] 加载器版本 : " + (isLabyMod
+                        ? "（自动最新）"
+                        : (string.IsNullOrEmpty(loaderVersion) ? "（最新）" : loaderVersion)),
+                    "[Launcher] LiteLoader : " + (withLiteLoader ? "安装" : "不安装"),
+                    "[Launcher] OptiFine   : " + (withOptifine ? (string.IsNullOrEmpty(optifineVersion) ? "（最新）" : optifineVersion) : "不安装"),
+                    "[Launcher] 目标目录   : " + gameDir,
                     "[Launcher] loaderType : " + loaderType,
                     "=================================================="
                 });
@@ -877,11 +977,27 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
         private void SetFormEnabled(bool enabled)
         {
+            string loader = LoaderBox.SelectedItem as string;
+            bool isVanilla = "Vanilla".Equals(loader, StringComparison.OrdinalIgnoreCase);
+            bool isLabyMod = "LabyMod".Equals(loader, StringComparison.OrdinalIgnoreCase);
+            bool needsVersionChoice = !isVanilla && !LoadersWithoutVersionChoice.Contains(loader ?? "");
+
             LoaderBox.IsEnabled = enabled;
-            LoaderVersionBox.IsEnabled = enabled
-                && !"Vanilla".Equals(LoaderBox.SelectedItem as string,
-                                     StringComparison.OrdinalIgnoreCase);
-            OptifineCheck.IsEnabled = enabled;
+            LoaderVersionBox.IsEnabled = enabled && needsVersionChoice;
+
+            if (isLabyMod)
+            {
+                LiteLoaderCheck.IsEnabled = false;
+                OptifineCheck.IsEnabled = false;
+            }
+            else
+            {
+                LiteLoaderCheck.IsEnabled = enabled &&
+                    LoadersCompatibleWithLiteLoader.Contains(loader ?? "");
+                OptifineCheck.IsEnabled = enabled &&
+                    !LoadersIncompatibleWithOptifine.Contains(loader ?? "");
+            }
+
             OptifineVersionBox.IsEnabled = enabled && OptifineCheck.IsChecked == true;
         }
 
@@ -897,6 +1013,23 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     lines);
                 return;
             }
+
+            // ★ 同时把日志打印到控制台。
+            //   安装阶段 Console.Out 已被重定向到 _uiWriter（LogWriter），
+            //   若直接调 Console.WriteLine 会再次触发 AppendLogLines，形成死循环。
+            //   所以必须写回重定向之前保存的 _originalOut。
+            //   加 ReferenceEquals 双保险，避免任何情况下的自引用。
+            try
+            {
+                var original = _originalOut;
+                if (original != null && !ReferenceEquals(original, Console.Out))
+                {
+                    foreach (var line in lines)
+                        original.WriteLine(line);
+                    original.Flush();
+                }
+            }
+            catch { }
 
             LogPlaceholder.Visibility = Visibility.Collapsed;
 

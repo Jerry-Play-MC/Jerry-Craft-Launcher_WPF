@@ -68,6 +68,8 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="LabyMod.cs" />
+    <Compile Include="LiteLoader.cs" />
     <Compile Include="LoaderLauncher.cs" />
     <Compile Include="Fabric.cs" />
     <Compile Include="Forge.cs" />

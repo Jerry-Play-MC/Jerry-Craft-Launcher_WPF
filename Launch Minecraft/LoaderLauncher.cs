@@ -53,7 +53,6 @@ namespace Launch_Minecraft
         public string InitMemory { get; set; }
         public string MaxMemory { get; set; }
 
-        /// <summary>启动进度回调（可空）</summary>
         public Action<LaunchProgress> OnProgress { get; set; }
 
         public LaunchContext()
@@ -162,7 +161,6 @@ namespace Launch_Minecraft
                 libs = FilterLibraries(libs, context);
                 Console.WriteLine($"[{LoaderName}] 库数量: {libs.Count}");
 
-                // ★ 检查文件资源完整性
                 CheckAndDownloadFiles(context, os, libs);
 
                 string nativesDir = null;
@@ -185,7 +183,6 @@ namespace Launch_Minecraft
                 AppendLoaderJvmArgs(cmd, context, root);
                 AddJvmArgsFromJson(cmd, root, context, nativesDir);
 
-                // ★ 启动器统一加 -Djava.library.path
                 if (!string.IsNullOrEmpty(nativesDir))
                     cmd.Add($"-Djava.library.path={nativesDir}");
 
@@ -219,7 +216,7 @@ namespace Launch_Minecraft
         }
 
         // ============================================================
-        //   文件资源完整性检查（只检查存在性 + 0 字节，不校验 SHA1）
+        //   文件资源完整性检查
         // ============================================================
         protected void CheckAndDownloadFiles(
             LaunchContext context, string os, List<Dictionary<string, object>> libs)
@@ -228,7 +225,7 @@ namespace Launch_Minecraft
             Console.WriteLine($"[{LoaderName}] 检查文件资源完整性...");
 
             string libDir = Path.Combine(context.MinecraftDir, "libraries");
-            int missing = 0, downloaded = 0, skippedNoUrl = 0, failed = 0;
+            int missing = 0, downloaded = 0, skippedNoUrl = 0, skippedNatives = 0, failed = 0;
             var failedNames = new List<string>();
 
             foreach (var lib in libs)
@@ -270,6 +267,21 @@ namespace Launch_Minecraft
 
                 missing++;
 
+                // natives-only 占位库（同时有 natives 字段或名字带 -platform），
+                // 主 jar 在 Maven 上不存在，缺失是正常现象，不应触发下载
+                bool isNativesOnly =
+                    lib.ContainsKey("natives") ||
+                    (lib.ContainsKey("name") &&
+                     Convert.ToString(lib["name"])
+                           .IndexOf("-platform", StringComparison.OrdinalIgnoreCase) >= 0);
+
+                if (isNativesOnly)
+                {
+                    Console.WriteLine($"[{LoaderName}] [Files] 跳过 natives-only 占位库：{relPath}");
+                    skippedNatives++;
+                    continue;
+                }
+
                 if (string.IsNullOrEmpty(url))
                 {
                     Console.WriteLine($"[{LoaderName}] [Files] 缺少且无 URL，跳过：{relPath}");
@@ -292,7 +304,8 @@ namespace Launch_Minecraft
             }
 
             Console.WriteLine($"[{LoaderName}] [Files] 检查完成：缺失 {missing}，" +
-                              $"下载 {downloaded}，无 URL 跳过 {skippedNoUrl}，失败 {failed}");
+                              $"下载 {downloaded}，无 URL 跳过 {skippedNoUrl}，" +
+                              $"natives 跳过 {skippedNatives}，失败 {failed}");
 
             if (failed > 0)
             {
@@ -301,6 +314,76 @@ namespace Launch_Minecraft
                 throw new Exception(
                     $"有 {failed} 个文件下载失败（网络原因），请检查网络后重试。\n例如：{names}");
             }
+        }
+
+        /// <summary>
+        /// 从启动器缓存的 LiteLoader 安装器 jar 中提取本体。
+        /// 安装器位置：exe目录\Launcher Setting\Mode Loader Installer\liteloader-installer-*.jar
+        /// 安装器内部的 liteloader 本体为 liteloader-*-release.jar。
+        /// </summary>
+        private static bool TryExtractLiteLoaderFromInstaller(string targetPath)
+        {
+            string launcherDir = AppDomain.CurrentDomain.BaseDirectory;
+            string cacheDir = Path.Combine(launcherDir,
+                                           "Launcher Setting", "Mode Loader Installer");
+
+            if (!Directory.Exists(cacheDir)) return false;
+
+            string[] installers;
+            try { installers = Directory.GetFiles(cacheDir, "liteloader-installer-*.jar"); }
+            catch { return false; }
+
+            if (installers.Length == 0) return false;
+
+            foreach (var installer in installers)
+            {
+                try
+                {
+                    using (var fs = File.OpenRead(installer))
+                    using (var zip = new ZipArchive(fs, ZipArchiveMode.Read))
+                    {
+                        // 遍历所有条目，找出 liteloader 本体：
+                        //   - 文件名以 "liteloader-" 开头
+                        //   - 以 ".jar" 结尾
+                        //   - 名字里不含 "installer"（排除安装器自身）
+                        //   - 名字里含 "-release" 或形如 liteloader-<版本>.jar
+                        foreach (var entry in zip.Entries)
+                        {
+                            string name = entry.Name;
+                            if (string.IsNullOrEmpty(name)) continue;
+
+                            if (!name.StartsWith("liteloader-", StringComparison.OrdinalIgnoreCase))
+                                continue;
+                            if (!name.EndsWith(".jar", StringComparison.OrdinalIgnoreCase))
+                                continue;
+                            if (name.IndexOf("installer", StringComparison.OrdinalIgnoreCase) >= 0)
+                                continue;
+                            if (entry.Length < 1000) continue;   // 明显不是本体的小文件
+
+                            string dir = Path.GetDirectoryName(targetPath);
+                            if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                                Directory.CreateDirectory(dir);
+
+                            using (var es = entry.Open())
+                            using (var outFs = File.Create(targetPath))
+                            {
+                                es.CopyTo(outFs);
+                            }
+
+                            Console.WriteLine($"[Java/LiteLoader] 从安装器提取: {name} -> {targetPath}");
+                            Console.WriteLine($"[Java/LiteLoader] 安装器: {installer}");
+
+                            return true;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[Java/LiteLoader] 处理 {installer} 失败: {ex.Message}");
+                }
+            }
+
+            return false;
         }
 
         private static void DownloadFileSimple(string url, string dest)
@@ -361,9 +444,6 @@ namespace Launch_Minecraft
             return false;
         }
 
-        // ============================================================
-        //   判断是否为 1.19+ natives 布局
-        // ============================================================
         private static bool HasModernNativeLayout(Dictionary<string, object> root)
         {
             if (!root.ContainsKey("arguments")) return false;
@@ -397,9 +477,6 @@ namespace Launch_Minecraft
             return false;
         }
 
-        // ============================================================
-        //   Java 主版本推断
-        // ============================================================
         protected static int GetRequiredJavaMajorVersion(
             Dictionary<string, object> root, string fallbackVersionName)
         {
@@ -428,7 +505,7 @@ namespace Launch_Minecraft
             return InferJavaMajorFromGameVersion(gameVersion);
         }
 
-        protected static int InferJavaMajorFromGameVersion(string version)
+        internal static int InferJavaMajorFromGameVersion(string version)
         {
             if (string.IsNullOrEmpty(version)) return 8;
 
@@ -743,6 +820,18 @@ namespace Launch_Minecraft
         protected static bool IsLibraryAllowed(
             Dictionary<string, object> lib, string side, string os, string arch)
         {
+            // ★ 过滤掉 Legacy Fabric 提供的 LWJGL 补丁版
+            if (lib.ContainsKey("name"))
+            {
+                string n = Convert.ToString(lib["name"]);
+                if (!string.IsNullOrEmpty(n) &&
+                    n.StartsWith("org.lwjgl.lwjgl:", StringComparison.OrdinalIgnoreCase) &&
+                    n.IndexOf("+legacyfabric", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    return false;
+                }
+            }
+
             if (!lib.ContainsKey("rules")) return true;
             var rules = lib["rules"] as ArrayList;
             if (rules == null || rules.Count == 0) return true;
@@ -999,8 +1088,8 @@ namespace Launch_Minecraft
         }
 
         protected void AddJvmArgsFromJson(
-            List<string> cmd, Dictionary<string, object> root,
-            LaunchContext context, string nativesDir)
+    List<string> cmd, Dictionary<string, object> root,
+    LaunchContext context, string nativesDir)
         {
             if (!root.ContainsKey("arguments")) return;
             var argsObj = root["arguments"] as Dictionary<string, object>;
@@ -1033,7 +1122,7 @@ namespace Launch_Minecraft
                             {
                                 if (sub is string subStr)
                                     cmd.Add(ReplaceJvmPlaceholders(subStr,
-                                        context, libDir, nativesDir, classpathSep));
+                                        context, root, libDir, nativesDir, classpathSep));
                             }
                             continue;
                         }
@@ -1042,6 +1131,8 @@ namespace Launch_Minecraft
 
                 if (string.IsNullOrEmpty(arg)) continue;
 
+                // -cp / -classpath / --class-path：由 BuildClasspathEntries 统一处理，
+                // 这里跳过它及后面紧跟的路径参数
                 if (arg == "-cp" || arg == "-classpath" || arg == "--class-path")
                 {
                     if (i + 1 < jvmList.Count && jvmList[i + 1] is string next
@@ -1050,10 +1141,11 @@ namespace Launch_Minecraft
                     continue;
                 }
 
+                // java.library.path 由外部统一追加，避免重复
                 if (arg.StartsWith("-Djava.library.path", StringComparison.OrdinalIgnoreCase))
                     continue;
 
-                cmd.Add(ReplaceJvmPlaceholders(arg, context, libDir, nativesDir, classpathSep));
+                cmd.Add(ReplaceJvmPlaceholders(arg, context, root, libDir, nativesDir, classpathSep));
             }
         }
 
@@ -1090,17 +1182,37 @@ namespace Launch_Minecraft
         }
 
         protected string ReplaceJvmPlaceholders(
-            string s, LaunchContext context,
-            string libDir, string nativesDir, string cpSep)
+    string s, LaunchContext context, Dictionary<string, object> root,
+    string libDir, string nativesDir, string cpSep)
         {
             if (string.IsNullOrEmpty(s)) return s;
+
+            string assetsRoot = Path.Combine(context.MinecraftDir, "assets");
+            string assetIndexId = GetAssetIndexId(root, context.MinecraftDir);
+
             return s
                 .Replace("${library_directory}", libDir)
+                .Replace("${libraries_directory}", libDir)
                 .Replace("${natives_directory}", nativesDir ?? "")
                 .Replace("${launcher_name}", "LaunchMinecraft")
                 .Replace("${launcher_version}", "1.0")
                 .Replace("${classpath_separator}", cpSep)
-                .Replace("${version_name}", context.VersionName);
+                .Replace("${version_name}", context.VersionName)
+                // ★ 本次新增：让 JVM 段也能用这些占位符
+                .Replace("${game_directory}", context.GetGameDir())
+                .Replace("${assets_root}", assetsRoot)
+                .Replace("${assets_index_name}", assetIndexId)
+                .Replace("${auth_player_name}", context.Username)
+                .Replace("${auth_uuid}", context.Uuid)
+                .Replace("${auth_access_token}", context.AccessToken)
+                .Replace("${auth_session}", context.AccessToken)
+                .Replace("${user_type}", context.UserType)
+                .Replace("${user_properties}", "{}")
+                .Replace("${version_type}", "release")
+                .Replace("${clientid}", "0")
+                .Replace("${auth_xuid}", "")
+                .Replace("${resolution_width}", context.Width.ToString())
+                .Replace("${resolution_height}", context.Height.ToString());
         }
 
         protected void AppendServerGameArgs(
@@ -1479,10 +1591,40 @@ namespace Launch_Minecraft
             public int Major;
         }
 
+        /// <summary>启动器内置 Java 根目录：exe目录\Launcher Setting\Java</summary>
+        public static string GetBuiltInJavaRoot()
+        {
+            return Path.Combine(AppDomain.CurrentDomain.BaseDirectory,
+                                "Launcher Setting", "Java");
+        }
+
+        /// <summary>
+        /// 查找 Java。
+        /// 优先级：
+        ///   1) 启动器内置：Launcher Setting\Java\{requiredMajor}\bin\java.exe
+        ///   2) 用户指定 javaBaseDir 及它的一级子目录
+        ///   3) 注册表（各种 JDK 发行版）
+        /// 都找不到就抛异常，由 UI 层捕获后引导下载。
+        /// </summary>
         public static string Find(int requiredMajor, string javaBaseDir)
         {
             var candidates = new List<JavaCandidate>();
 
+            // 1) 内置 Java
+            string builtIn = Path.Combine(GetBuiltInJavaRoot(),
+                                          requiredMajor.ToString(), "bin", "java.exe");
+            if (File.Exists(builtIn))
+            {
+                int actual = GetJavaMajorVersion(builtIn);
+                if (actual == requiredMajor)
+                {
+                    Console.WriteLine($"[Java] 使用内置 Java {requiredMajor}: {builtIn}");
+                    return builtIn;
+                }
+                Console.WriteLine($"[Java] 内置 Java 版本不符（需要 {requiredMajor}，实际 {actual}）: {builtIn}");
+            }
+
+            // 2) 用户指定目录
             if (!string.IsNullOrEmpty(javaBaseDir))
             {
                 if (Directory.Exists(javaBaseDir))
@@ -1493,25 +1635,60 @@ namespace Launch_Minecraft
                     if (candidates.Count > 0)
                         Console.WriteLine($"[Java] 从指定目录找到 {candidates.Count} 个 Java");
                     else
-                        Console.WriteLine($"[Java] 指定目录中未找到任何 Java，回退到注册表扫描");
+                        Console.WriteLine($"[Java] 指定目录中未找到任何 Java，继续扫描注册表");
                 }
                 else
                 {
-                    Console.WriteLine($"[Java] 警告: 指定目录不存在: {javaBaseDir}，回退到注册表扫描");
+                    Console.WriteLine($"[Java] 警告: 指定目录不存在: {javaBaseDir}，继续扫描注册表");
                 }
             }
 
+            // 3) 注册表
             ScanAllRegistryPaths(candidates);
 
             if (candidates.Count == 0)
                 throw new Exception(
-                    $"未找到任何 Java 运行时（已扫描指定目录 + 注册表）。" +
-                    $"请安装 Java {requiredMajor} 后重试。\n" +
-                    "提示：可把 Java 所在目录作为第 5 个参数传入，程序会优先在那里查找。");
+                    $"未找到任何 Java 运行时（已扫描内置目录 + 指定目录 + 注册表）。\n" +
+                    $"请通过启动器下载 Java {requiredMajor}（启动前会弹出提示），\n" +
+                    $"或手动放置到：\n" +
+                    $"  {Path.Combine(GetBuiltInJavaRoot(), requiredMajor.ToString())}\\bin\\java.exe");
 
             return PickBest(candidates, requiredMajor);
         }
 
+        /// <summary>
+        /// 只判断是否存在精确匹配 requiredMajor 的 Java（不返回路径）。
+        /// 用于 UI 预检，避免"有 Java 8 但版本不精确"时误报。
+        /// </summary>
+        public static bool HasExact(int requiredMajor, string javaBaseDir)
+        {
+            try
+            {
+                // 1) 内置
+                string builtIn = Path.Combine(GetBuiltInJavaRoot(),
+                                              requiredMajor.ToString(), "bin", "java.exe");
+                if (File.Exists(builtIn) && GetJavaMajorVersion(builtIn) == requiredMajor)
+                    return true;
+
+                // 2) 用户指定目录 + 注册表
+                var candidates = new List<JavaCandidate>();
+
+                if (!string.IsNullOrEmpty(javaBaseDir) && Directory.Exists(javaBaseDir))
+                    ScanJavaBaseDir(javaBaseDir, candidates);
+
+                ScanAllRegistryPaths(candidates);
+
+                foreach (var c in candidates)
+                    if (c.Major == requiredMajor) return true;
+
+                return false;
+            }
+            catch { return false; }
+        }
+
+        // ============================================================
+        //   用户指定目录扫描
+        // ============================================================
         private static void ScanJavaBaseDir(string baseDir, List<JavaCandidate> list)
         {
             TryAddCandidate(list, baseDir);
@@ -1527,8 +1704,13 @@ namespace Launch_Minecraft
             }
         }
 
+        // ============================================================
+        //   注册表扫描
+        // ============================================================
         private static void ScanAllRegistryPaths(List<JavaCandidate> list)
         {
+            Console.WriteLine("[Java] 开始扫描注册表...");
+
             string[] javaSoftBasePaths = {
                 @"SOFTWARE\JavaSoft\Java Development Kit",
                 @"SOFTWARE\JavaSoft\Java Runtime Environment",
@@ -1591,6 +1773,8 @@ namespace Launch_Minecraft
 
             foreach (var basePath in microsoftPaths)
                 ScanRegistryKey(basePath, list, "JavaHome");
+
+            Console.WriteLine($"[Java] 注册表扫描完成，累计 {list.Count} 个候选");
         }
 
         private static void ScanRegistryKey(
@@ -1746,6 +1930,9 @@ namespace Launch_Minecraft
             }
         }
 
+        // ============================================================
+        //   候选管理
+        // ============================================================
         private static void TryAddCandidate(List<JavaCandidate> list, string javaHome)
         {
             if (string.IsNullOrEmpty(javaHome)) return;
@@ -1777,13 +1964,11 @@ namespace Launch_Minecraft
         private static string PickBest(List<JavaCandidate> candidates, int requiredMajor)
         {
             foreach (var c in candidates)
-            {
                 if (c.Major == requiredMajor)
                 {
                     Console.WriteLine($"[Java] 精确匹配到 Java {requiredMajor}: {c.Path}");
                     return c.Path;
                 }
-            }
 
             JavaCandidate bestGreater = null;
             JavaCandidate bestClosest = null;
@@ -1791,15 +1976,12 @@ namespace Launch_Minecraft
             foreach (var c in candidates)
             {
                 if (c.Major >= requiredMajor)
-                {
                     if (bestGreater == null || c.Major < bestGreater.Major)
                         bestGreater = c;
-                }
+
                 if (bestClosest == null ||
                     Math.Abs(c.Major - requiredMajor) < Math.Abs(bestClosest.Major - requiredMajor))
-                {
                     bestClosest = c;
-                }
             }
 
             JavaCandidate chosen = bestGreater ?? bestClosest;

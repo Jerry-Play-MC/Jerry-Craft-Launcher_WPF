@@ -16,30 +16,24 @@ namespace Install_Minecraft_Versions
             public string NeoForgeVersion;
             public bool HasFabric;
             public string FabricVersion;
+            public bool HasLegacyFabric;          // ★
+            public string LegacyFabricVersion;    // ★
             public bool HasQuilt;
             public string QuiltVersion;
             public bool HasOptiFine;
             public string OptiFineVersion;
+            public bool HasLiteLoader;
+            public string LiteLoaderVersion;
+            public bool HasLabyMod;               // ★
 
             public bool IsEmpty()
             {
                 return !HasVanilla && !HasForge && !HasNeoForge
-                    && !HasFabric && !HasQuilt && !HasOptiFine;
+                    && !HasFabric && !HasLegacyFabric && !HasQuilt
+                    && !HasOptiFine && !HasLiteLoader && !HasLabyMod;
             }
         }
 
-        // ============================================================
-        //   新的公开入口：替代原来的 Main
-        // ============================================================
-        /// <summary>
-        /// 安装 Minecraft 版本及加载器。
-        /// </summary>
-        /// <param name="minecraftType">client / server</param>
-        /// <param name="loaderType">加载器组合，如 "Vanilla" / "Forge[47.2.0]" / "Forge[47.2.0]OptiFine[I6]"</param>
-        /// <param name="version">游戏版本，如 "1.20.1"</param>
-        /// <param name="minecraftPath">.minecraft 路径</param>
-        /// <param name="loaderVersionList">manifest 目录，或 "none"</param>
-        /// <returns>0 = 成功，1 = 失败</returns>
         public static int Run(string minecraftType, string loaderType, string version,
                               string minecraftPath, string loaderVersionList)
         {
@@ -51,9 +45,6 @@ namespace Install_Minecraft_Versions
                 ServicePointManager.DefaultConnectionLimit = 64;
                 ServicePointManager.Expect100Continue = false;
                 ServicePointManager.UseNagleAlgorithm = false;
-
-                // 注意：原来的 StartExitListener 已删除，
-                // 那是给 CLI 用的 Console.ReadLine 监听，GUI 里没意义。
 
                 if (string.IsNullOrEmpty(minecraftType))
                     throw new ArgumentException("minecraftType 不能为空");
@@ -72,12 +63,15 @@ namespace Install_Minecraft_Versions
                                   $"版本={version} | 路径={minecraftPath} | " +
                                   $"manifest={loaderVersionList}");
                 Console.WriteLine($"[参数] 解析结果：");
-                Console.WriteLine($"[参数]   Vanilla  = {spec.HasVanilla}");
-                Console.WriteLine($"[参数]   Forge    = {spec.HasForge} ({spec.ForgeVersion ?? "latest"})");
-                Console.WriteLine($"[参数]   NeoForge = {spec.HasNeoForge} ({spec.NeoForgeVersion ?? "latest"})");
-                Console.WriteLine($"[参数]   Fabric   = {spec.HasFabric} ({spec.FabricVersion ?? "latest"})");
-                Console.WriteLine($"[参数]   Quilt    = {spec.HasQuilt} ({spec.QuiltVersion ?? "latest"})");
-                Console.WriteLine($"[参数]   OptiFine = {spec.HasOptiFine} ({spec.OptiFineVersion ?? "latest"})");
+                Console.WriteLine($"[参数]   Vanilla      = {spec.HasVanilla}");
+                Console.WriteLine($"[参数]   Forge        = {spec.HasForge} ({spec.ForgeVersion ?? "latest"})");
+                Console.WriteLine($"[参数]   NeoForge     = {spec.HasNeoForge} ({spec.NeoForgeVersion ?? "latest"})");
+                Console.WriteLine($"[参数]   Fabric       = {spec.HasFabric} ({spec.FabricVersion ?? "latest"})");
+                Console.WriteLine($"[参数]   LegacyFabric = {spec.HasLegacyFabric} ({spec.LegacyFabricVersion ?? "latest"})");
+                Console.WriteLine($"[参数]   Quilt        = {spec.HasQuilt} ({spec.QuiltVersion ?? "latest"})");
+                Console.WriteLine($"[参数]   LiteLoader   = {spec.HasLiteLoader} ({spec.LiteLoaderVersion ?? "latest"})");
+                Console.WriteLine($"[参数]   OptiFine     = {spec.HasOptiFine} ({spec.OptiFineVersion ?? "latest"})");
+                Console.WriteLine($"[参数]   LabyMod      = {spec.HasLabyMod}");
 
                 if (spec.IsEmpty())
                     throw new ArgumentException($"无法识别任何加载器：{loaderType}");
@@ -97,9 +91,11 @@ namespace Install_Minecraft_Versions
                 // ============================================================
                 if (minecraftType == "client")
                 {
+                    string forgeVersionId = null;
+
                     if (spec.HasForge)
                     {
-                        Forge.InstallClient(version, minecraftPath,
+                        forgeVersionId = Forge.InstallClient(version, minecraftPath,
                             spec.ForgeVersion ?? loaderVersionList);
                     }
                     else if (spec.HasNeoForge)
@@ -112,10 +108,36 @@ namespace Install_Minecraft_Versions
                         Fabric.InstallClient(version, minecraftPath,
                             spec.FabricVersion ?? loaderVersionList);
                     }
+                    else if (spec.HasLegacyFabric)
+                    {
+                        LegacyFabric.InstallClient(version, minecraftPath,
+                            spec.LegacyFabricVersion ?? loaderVersionList);
+                    }
                     else if (spec.HasQuilt)
                     {
                         Quilt.InstallClient(version, minecraftPath,
                             spec.QuiltVersion ?? loaderVersionList);
+                    }
+                    else if (spec.HasLabyMod)   // ★
+                    {
+                        // LabyMod 是独立的完整客户端，与其它加载器互斥
+                        LabyMod.InstallClient(version, minecraftPath, loaderVersionList);
+                    }
+
+                    // ★ LiteLoader 独立处理
+                    if (spec.HasLiteLoader)
+                    {
+                        if (!string.IsNullOrEmpty(forgeVersionId))
+                        {
+                            Console.WriteLine($"[LiteLoader] 与 Forge 组合，继承版本 {forgeVersionId}");
+                            LiteLoader.InstallClientForForge(version, minecraftPath,
+                                spec.LiteLoaderVersion ?? loaderVersionList, forgeVersionId);
+                        }
+                        else
+                        {
+                            LiteLoader.InstallClient(version, minecraftPath,
+                                spec.LiteLoaderVersion ?? loaderVersionList);
+                        }
                     }
 
                     if (spec.HasOptiFine)
@@ -157,9 +179,6 @@ namespace Install_Minecraft_Versions
             }
         }
 
-        // ============================================================
-        //  以下全部保持原样
-        // ============================================================
         private static LoaderSpec ParseLoaderSpec(string spec)
         {
             var result = new LoaderSpec();
@@ -173,10 +192,28 @@ namespace Install_Minecraft_Versions
                 result.NeoForgeVersion = v;
             });
 
+            work = TryExtract(work, "LiteLoader", v =>
+            {
+                result.HasLiteLoader = true;
+                result.LiteLoaderVersion = v;
+            });
+
+            work = TryExtract(work, "LabyMod", v =>   // ★
+            {
+                result.HasLabyMod = true;
+            });
+
             work = TryExtract(work, "OptiFine", v =>
             {
                 result.HasOptiFine = true;
                 result.OptiFineVersion = v;
+            });
+
+            // ★ 必须在 Fabric 之前提取，否则 "Fabric" 会先吃掉 "LegacyFabric"
+            work = TryExtract(work, "LegacyFabric", v =>
+            {
+                result.HasLegacyFabric = true;
+                result.LegacyFabricVersion = v;
             });
 
             work = TryExtract(work, "Forge", v =>

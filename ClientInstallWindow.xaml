@@ -75,6 +75,19 @@
                                    Margin="0,4,0,0"
                                    TextWrapping="Wrap"/>
 
+                        <!-- LiteLoader -->
+                        <CheckBox x:Name="LiteLoaderCheck"
+                                  Content="LiteLoader"
+                                  FontSize="13"
+                                  Margin="0,18,0,0"
+                                  Checked="LiteLoaderCheck_Changed"
+                                  Unchecked="LiteLoaderCheck_Changed"/>
+                        <TextBlock x:Name="LiteLoaderHint"
+                                   Text="仅支持 Minecraft 1.12.2 及以下，可与 Forge 共存"
+                                   FontSize="11" Foreground="#999999"
+                                   Margin="0,4,0,0"
+                                   TextWrapping="Wrap"/>
+
                         <!-- OptiFine -->
                         <CheckBox x:Name="OptifineCheck"
                                   Content="{DynamicResource ClientInstall.Optifine}"

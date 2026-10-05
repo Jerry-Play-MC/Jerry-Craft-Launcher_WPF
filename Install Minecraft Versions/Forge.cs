@@ -40,7 +40,7 @@ namespace Install_Minecraft_Versions
         private static int _lastProgressTick = 0;
 
         // ===================== 客户端 =====================
-        public static void InstallClient(string version, string minecraftDir, string loaderParam)
+        public static string InstallClient(string version, string minecraftDir, string loaderParam)
         {
             if (string.IsNullOrEmpty(version))
                 throw new ArgumentException("版本号不能为空", "version");
@@ -112,9 +112,7 @@ namespace Install_Minecraft_Versions
                 if (tasks.Count > 0)
                     ParallelDownload(tasks, MAX_CONCURRENCY);
 
-                // ============================================================
-                // ★ 合并父版本 JSON（展开 inheritsFrom，对标 PCL）
-                // ============================================================
+                // 合并父版本 JSON
                 if (versionJson.ContainsKey("inheritsFrom"))
                 {
                     string parentId = versionJson["inheritsFrom"].ToString();
@@ -167,6 +165,7 @@ namespace Install_Minecraft_Versions
                 }
 
                 Log($"[Forge] 客户端 Forge {version} 安装完成");
+                return versionId;   // ★ 返回版本 ID，供 LiteLoader 组合使用
             }
             finally
             {

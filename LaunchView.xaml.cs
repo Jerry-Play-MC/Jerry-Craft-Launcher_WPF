@@ -2,6 +2,7 @@
 using Launch_Minecraft;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
@@ -163,9 +164,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             }
         }
 
-        /// <summary>
-        /// 刷新全部微软账号的令牌（在线程池里跑，成功后通知 UI 更新）。
-        /// </summary>
         private async void RefreshAllRoles_Click(object sender, RoutedEventArgs e)
         {
             var btn = sender as Button;
@@ -211,9 +209,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             }
         }
 
-        /// <summary>
-        /// 刷新单个账号的令牌。
-        /// </summary>
         private async void RefreshRoleToken_Click(object sender, RoutedEventArgs e)
         {
             var btn = sender as Button;
@@ -290,6 +285,9 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             e.Handled = true;
         }
 
+        // ============================================================
+        //   ★ 启动按钮：Java 预检走三层查找（内置 / 指定目录 / 注册表）
+        // ============================================================
         private async void LaunchButton_Click(object sender, RoutedEventArgs e)
         {
             string version = App.Config.CurrentVersion;
@@ -315,12 +313,55 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             try
             {
-                // ★ 启动前：正版账号检查令牌是否过期，过期就同步刷新一次
+                string gameDir = App.Config.GameDir;
+                string javaBaseDir = App.Config.JavaBaseDir;
+
+                // ============================================================
+                // ★ Java 预检：三层查找（内置 / 指定目录 / 注册表）
+                // ============================================================
+                string versionJsonPath = Path.Combine(gameDir,
+                                                      "versions", version, version + ".json");
+                int requiredJava = Launch_Minecraft.GameLauncher
+                    .DetectRequiredJavaMajor(versionJsonPath);
+
+                bool hasJava = Launch_Minecraft.GameLauncher
+                    .HasExactJava(requiredJava, javaBaseDir);
+
+                if (!hasJava)
+                {
+                    var confirm = MessageBox.Show(
+                        $"运行「{version}」需要 Java {requiredJava}。\n" +
+                        $"启动器尚未找到该版本（约 50 MB）。\n\n" +
+                        $"是否现在下载？",
+                        $"需要下载 Java {requiredJava}",
+                        MessageBoxButton.YesNo,
+                        MessageBoxImage.Question);
+
+                    if (confirm != MessageBoxResult.Yes)
+                        return;
+
+                    CurrentVersionText.Text = $"正在下载 Java {requiredJava}...";
+
+                    bool ok = await JavaRuntimeHelper.DownloadJavaAsync(requiredJava);
+                    if (!ok)
+                    {
+                        LanguageManager.ShowError("Launch.Error",
+                            $"Java {requiredJava} 下载失败，请检查网络后重试。");
+                        return;
+                    }
+
+                    MessageBox.Show($"Java {requiredJava} 下载完成，正在启动游戏...",
+                                    "下载成功",
+                                    MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+
+                // ============================================================
+                // 正版账号令牌检查
+                // ============================================================
                 if (string.Equals(role.Type, "Microsoft", StringComparison.OrdinalIgnoreCase)
                     && MinecraftTokenHelper.IsExpired(role.AccessToken, 60))
                 {
-                    CurrentVersionText.Text =
-                        LanguageManager.Get("Launch.RefreshingToken");
+                    CurrentVersionText.Text = LanguageManager.Get("Launch.RefreshingToken");
 
                     bool ok = await Task.Run(() => App.RefreshRoleToken(role));
                     if (!ok)
@@ -329,9 +370,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                         return;
                     }
                 }
-
-                string gameDir = App.Config.GameDir;
-                string javaBaseDir = App.Config.JavaBaseDir;
 
                 bool isolated = SettingsManager.GetIsolationGameData();
                 App.Config.Isolated = isolated;

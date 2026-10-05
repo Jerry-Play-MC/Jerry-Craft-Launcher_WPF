@@ -90,6 +90,7 @@
     <Compile Include="ClientInstallWindow.xaml.cs">
       <DependentUpon>ClientInstallWindow.xaml</DependentUpon>
     </Compile>
+    <Compile Include="JavaRuntimeHelper.cs" />
     <Compile Include="Languages\FontManager.cs" />
     <Compile Include="Languages\LanguageManager.cs" />
     <Compile Include="LogWriter.cs" />

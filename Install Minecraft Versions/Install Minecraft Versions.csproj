@@ -71,6 +71,9 @@
   <ItemGroup>
     <Compile Include="Fabric.cs" />
     <Compile Include="Forge.cs" />
+    <Compile Include="LabyMod.cs" />
+    <Compile Include="LegacyFabric.cs" />
+    <Compile Include="LiteLoader.cs" />
     <Compile Include="NeoForge.cs" />
     <Compile Include="OptiFine.cs" />
     <Compile Include="Program.cs" />
