@@ -1,21 +1,38 @@
 <Solution>
   <Configurations>
     <Platform Name="Any CPU" />
+    <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
-  <Project Path="Download Java/Download Java.csproj" Id="63055919-2791-49ce-8bf4-c9e2111ec160">
-    <Platform Solution="*|x86" Project="x86" />
-  </Project>
-  <Project Path="Install Minecraft Versions/Install Minecraft Versions.csproj" Id="cc07ad9f-ebed-4ede-9282-a9791d1bd633">
-    <Platform Solution="*|x86" Project="x86" />
-  </Project>
+  <Folder Name="/Bedrock/">
+    <Project Path="Install Versions/Install Versions.csproj" Id="3ace7ea0-6d67-4f31-b35e-c30e561ab14b" />
+    <Project Path="Launch Bedrock/Launch Bedrock.csproj" Id="510b1a0d-8aac-412c-bf83-3d38df0e6f7b">
+      <Platform Solution="Release|x64" Project="x64" />
+    </Project>
+    <Project Path="Launch Bedrock/Native/BootStrap/BootStrap.vcxproj" Id="30dd98da-aa22-40dc-be7f-041bbce8c46c" />
+    <Project Path="Launch Bedrock/Native/Preload/Preload.csproj" Id="5145abb7-4b6a-4544-8f3d-aa2064c8f745" />
+  </Folder>
+  <Folder Name="/Java/">
+    <Project Path="Download Java/Download Java.csproj" Id="63055919-2791-49ce-8bf4-c9e2111ec160">
+      <Platform Solution="*|x86" Project="x86" />
+      <Platform Solution="Debug|x64" Project="x86" />
+    </Project>
+    <Project Path="Install Minecraft Versions/Install Minecraft Versions.csproj" Id="cc07ad9f-ebed-4ede-9282-a9791d1bd633">
+      <Platform Solution="*|x86" Project="x86" />
+      <Platform Solution="Debug|x64" Project="x86" />
+    </Project>
+    <Project Path="Launch Minecraft/Launch Minecraft.csproj" Id="f0f5c8cf-8ad0-4a01-a82f-fa255112e98e">
+      <Platform Solution="*|x86" Project="x86" />
+      <Platform Solution="Debug|x64" Project="x86" />
+    </Project>
+  </Folder>
   <Project Path="Jerry Craft Launcher .NET Framework 4.5 WPF.csproj" Id="cc4de3d2-cb2c-457c-bb08-e381841646c5">
     <BuildDependency Project="Download Java/Download Java.csproj" />
     <BuildDependency Project="Install Minecraft Versions/Install Minecraft Versions.csproj" />
+    <BuildDependency Project="Install Versions/Install Versions.csproj" />
+    <BuildDependency Project="Launch Bedrock/Launch Bedrock.csproj" />
     <BuildDependency Project="Launch Minecraft/Launch Minecraft.csproj" />
     <Platform Solution="*|x86" Project="x86" />
-  </Project>
-  <Project Path="Launch Minecraft/Launch Minecraft.csproj" Id="f0f5c8cf-8ad0-4a01-a82f-fa255112e98e">
-    <Platform Solution="*|x86" Project="x86" />
+    <Platform Solution="Debug|x64" Project="x86" />
   </Project>
 </Solution>

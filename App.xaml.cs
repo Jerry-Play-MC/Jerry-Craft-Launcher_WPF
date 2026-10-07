@@ -12,9 +12,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
         protected override void OnStartup(StartupEventArgs e)
         {
-            // 测试用：模拟系统语言，测完注释掉
-            // System.Threading.Thread.CurrentThread.CurrentUICulture = new System.Globalization.CultureInfo("ar-SA");
-
             base.OnStartup(e);
 
             // 1. 原生库
@@ -50,7 +47,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             try
             {
                 NativeLibraryLoader.LoadEmbeddedDll(
-                    root + ".libwebp_x86.dll", "libwebp_x86.dll");
+                    root + ".Java.libwebp_x86.dll", "libwebp_x86.dll");
             }
             catch (Exception ex)
             {

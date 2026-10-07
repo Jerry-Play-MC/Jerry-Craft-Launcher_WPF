@@ -1198,7 +1198,6 @@ namespace Launch_Minecraft
                 .Replace("${launcher_version}", "1.0")
                 .Replace("${classpath_separator}", cpSep)
                 .Replace("${version_name}", context.VersionName)
-                // ★ 本次新增：让 JVM 段也能用这些占位符
                 .Replace("${game_directory}", context.GetGameDir())
                 .Replace("${assets_root}", assetsRoot)
                 .Replace("${assets_index_name}", assetIndexId)

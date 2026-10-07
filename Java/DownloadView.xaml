@@ -29,24 +29,6 @@
                              Tag="Mod"
                              Checked="SubNav_Checked"
                              Margin="0,2,0,0"/>
-                <RadioButton GroupName="DownloadSubNav"
-                             Content="{DynamicResource Download.Modpack}"
-                             Style="{StaticResource SubNavButtonStyle}"
-                             Tag="Modpack"
-                             Checked="SubNav_Checked"
-                             Margin="0,2,0,0"/>
-                <RadioButton GroupName="DownloadSubNav"
-                             Content="{DynamicResource Download.Datapack}"
-                             Style="{StaticResource SubNavButtonStyle}"
-                             Tag="Datapack"
-                             Checked="SubNav_Checked"
-                             Margin="0,2,0,0"/>
-                <RadioButton GroupName="DownloadSubNav"
-                             Content="{DynamicResource Download.Shader}"
-                             Style="{StaticResource SubNavButtonStyle}"
-                             Tag="Shader"
-                             Checked="SubNav_Checked"
-                             Margin="0,2,0,0"/>
             </StackPanel>
         </Border>
 
