@@ -6,6 +6,7 @@ using System.IO;
 using System.Net;
 using System.Text;
 using System.Web.Script.Serialization;
+using static Jerry_Craft_Launcher.NET_Framework_4._5_WPF.App.AppLog;
 
 namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 {
@@ -50,12 +51,12 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
         public string AuthenticateAndSave(string filePath = null)
         {
-            Log("========== 开始认证流程 ==========");
+            recordLog(LogLevel.Info, "========== 开始认证流程 ==========");
             DeviceAuthResult azureResult = GetAzureTokenByDeviceCode();
 
             try
             {
-                Log("[认证] 正在将 Azure Token 交换为 Minecraft Token...");
+                recordLog(LogLevel.Info, "[认证] 正在将 Azure Token 交换为 Minecraft Token...");
                 MinecraftAuthResult mcResult = ExchangeToMinecraft(azureResult.access_token);
 
                 string targetPath = filePath;
@@ -63,7 +64,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     targetPath = GetDefaultAccountPath(mcResult.Uuid, mcResult.Username);
 
                 SaveAccount(targetPath, mcResult, azureResult.refresh_token);
-                Log("[认证] 成功！账号已保存至: " + targetPath);
+                recordLog(LogLevel.Info, "[认证] 成功！账号已保存至: " + targetPath);
                 return targetPath;
             }
             catch (Exception ex) when (
@@ -72,8 +73,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 ex.Message.Contains("403") ||
                 ex.Message.Contains("401"))
             {
-                Log("[认证错误] 交换 Minecraft Token 失败: " + ex.Message);
-                Log("[认证错误] 堆栈: " + ex.StackTrace);
+                recordLog(LogLevel.Error, "[认证错误] 交换 Minecraft Token 失败: " + ex.Message);
+                recordLog(LogLevel.Error, "[认证错误] 堆栈: " + ex.StackTrace);
 
                 return CacheAzureRefreshTokenOnly(azureResult.refresh_token);
             }
@@ -81,7 +82,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
         public string CompleteLoginFromCache(string cacheFilePath)
         {
-            Log("[缓存登录] 开始，缓存文件: " + cacheFilePath);
+            recordLog(LogLevel.Info, "[缓存登录] 开始，缓存文件: " + cacheFilePath);
             if (!File.Exists(cacheFilePath))
                 throw new FileNotFoundException(LanguageManager.Get("Auth.CacheMissing"), cacheFilePath);
 
@@ -100,7 +101,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             try { File.Delete(cacheFilePath); } catch { }
 
-            Log("[缓存登录] 完成，账号路径: " + userPath);
+            recordLog(LogLevel.Info, "[缓存登录] 完成，账号路径: " + userPath);
             return userPath;
         }
 
@@ -111,20 +112,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         }
 
         // ========== 私有辅助 ==========
-
-        // ★ 统一日志方法
-        private static void Log(string message)
-        {
-            string logLine = string.Format("[{0:yyyy-MM-dd HH:mm:ss.fff}] {1}", DateTime.Now, message);
-            System.Diagnostics.Debug.WriteLine(logLine);
-            try
-            {
-                string logDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Launcher Setting", "Logs");
-                Directory.CreateDirectory(logDir);
-                File.AppendAllText(Path.Combine(logDir, "auth_log.txt"), logLine + Environment.NewLine);
-            }
-            catch { }
-        }
 
         /// <summary>
         /// ★ 从 JavaScriptSerializer 反序列化出来的 result 中，
@@ -189,7 +176,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             string json = new JavaScriptSerializer().Serialize(cacheObj);
             SecureStorage.WriteAllTextEncrypted(filePath, json);
-            Log("[缓存] 已保存待审核刷新令牌到: " + filePath);
+            recordLog(LogLevel.Info, "[缓存] 已保存待审核刷新令牌到: " + filePath);
             return filePath;
         }
 
@@ -210,7 +197,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                               "&grant_type=refresh_token" +
                               "&scope=" + Uri.EscapeDataString(string.Join(" ", _scopes));
 
-            Log("[刷新 Azure Token] 请求中...");
+            recordLog(LogLevel.Info, "[刷新 Azure Token] 请求中...");
             string json = PostForm(tokenUrl, postData);
             var result = new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(json);
             if (result.ContainsKey("error"))
@@ -223,7 +210,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             newRefreshToken = result.ContainsKey("refresh_token")
                 ? result["refresh_token"].ToString()
                 : refreshToken;
-            Log("[刷新 Azure Token] 成功");
+            recordLog(LogLevel.Info, "[刷新 Azure Token] 成功");
         }
 
         private DeviceAuthResult GetAzureTokenByDeviceCode()
@@ -234,7 +221,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             string deviceData = "client_id=" + Uri.EscapeDataString(_clientId) +
                                 "&scope=" + Uri.EscapeDataString(string.Join(" ", _scopes));
 
-            Log("[设备代码] 请求设备代码...");
+            recordLog(LogLevel.Info, "[设备代码] 请求设备代码...");
             string deviceJson;
             try { deviceJson = PostForm(deviceCodeUrl, deviceData); }
             catch (Exception ex) { throw new Exception(string.Format(LanguageManager.Get("Auth.DeviceCodeFailed"), ex.Message), ex); }
@@ -247,7 +234,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             int interval = Convert.ToInt32(deviceInfo["interval"]);
             int expiresIn = Convert.ToInt32(deviceInfo["expires_in"]);
 
-            Log("[设备代码] 获取成功，UserCode: " + userCode);
+            recordLog(LogLevel.Info, "[设备代码] 获取成功，UserCode: " + userCode);
 
             try { System.Diagnostics.Process.Start(verificationUri); } catch { }
 
@@ -267,7 +254,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     var result = new JavaScriptSerializer().Deserialize<DeviceAuthResult>(tokenJson);
                     if (!string.IsNullOrEmpty(result.access_token))
                     {
-                        Log("[设备代码] 用户已在浏览器完成授权，成功获取 Azure Token");
+                        recordLog(LogLevel.Info, "[设备代码] 用户已在浏览器完成授权，成功获取 Azure Token");
                         return result;
                     }
                 }
@@ -303,21 +290,21 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
         private MinecraftAuthResult ExchangeToMinecraft(string azureAccessToken)
         {
-            Log("[交换] 开始 Xbox Live -> XSTS -> Minecraft 令牌交换");
-            Log("[交换] Azure Token: " + azureAccessToken);
+            recordLog(LogLevel.Info, "[交换] 开始 Xbox Live -> XSTS -> Minecraft 令牌交换");
+            recordLog(LogLevel.Info, "[交换] Azure Token: " + azureAccessToken);
 
             string xblToken = GetXboxLiveToken(azureAccessToken, out string xuid);
-            Log("[交换] XBL Token 获取成功, XUID: " + (xuid ?? "(无)"));
+            recordLog(LogLevel.Info, "[交换] XBL Token 获取成功, XUID: " + (xuid ?? "(无)"));
 
             string xstsToken = GetXSTSToken(xblToken, out string userHash);
-            Log("[交换] XSTS Token 获取成功, UserHash: " + (userHash ?? "(无)"));
+            recordLog(LogLevel.Info, "[交换] XSTS Token 获取成功, UserHash: " + (userHash ?? "(无)"));
 
             string mcToken = GetMinecraftToken(xstsToken, userHash);
-            Log("[交换] Minecraft Token 获取成功");
+            recordLog(LogLevel.Info, "[交换] Minecraft Token 获取成功");
 
             var profile = GetMinecraftProfile(mcToken);
             profile.Xuid = xuid;
-            Log("[交换] Minecraft 档案获取成功: " + profile.Username + " (" + profile.Uuid + ")");
+            recordLog(LogLevel.Info, "[交换] Minecraft 档案获取成功: " + profile.Username + " (" + profile.Uuid + ")");
             return profile;
         }
 
@@ -333,14 +320,14 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             payload.Add("RelyingParty", "http://auth.xboxlive.com");
             payload.Add("TokenType", "JWT");
 
-            Log("[XBL] 请求 Xbox Live Token...");
+            recordLog(LogLevel.Info, "[XBL] 请求 Xbox Live Token...");
             string json = PostJson("https://user.auth.xboxlive.com/user/authenticate", payload);
             var result = new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(json);
 
             // ★ 用接口版辅助方法提取 XUID（XBL 响应里通常没有 xid，返回 null 也无妨）
             xuid = ExtractFromDisplayClaims(result, "xid");
 
-            Log("[XBL] 响应成功, XUID: " + (xuid ?? "(无)"));
+            recordLog(LogLevel.Info, "[XBL] 响应成功, XUID: " + (xuid ?? "(无)"));
             return result["Token"].ToString();
         }
 
@@ -355,14 +342,14 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             payload.Add("RelyingParty", "rp://api.minecraftservices.com/");
             payload.Add("TokenType", "JWT");
 
-            Log("[XSTS] 请求 XSTS Token，RelyingParty: rp://api.minecraftservices.com/");
+            recordLog(LogLevel.Info, "[XSTS] 请求 XSTS Token，RelyingParty: rp://api.minecraftservices.com/");
             string json = PostJson("https://xsts.auth.xboxlive.com/xsts/authorize", payload);
             var result = new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(json);
 
             if (result.ContainsKey("XErr"))
             {
                 string err = result["XErr"].ToString();
-                Log("[XSTS] 发生错误，XErr: " + err);
+                recordLog(LogLevel.Error, "[XSTS] 发生错误，XErr: " + err);
                 if (err == "2148916233") throw new Exception(LanguageManager.Get("Auth.ChildAccount"));
                 if (err == "2148916235") throw new Exception(LanguageManager.Get("Auth.RegionUnsupported"));
                 throw new Exception(string.Format(LanguageManager.Get("Auth.XstsError"), err));
@@ -372,9 +359,9 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             userHash = ExtractFromDisplayClaims(result, "uhs");
 
             if (string.IsNullOrEmpty(userHash))
-                Log("[XSTS] 警告：未能解析到 UserHash！原始响应: " + json);
+                recordLog(LogLevel.Warn, "[XSTS] 警告：未能解析到 UserHash！原始响应: " + json);
 
-            Log("[XSTS] 响应成功，Token 已获取，UserHash: " + (userHash ?? "(无)"));
+            recordLog(LogLevel.Info, "[XSTS] 响应成功，Token 已获取，UserHash: " + (userHash ?? "(无)"));
             return result["Token"].ToString();
         }
 
@@ -384,41 +371,41 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             // ★ 正确格式：XBL3.0 x=<UserHash>;<XSTS_Token>
             payload.Add("identityToken", "XBL3.0 x=" + userHash + ";" + xstsToken);
 
-            Log("[MC登录] 请求 Minecraft Token，UserHash: " + (userHash ?? "(无)"));
+            recordLog(LogLevel.Info, "[MC登录] 请求 Minecraft Token，UserHash: " + (userHash ?? "(无)"));
             string json = PostJson("https://api.minecraftservices.com/authentication/login_with_xbox", payload);
             var result = new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(json);
 
             if (result.ContainsKey("access_token"))
             {
-                Log("[MC登录] 响应成功，拿到 Minecraft AccessToken");
+                recordLog(LogLevel.Info, "[MC登录] 响应成功，拿到 Minecraft AccessToken");
                 return result["access_token"].ToString();
             }
             else
             {
-                Log("[MC登录] 响应异常: " + json);
+                recordLog(LogLevel.Error, "[MC登录] 响应异常: " + json);
                 throw new Exception("Minecraft 登录失败，未返回 access_token。响应: " + json);
             }
         }
 
         private MinecraftAuthResult GetMinecraftProfile(string mcToken)
         {
-            Log("[档案] 请求 Minecraft 档案...");
+            recordLog(LogLevel.Info, "[档案] 请求 Minecraft 档案...");
             var request = (HttpWebRequest)WebRequest.Create("https://api.minecraftservices.com/minecraft/profile");
             request.Method = "GET";
             request.Headers["Authorization"] = "Bearer " + mcToken;
             request.Timeout = HTTP_TIMEOUT_MS;
             request.ReadWriteTimeout = HTTP_TIMEOUT_MS;
 
-            Log("[HTTP GET] GET https://api.minecraftservices.com/minecraft/profile");
-            Log("[HTTP GET] 请求头 Authorization: Bearer " + mcToken);
+            recordLog(LogLevel.Info, "[HTTP GET] GET https://api.minecraftservices.com/minecraft/profile");
+            recordLog(LogLevel.Info, "[HTTP GET] 请求头 Authorization: Bearer " + mcToken);
 
             using (var response = (HttpWebResponse)request.GetResponse())
             using (var stream = response.GetResponseStream())
             using (var reader = new StreamReader(stream))
             {
                 string json = reader.ReadToEnd();
-                Log("[HTTP GET] 响应成功，状态码: " + (int)response.StatusCode);
-                Log("[HTTP GET] 响应体: " + json);
+                recordLog(LogLevel.Info, "[HTTP GET] 响应成功，状态码: " + (int)response.StatusCode);
+                recordLog(LogLevel.Info, "[HTTP GET] 响应体: " + json);
                 var data = new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(json);
                 return new MinecraftAuthResult
                 {
@@ -451,8 +438,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         // 完整打印请求体与响应体
         private string PostForm(string url, string formData)
         {
-            Log("[HTTP Form] POST " + url);
-            Log("[HTTP Form] 请求体: " + formData);
+            recordLog(LogLevel.Info, "[HTTP Form] POST " + url);
+            recordLog(LogLevel.Info, "[HTTP Form] 请求体: " + formData);
 
             var request = (HttpWebRequest)WebRequest.Create(url);
             request.Method = "POST";
@@ -471,8 +458,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 using (var reader = new StreamReader(stream))
                 {
                     string resp = reader.ReadToEnd();
-                    Log("[HTTP Form] 响应成功，状态码: " + (int)response.StatusCode);
-                    Log("[HTTP Form] 响应体: " + resp);
+                    recordLog(LogLevel.Info, "[HTTP Form] 响应成功，状态码: " + (int)response.StatusCode);
+                    recordLog(LogLevel.Info, "[HTTP Form] 响应体: " + resp);
                     return resp;
                 }
             }
@@ -492,8 +479,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     }
                     catch { }
                 }
-                Log("[HTTP Form] 请求失败! HTTP " + statusCode);
-                Log("[HTTP Form] 失败响应体: " + (responseBody ?? "(无)"));
+                recordLog(LogLevel.Info, "[HTTP Form] 请求失败! HTTP " + statusCode);
+                recordLog(LogLevel.Info, "[HTTP Form] 失败响应体: " + (responseBody ?? "(无)"));
                 throw new Exception(
                     string.Format(LanguageManager.Get("Auth.PostFailed"), url, statusCode) +
                     (responseBody != null ? ": " + responseBody : ""), ex);
@@ -504,8 +491,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         private string PostJson(string url, object payload)
         {
             string jsonData = new JavaScriptSerializer().Serialize(payload);
-            Log("[HTTP JSON] POST " + url);
-            Log("[HTTP JSON] 请求体: " + jsonData);
+            recordLog(LogLevel.Info, "[HTTP JSON] POST " + url);
+            recordLog(LogLevel.Info, "[HTTP JSON] 请求体: " + jsonData);
 
             var request = (HttpWebRequest)WebRequest.Create(url);
             request.Method = "POST";
@@ -524,8 +511,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 using (var reader = new StreamReader(stream))
                 {
                     string resp = reader.ReadToEnd();
-                    Log("[HTTP JSON] 响应成功，状态码: " + (int)response.StatusCode);
-                    Log("[HTTP JSON] 响应体: " + resp);
+                    recordLog(LogLevel.Info, "[HTTP JSON] 响应成功，状态码: " + (int)response.StatusCode);
+                    recordLog(LogLevel.Info, "[HTTP JSON] 响应体: " + resp);
                     return resp;
                 }
             }
@@ -545,8 +532,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     }
                     catch { }
                 }
-                Log("[HTTP JSON] 请求失败! HTTP " + statusCode);
-                Log("[HTTP JSON] 失败响应体: " + (responseBody ?? "(无)"));
+                recordLog(LogLevel.Error, "[HTTP JSON] 请求失败! HTTP " + statusCode);
+                recordLog(LogLevel.Error, "[HTTP JSON] 失败响应体: " + (responseBody ?? "(无)"));
                 throw new Exception(
                     string.Format(LanguageManager.Get("Auth.PostFailed"), url, statusCode) +
                     (responseBody != null ? ": " + responseBody : ""), ex);
