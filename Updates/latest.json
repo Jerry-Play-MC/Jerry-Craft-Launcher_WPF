@@ -1,12 +1,12 @@
 {
-  "version": "1.1.0",
-  "notes": "修复了Microsoft正版登录的相关问题",
+  "version": "1.1.1",
+  "notes": "修复了安装服务端时字迹与背景颜色过于相似，新增启动前检测并安装Java",
   "force": false,
   "files": {
     "windows": {
       "url": "https://github.com/Jerry-Play-MC/Jerry-Craft-Launcher_WPF/releases/latest/download/Jerry_Craft_Launcher.exe",
-      "sha256": "8be0ea2df1643a7b21d32a6f6b8ce15ddf0c84dc0c67474ec616271fc79818b5",
-      "size": 1378304
+      "sha256": "d7e9280dde6487bd6b496bdbfce3000a176bc98b09dbc8d3889de32ce02e8073",
+      "size": 1400832
     }
   }
 }
