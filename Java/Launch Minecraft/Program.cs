@@ -217,7 +217,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         Quilt = 4,
         LiteLoader = 5,
         LegacyFabric = 6,
-        LabyMod = 7,       // ★
+        LabyMod = 7,
         Unknown = 99
     }
 

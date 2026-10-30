@@ -151,7 +151,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
                 string javaPath = context.JavaPath;
                 if (string.IsNullOrEmpty(javaPath) || !File.Exists(javaPath))
-                    javaPath = JavaLocator.Find(requiredJava, context.JavaBaseDir);
+                    javaPath = ResolveJavaWithDownload(requiredJava, context.JavaBaseDir);
                 cmd.Add(javaPath);
                 recordLog(LogLevel.Info, $"[{LoaderName}] Java: {javaPath}");
 
@@ -1473,44 +1473,132 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             }
         }
 
-        public static bool NeedsAcceptEula(string serverDir, out string eulaPath)
+        // ============================================================
+        //   Java 解析 + 自动下载决策
+        //   ⚠ 注意：本方法可能阻塞（弹窗等待 / 下载安装），
+        //     调用 Launch() 时应放在后台线程，避免冻结 UI。
+        // ============================================================
+        private string ResolveJavaWithDownload(int requiredMajor, string javaBaseDir)
         {
-            eulaPath = Path.Combine(serverDir, "eula.txt");
-            if (!File.Exists(eulaPath)) return false;
+            var result = JavaLocator.FindOrNull(requiredMajor, javaBaseDir);
+
+            // ── 情况 1：一个 Java 都没有 → 静默直接下载 ──
+            if (result == null)
+            {
+                recordLog(LogLevel.Warn,
+                    $"[Java] 未找到任何 Java，自动下载 Java {requiredMajor}...");
+                DownloadJavaRuntime(requiredMajor);
+                return JavaLocator.Find(requiredMajor, javaBaseDir);
+            }
+
+            // ── 情况 2：精确匹配 → 直接用 ──
+            if (result.IsExact)
+            {
+                recordLog(LogLevel.Info,
+                    $"[Java] 精确匹配 Java {requiredMajor}: {result.Path}");
+                return result.Path;
+            }
+
+            // ── 情况 3：有 Java 但版本不精确 → 弹窗询问 ──
+            recordLog(LogLevel.Warn,
+                $"[Java] 未找到 Java {requiredMajor}，" +
+                $"发现 Java {result.ActualMajor}: {result.Path}");
+
+            bool wantDownload = ShowJavaMismatchDialog(requiredMajor, result.ActualMajor);
+            if (wantDownload)
+            {
+                DownloadJavaRuntime(requiredMajor);
+                return JavaLocator.Find(requiredMajor, javaBaseDir);
+            }
+
+            recordLog(LogLevel.Warn,
+                $"[Java] 用户选择继续使用 Java {result.ActualMajor}（可能不稳定）");
+            return result.Path;
+        }
+
+        /// <summary>
+        /// 调用 JavaDownloader 下载指定大版本 Java 到 App.javaPath。
+        /// 同步阻塞，调用方需确保在非 UI 线程执行。
+        /// </summary>
+        private void DownloadJavaRuntime(int major)
+        {
+            string installPath = null;
+            try { installPath = App.javaPath; } catch { }
+            if (string.IsNullOrEmpty(installPath))
+                installPath = JavaLocator.GetBuiltInJavaRoot();
+
+            recordLog(LogLevel.Info, $"[Java] 开始下载 Java {major} → {installPath}");
+
+            int rc = JavaDownloader.Run(major, installPath);
+            if (rc != 0)
+                throw new Exception(
+                    $"Java {major} 下载/安装失败（返回码 {rc}），请检查网络后重试");
+
+            recordLog(LogLevel.Info, $"[Java] Java {major} 下载/安装完成");
+        }
+
+        /// <summary>
+        /// Java 版本不匹配弹窗。
+        /// 内部会切到 UI 线程执行 MessageBox，调用方无需关心线程。
+        /// 无 Application 上下文时默认返回 true（下载）。
+        /// </summary>
+        private bool ShowJavaMismatchDialog(int requiredMajor, int actualMajor)
+        {
+            string msg;
+            if (actualMajor > requiredMajor)
+            {
+                msg = $"启动该版本至少需要 Java {requiredMajor}，\n" +
+                      $"虽然你安装了 Java {actualMajor}，但是仍有可能出现未知的错误。\n\n" +
+                      $"是否为您下载 Java {requiredMajor}？";
+            }
+            else if (actualMajor == requiredMajor)
+            {
+                // 理论不会进来，防御性写法
+                return true;
+            }
+            else
+            {
+                msg = $"启动该版本至少需要 Java {requiredMajor}，\n" +
+                      $"但你目前只安装了 Java {actualMajor}，很可能无法正常启动。\n\n" +
+                      $"是否为您下载 Java {requiredMajor}？";
+            }
 
             try
             {
-                string content = File.ReadAllText(eulaPath);
-                var m = Regex.Match(content, @"^\s*eula\s*=\s*(true|false)\s*$",
-                                    RegexOptions.IgnoreCase | RegexOptions.Multiline);
-                if (!m.Success) return false;
-                return m.Groups[1].Value.Equals("false", StringComparison.OrdinalIgnoreCase);
-            }
-            catch { return false; }
-        }
-
-        public static void AcceptEula(string serverDir)
-        {
-            string eulaPath = Path.Combine(serverDir, "eula.txt");
-            var sb = new StringBuilder();
-            bool found = false;
-
-            if (File.Exists(eulaPath))
-            {
-                foreach (var raw in File.ReadAllLines(eulaPath))
+                var app = System.Windows.Application.Current;
+                if (app != null && app.Dispatcher != null)
                 {
-                    if (Regex.IsMatch(raw, @"^\s*eula\s*=", RegexOptions.IgnoreCase))
-                    {
-                        sb.AppendLine("eula=true");
-                        found = true;
-                    }
-                    else sb.AppendLine(raw);
-                }
-            }
+                    var r = app.Dispatcher.Invoke(() =>
+                        System.Windows.MessageBox.Show(
+                            msg,
+                            "Java 版本提示",
+                            System.Windows.MessageBoxButton.YesNo,
+                            System.Windows.MessageBoxImage.Warning));
 
-            if (!found) sb.AppendLine("eula=true");
-            File.WriteAllText(eulaPath, sb.ToString(), new UTF8Encoding(false));
+                    return r == System.Windows.MessageBoxResult.Yes;
+                }
+
+                // 没有 Application（例如控制台单元测试）→ 默认下载
+                recordLog(LogLevel.Warn, "[Java] 无 UI 上下文，默认自动下载");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                recordLog(LogLevel.Warn, $"[Java] 弹窗失败，默认自动下载: {ex.Message}");
+                return true;
+            }
         }
+    }
+
+    // ============================================================
+    //   Java 探测结果（供 ResolveJavaWithDownload 使用）
+    // ============================================================
+    internal class JavaSearchResult
+    {
+        public string Path;                  // 选中的 java.exe
+        public int ActualMajor;              // 实际主版本
+        public bool IsExact;                 // 是否精确匹配 requiredMajor
+        public List<int> AllMajors = new List<int>();  // 探测到的所有版本（去重由候选去重保证）
     }
 
     internal static class JavaLocator
@@ -1521,9 +1609,20 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             public int Major;
         }
 
-        /// <summary>启动器内置 Java 根目录：exe目录\Launcher Setting\Java</summary>
+        /// <summary>
+        /// 启动器内置 Java 根目录。
+        /// 优先使用 App.javaPath（Launcher Setting\Java），
+        /// 无 App 上下文（如控制台单测）时回退默认路径。
+        /// </summary>
         public static string GetBuiltInJavaRoot()
         {
+            try
+            {
+                string p = App.javaPath;
+                if (!string.IsNullOrEmpty(p)) return p;
+            }
+            catch { }
+
             return Path.Combine(AppDomain.CurrentDomain.BaseDirectory,
                                 "Launcher Setting", "Java");
         }
@@ -1551,7 +1650,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     recordLog(LogLevel.Info, $"[Java] 使用内置 Java {requiredMajor}: {builtIn}");
                     return builtIn;
                 }
-                recordLog(LogLevel.Info, $"[Java] 内置 Java 版本不符（需要 {requiredMajor}，实际 {actual}）: {builtIn}");
+                recordLog(LogLevel.Info,
+                    $"[Java] 内置 Java 版本不符（需要 {requiredMajor}，实际 {actual}）: {builtIn}");
             }
 
             // 2) 用户指定目录
@@ -1559,7 +1659,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             {
                 if (Directory.Exists(javaBaseDir))
                 {
-                    recordLog(LogLevel.Info,$"[Java] 从用户指定目录扫描: {javaBaseDir}");
+                    recordLog(LogLevel.Info, $"[Java] 从用户指定目录扫描: {javaBaseDir}");
                     ScanJavaBaseDir(javaBaseDir, candidates);
 
                     if (candidates.Count > 0)
@@ -1569,7 +1669,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 }
                 else
                 {
-                    recordLog(LogLevel.Info, $"[Java] 警告: 指定目录不存在: {javaBaseDir}，继续扫描注册表");
+                    recordLog(LogLevel.Info,
+                        $"[Java] 警告: 指定目录不存在: {javaBaseDir}，继续扫描注册表");
                 }
             }
 
@@ -1616,6 +1717,89 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             catch { return false; }
         }
 
+        /// <summary>
+        /// 探测 Java（不抛异常）。供 BaseLoaderLauncher.ResolveJavaWithDownload 使用。
+        /// 返回 null         → 完全没有可用 Java
+        /// IsExact = true    → 有精确匹配 requiredMajor
+        /// IsExact = false   → 只有其它版本（ActualMajor 为选中版本）
+        /// </summary>
+        public static JavaSearchResult FindOrNull(int requiredMajor, string javaBaseDir)
+        {
+            try
+            {
+                var candidates = new List<JavaCandidate>();
+
+                // 1) 内置（App.javaPath\{requiredMajor}\bin\java.exe）
+                string builtIn = Path.Combine(GetBuiltInJavaRoot(),
+                                              requiredMajor.ToString(), "bin", "java.exe");
+                if (File.Exists(builtIn))
+                {
+                    int actual = GetJavaMajorVersion(builtIn);
+                    if (actual > 0)
+                        candidates.Add(new JavaCandidate { Path = builtIn, Major = actual });
+                }
+
+                // 2) 用户指定目录
+                if (!string.IsNullOrEmpty(javaBaseDir) && Directory.Exists(javaBaseDir))
+                    ScanJavaBaseDir(javaBaseDir, candidates);
+
+                // 3) 注册表
+                ScanAllRegistryPaths(candidates);
+
+                if (candidates.Count == 0) return null;
+
+                var allMajors = new List<int>();
+                foreach (var c in candidates) allMajors.Add(c.Major);
+                allMajors.Sort();
+
+                // 精确匹配优先
+                foreach (var c in candidates)
+                {
+                    if (c.Major == requiredMajor)
+                    {
+                        return new JavaSearchResult
+                        {
+                            Path = c.Path,
+                            ActualMajor = c.Major,
+                            IsExact = true,
+                            AllMajors = allMajors,
+                        };
+                    }
+                }
+
+                // 无精确匹配：优先"最小的更高版本"，否则"最接近的"
+                JavaCandidate bestGreater = null;
+                JavaCandidate bestClosest = null;
+                foreach (var c in candidates)
+                {
+                    if (c.Major >= requiredMajor)
+                        if (bestGreater == null || c.Major < bestGreater.Major)
+                            bestGreater = c;
+
+                    if (bestClosest == null ||
+                        Math.Abs(c.Major - requiredMajor) <
+                        Math.Abs(bestClosest.Major - requiredMajor))
+                        bestClosest = c;
+                }
+
+                var chosen = bestGreater ?? bestClosest;
+                if (chosen == null) return null;
+
+                return new JavaSearchResult
+                {
+                    Path = chosen.Path,
+                    ActualMajor = chosen.Major,
+                    IsExact = false,
+                    AllMajors = allMajors,
+                };
+            }
+            catch (Exception ex)
+            {
+                recordLog(LogLevel.Warn, $"[Java] FindOrNull 异常: {ex.Message}");
+                return null;
+            }
+        }
+
         // ============================================================
         //   用户指定目录扫描
         // ============================================================
@@ -1642,35 +1826,35 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             recordLog(LogLevel.Info, "[Java] 开始扫描注册表...");
 
             string[] javaSoftBasePaths = {
-                @"SOFTWARE\JavaSoft\Java Development Kit",
-                @"SOFTWARE\JavaSoft\Java Runtime Environment",
-                @"SOFTWARE\JavaSoft\JDK",
-                @"SOFTWARE\JavaSoft\JRE",
-                @"SOFTWARE\JavaSoft\Java SE Development Kit",
-                @"SOFTWARE\JavaSoft\Java SE Runtime Environment",
-            };
+            @"SOFTWARE\JavaSoft\Java Development Kit",
+            @"SOFTWARE\JavaSoft\Java Runtime Environment",
+            @"SOFTWARE\JavaSoft\JDK",
+            @"SOFTWARE\JavaSoft\JRE",
+            @"SOFTWARE\JavaSoft\Java SE Development Kit",
+            @"SOFTWARE\JavaSoft\Java SE Runtime Environment",
+        };
 
             foreach (var basePath in javaSoftBasePaths)
                 ScanRegistryKey(basePath, list, "JavaHome");
 
             string[] adoptiumPaths = {
-                @"SOFTWARE\Eclipse Adoptium\JDK",
-                @"SOFTWARE\Eclipse Adoptium\JRE",
-                @"SOFTWARE\AdoptOpenJDK\JDK",
-                @"SOFTWARE\AdoptOpenJDK\JRE",
-                @"SOFTWARE\Eclipse Foundation\JDK",
-                @"SOFTWARE\Eclipse Foundation\JRE",
-            };
+            @"SOFTWARE\Eclipse Adoptium\JDK",
+            @"SOFTWARE\Eclipse Adoptium\JRE",
+            @"SOFTWARE\AdoptOpenJDK\JDK",
+            @"SOFTWARE\AdoptOpenJDK\JRE",
+            @"SOFTWARE\Eclipse Foundation\JDK",
+            @"SOFTWARE\Eclipse Foundation\JRE",
+        };
 
             foreach (var basePath in adoptiumPaths)
                 ScanRegistryKeyWithMsiPath(basePath, list);
 
             string[] correttoPaths = {
-                @"SOFTWARE\Amazon Corretto\JDK",
-                @"SOFTWARE\Amazon Corretto\JRE",
-                @"SOFTWARE\Amazon\Corretto\JDK",
-                @"SOFTWARE\Amazon\Corretto\JRE",
-            };
+            @"SOFTWARE\Amazon Corretto\JDK",
+            @"SOFTWARE\Amazon Corretto\JRE",
+            @"SOFTWARE\Amazon\Corretto\JDK",
+            @"SOFTWARE\Amazon\Corretto\JRE",
+        };
 
             foreach (var basePath in correttoPaths)
                 ScanRegistryKeyWithMsiPath(basePath, list);
@@ -1678,28 +1862,28 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             ScanRegistryKey(@"SOFTWARE\Azul Systems\Zulu", list, "JavaHome");
 
             string[] libericaPaths = {
-                @"SOFTWARE\BellSoft\LibericaJDK",
-                @"SOFTWARE\BellSoft\LibericaJRE",
-            };
+            @"SOFTWARE\BellSoft\LibericaJDK",
+            @"SOFTWARE\BellSoft\LibericaJRE",
+        };
 
             foreach (var basePath in libericaPaths)
                 ScanRegistryKey(basePath, list, "JavaHome");
 
             string[] ibmPaths = {
-                @"SOFTWARE\IBM\Java Development Kit",
-                @"SOFTWARE\IBM\Java Runtime Environment",
-                @"SOFTWARE\IBM\Java2 Runtime Environment",
-                @"SOFTWARE\IBM\Semeru",
-                @"SOFTWARE\Semeru\SemeruJDK",
-            };
+            @"SOFTWARE\IBM\Java Development Kit",
+            @"SOFTWARE\IBM\Java Runtime Environment",
+            @"SOFTWARE\IBM\Java2 Runtime Environment",
+            @"SOFTWARE\IBM\Semeru",
+            @"SOFTWARE\Semeru\SemeruJDK",
+        };
 
             foreach (var basePath in ibmPaths)
                 ScanRegistryKey(basePath, list, "JavaHome");
 
             string[] microsoftPaths = {
-                @"SOFTWARE\Microsoft\JDK",
-                @"SOFTWARE\Microsoft\OpenJDK",
-            };
+            @"SOFTWARE\Microsoft\JDK",
+            @"SOFTWARE\Microsoft\OpenJDK",
+        };
 
             foreach (var basePath in microsoftPaths)
                 ScanRegistryKey(basePath, list, "JavaHome");
@@ -1822,11 +2006,11 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                         if (versionKey == null) continue;
 
                         string[] possibleSubPaths = {
-                            @"hotspot\MSI",
-                            @"MSI",
-                            @"hotspot",
-                            "",
-                        };
+                        @"hotspot\MSI",
+                        @"MSI",
+                        @"hotspot",
+                        "",
+                    };
 
                         foreach (var subPath in possibleSubPaths)
                         {
@@ -1896,7 +2080,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             foreach (var c in candidates)
                 if (c.Major == requiredMajor)
                 {
-                    recordLog(LogLevel.Info, $"[Java] 精确匹配到 Java {requiredMajor}: {c.Path}");
+                    recordLog(LogLevel.Info,
+                        $"[Java] 精确匹配到 Java {requiredMajor}: {c.Path}");
                     return c.Path;
                 }
 
@@ -1910,7 +2095,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                         bestGreater = c;
 
                 if (bestClosest == null ||
-                    Math.Abs(c.Major - requiredMajor) < Math.Abs(bestClosest.Major - requiredMajor))
+                    Math.Abs(c.Major - requiredMajor) <
+                    Math.Abs(bestClosest.Major - requiredMajor))
                     bestClosest = c;
             }
 
@@ -1918,7 +2104,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             if (chosen == null)
                 throw new Exception("没有可用的 Java 候选");
 
-            recordLog(LogLevel.Info, $"[Java] 警告: 未找到 Java {requiredMajor}，改用 Java {chosen.Major}: {chosen.Path}");
+            recordLog(LogLevel.Warn,
+                $"[Java] 警告: 未找到 Java {requiredMajor}，改用 Java {chosen.Major}: {chosen.Path}");
             recordLog(LogLevel.Info, $"[Java] 已检测到的 Java 版本: " +
                 string.Join(", ", candidates.ConvertAll(c => c.Major.ToString()).ToArray()));
 
