@@ -11,6 +11,23 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 {
     public partial class App : Application
     {
+        public App()
+        {
+            AppDomain.CurrentDomain.UnhandledException += (s, args) =>
+            {
+                try
+                {
+                    var ex = args.ExceptionObject as Exception;
+                    recordLog(LogLevel.Fatal, "未处理异常，进程即将终止：" + ex);
+                }
+                catch { }
+                finally
+                {
+                    CloseLogFile();
+                }
+            };
+        }
+
         public static AppConfig Config { get; } = new AppConfig();
 
         // --------------------------------  常量区  --------------------------------
@@ -32,7 +49,16 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         protected override void OnStartup(StartupEventArgs e)
         {
             // 创建并占用日志文件，防止多个实例同时写入或外部移动、修改
-            CreateLogFile(logPath);
+            try
+            {
+                CreateLogFile(logPath);
+            }
+            catch (Exception ex)
+            {
+                // 日志失败不阻止启动，但要告诉用户
+                MessageBox.Show("日志文件创建失败，本次运行可能无法记录日志：\n" + ex.Message, "启动警告", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+
             recordLog(LogLevel.Info, $"Jerry Craft Launcher {Version} 启动！");
 
             base.OnStartup(e);
@@ -49,6 +75,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             FontManager.Initialize();
 
             // 4. 主窗口
+            recordLog(LogLevel.Info, "开始渲染主窗体");
             var main = new MainWindow();
             MainWindow = main;
             main.Show();
@@ -87,12 +114,12 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 recordLog(LogLevel.Info, "加载libwebp_x86.dll");
                 NativeLibraryLoader.LoadEmbeddedDll(
                     root + ".Java.libwebp_x86.dll", "libwebp_x86.dll");
+                recordLog(LogLevel.Info, "加载运行库完成");
             }
             catch (Exception ex)
             {
                 recordLog(LogLevel.Error, "[libwebp_x86.dll] x86 加载失败：" + ex.Message);
             }
-            recordLog(LogLevel.Info, "加载运行库完成");
         }
 
         /// <summary>
@@ -100,6 +127,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         /// </summary>
         private async System.Threading.Tasks.Task CheckUpdateAtStartupAsync(Window owner)
         {
+            recordLog(LogLevel.Info, "开始检查更新");
             try
             {
                 await System.Threading.Tasks.Task.Delay(1500);
@@ -117,9 +145,9 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     win.ShowDialog();
                 });
             }
-            catch
+            catch (Exception ex)
             {
-                // 断网 / GitHub 不可达等情况静默忽略
+                recordLog(LogLevel.Error, "更新失败：" + ex.Message);
             }
         }
 
@@ -129,6 +157,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         /// </summary>
         private async System.Threading.Tasks.Task RefreshExpiredTokensAsync()
         {
+            recordLog(LogLevel.Info, "刷新正版账号令牌");
             try
             {
                 // 延迟一点，让主界面先渲染出来，刷新流程悄悄跑
@@ -151,9 +180,9 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
                             RefreshRoleToken(role);
                         }
-                        catch
+                        catch (Exception ex)
                         {
-                            // 单个账号失败（网络/refresh_token 被撤销）静默跳过
+                            recordLog(LogLevel.Error, "刷新失败：" + ex.Message);
                         }
                     }
                 });
@@ -164,9 +193,9 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     RoleManager.NotifyCurrentChanged();
                 });
             }
-            catch
+            catch (Exception ex)
             {
-                // 整体静默
+                recordLog(LogLevel.Error, "刷新失败：" + ex.Message);
             }
         }
 
@@ -210,6 +239,9 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
         public static void PromptCreateRole(Window owner, bool isFirstUse)
         {
+            recordLog(LogLevel.Info,
+                isFirstUse ? "首次运行，提示用户创建账户。" : "提示用户创建账户。");
+
             var sel = new SelectLoginTypeWindow { Owner = owner };
             if (sel.ShowDialog() != true) return;
 
@@ -343,8 +375,16 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             public static void recordLog(LogLevel level, string message)
             {
                 string logMessage = Log(level, message);
-                Console.WriteLine(logMessage);
-                WriteFile(logMessage + "\r\n");
+                System.Diagnostics.Debug.WriteLine(logMessage);
+                try
+                {
+                    WriteFile(logMessage + "\r\n");
+                }
+                catch (Exception ex)
+                {
+                    // 日志系统自身失败不应影响业务，更不能在崩溃处理器里二次抛异常
+                    System.Diagnostics.Debug.WriteLine("[AppLog] 写日志失败: " + ex.Message);
+                }
             }
         }
     }
