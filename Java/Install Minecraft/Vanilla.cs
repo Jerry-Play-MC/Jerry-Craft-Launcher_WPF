@@ -9,6 +9,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Web.Script.Serialization;
+using static Jerry_Craft_Launcher.NET_Framework_4._5_WPF.App.AppLog;
 
 namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 {
@@ -60,7 +61,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             if (string.IsNullOrEmpty(minecraftDir))
                 throw new ArgumentException(".minecraft 路径不能为空", "minecraftDir");
 
-            Log($"[Vanilla] 开始安装 Minecraft {version} -> {minecraftDir}");
+            recordLog(LogLevel.Info, $"[Vanilla] 开始安装 Minecraft {version} -> {minecraftDir}");
 
             CleanupTempFiles(minecraftDir);
 
@@ -68,7 +69,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             string versionJsonUrl = FindVersionJsonUrl(manifestText, version);
             if (string.IsNullOrEmpty(versionJsonUrl))
                 throw new Exception($"version_manifest.json 中未找到版本 {version}");
-            Log($"[Vanilla] 找到版本条目: {versionJsonUrl}");
+            recordLog(LogLevel.Info, $"[Vanilla] 找到版本条目: {versionJsonUrl}");
 
             string versionsDir = System.IO.Path.Combine(minecraftDir, "versions");
             string versionDir = System.IO.Path.Combine(versionsDir, version);
@@ -82,7 +83,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             string versionJsonSha1 = ExtractSha1FromUrl(versionJsonUrl);
             DownloadFile(versionJsonUrl, versionJsonPath, versionJsonSha1, "version.json",
                          showProgress: true, strictMode: true, out _);
-            Log($"[Vanilla] 已保存版本 JSON: {versionJsonPath}");
+            recordLog(LogLevel.Info, $"[Vanilla] 已保存版本 JSON: {versionJsonPath}");
 
             var versionRoot = ParseJsonObject(ReadAllTextShared(versionJsonPath));
             if (versionRoot == null)
@@ -99,7 +100,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 CollectAssetTasks(assetsDir, assetIndexId, tasks);
 
             tasks = DeduplicateTasks(tasks);
-            Log($"[Vanilla] 共收集 {tasks.Count} 个下载任务");
+            recordLog(LogLevel.Info, $"[Vanilla] 共收集 {tasks.Count} 个下载任务");
 
             if (tasks.Count > 0)
                 ParallelDownload(tasks, MAX_CONCURRENCY);
@@ -107,7 +108,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             if (!string.IsNullOrEmpty(assetIndexId))
                 BuildVirtualAssets(assetsDir, assetIndexId);
 
-            Log($"[Vanilla] Minecraft {version} 安装完成");
+            recordLog(LogLevel.Info, $"[Vanilla] Minecraft {version} 安装完成");
         }
 
         // ===================== 主入口（服务端） =====================
@@ -118,7 +119,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             if (string.IsNullOrEmpty(serverDir))
                 throw new ArgumentException("服务端路径不能为空", "serverDir");
 
-            Log($"[Vanilla] 开始安装 Minecraft 服务端 {version} -> {serverDir}");
+            recordLog(LogLevel.Info, $"[Vanilla] 开始安装 Minecraft 服务端 {version} -> {serverDir}");
 
             CleanupTempFiles(serverDir);
 
@@ -126,7 +127,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             string versionJsonUrl = FindVersionJsonUrl(manifestText, version);
             if (string.IsNullOrEmpty(versionJsonUrl))
                 throw new Exception($"version_manifest.json 中未找到版本 {version}");
-            Log($"[Vanilla] 找到版本条目: {versionJsonUrl}");
+            recordLog(LogLevel.Info, $"[Vanilla] 找到版本条目: {versionJsonUrl}");
 
             string tempJsonPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(),
                 $"mc_server_{version}_{Guid.NewGuid():N}.json");
@@ -152,18 +153,18 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 Directory.CreateDirectory(serverDir);
                 string serverJarPath = System.IO.Path.Combine(serverDir, "server.jar");
 
-                Log($"[Vanilla] 下载服务端核心: {serverUrl}");
+                recordLog(LogLevel.Info, $"[Vanilla] 下载服务端核心: {serverUrl}");
                 DownloadFile(serverUrl, serverJarPath, serverSha1, "server.jar",
                              showProgress: true, strictMode: true, out _);
-                Log($"[Vanilla] 服务端核心已下载: {serverJarPath}");
+                recordLog(LogLevel.Info, $"[Vanilla] 服务端核心已下载: {serverJarPath}");
             }
             finally
             {
                 try { if (File.Exists(tempJsonPath)) File.Delete(tempJsonPath); } catch { }
             }
 
-            Log($"[Vanilla] Minecraft 服务端 {version} 下载完成");
-            Log("[Vanilla] 提示：首次启动时服务器会生成 eula.txt，需由用户接受 EULA");
+            recordLog(LogLevel.Info, $"[Vanilla] Minecraft 服务端 {version} 下载完成");
+            recordLog(LogLevel.Info, $"[Vanilla] 提示：首次启动时服务器会生成 eula.txt，需由用户接受 EULA");
         }
 
         // ===================== 代理（带缓存） =====================
@@ -242,7 +243,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 count += CleanupTempInDir(rootDir, cutoff, false);
 
                 if (count > 0)
-                    Log($"[Vanilla] 清理 {TMP_MAX_AGE_HOURS} 小时前的残留 .tmp: {count} 个");
+                    recordLog(LogLevel.Info, $"[Vanilla] 清理 {TMP_MAX_AGE_HOURS} 小时前的残留 .tmp: {count} 个");
             }
             catch { }
         }
@@ -278,13 +279,13 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 string localPath = System.IO.Path.Combine(localManifestDir, "version_manifest.json");
                 if (File.Exists(localPath))
                 {
-                    Log($"[Vanilla] 使用本地 manifest: {localPath}");
+                    recordLog(LogLevel.Info, $"[Vanilla] 使用本地 manifest: {localPath}");
                     return ReadAllTextShared(localPath);
                 }
-                Log($"[Vanilla] 本地 manifest 不存在({localPath})，改从网络获取");
+                recordLog(LogLevel.Info, $"[Vanilla] 本地 manifest 不存在({localPath})，改从网络获取");
             }
 
-            Log($"[Vanilla] 获取官方 manifest: {OFFICIAL_MANIFEST}");
+            recordLog(LogLevel.Info, $"[Vanilla] 获取官方 manifest: {OFFICIAL_MANIFEST}");
             return DownloadString(OFFICIAL_MANIFEST);
         }
 
@@ -321,7 +322,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             DownloadFile(url, dest, sha1, version + ".jar",
                          showProgress: true, strictMode: true, out _);
-            Log($"[Vanilla] 客户端核心已下载: {dest}");
+            recordLog(LogLevel.Info, $"[Vanilla] 客户端核心已下载: {dest}");
         }
 
         // ===================== assetIndex =====================
@@ -339,7 +340,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             DownloadFile(url, dest, sha1, id + ".json",
                          showProgress: true, strictMode: true, out _);
-            Log($"[Vanilla] 资源索引已下载: {id}");
+            recordLog(LogLevel.Info, $"[Vanilla] 资源索引已下载: {id}");
             return id;
         }
 
@@ -365,11 +366,11 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             try
             {
                 DownloadFile(url, dest, sha1, id, showProgress: false, strictMode: true, out _);
-                Log($"[Vanilla] 日志配置已下载: {id}");
+                recordLog(LogLevel.Info, $"[Vanilla] 日志配置已下载: {id}");
             }
             catch (Exception ex)
             {
-                Log($"[Vanilla] 日志配置下载失败(不致命): {ex.Message}");
+                recordLog(LogLevel.Info, $"[Vanilla] 日志配置下载失败(不致命): {ex.Message}");
             }
         }
 
@@ -465,7 +466,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     }
                 }
             }
-            Log($"[Vanilla] Libraries 任务: {added}");
+            recordLog(LogLevel.Info, $"[Vanilla] Libraries 任务: {added}");
         }
 
         private static string MavenNameToPath(string name, string forcedExtension)
@@ -569,7 +570,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             string idxPath = System.IO.Path.Combine(assetsDir, "indexes", assetIndexId + ".json");
             if (!File.Exists(idxPath))
             {
-                Log($"[Vanilla] 未找到资源索引: {idxPath}");
+                recordLog(LogLevel.Info, $"[Vanilla] 未找到资源索引: {idxPath}");
                 return;
             }
 
@@ -604,7 +605,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 });
                 count++;
             }
-            Log($"[Vanilla] Assets 任务: {count}");
+            recordLog(LogLevel.Info, $"[Vanilla] Assets 任务: {count}");
         }
 
         private static void BuildVirtualAssets(string assetsDir, string assetIndexId)
@@ -638,7 +639,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 targetDir = System.IO.Path.Combine(assetsDir, "minecraft");
 
             Directory.CreateDirectory(targetDir);
-            Log($"[Vanilla] 生成 assets 映射到: {targetDir}");
+            recordLog(LogLevel.Info, $"[Vanilla] 生成 assets 映射到: {targetDir}");
 
             string objectsDir = System.IO.Path.Combine(assetsDir, "objects");
             int copied = 0;
@@ -660,7 +661,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
                 try { File.Copy(src, dst, true); copied++; } catch { }
             }
-            Log($"[Vanilla] assets 映射完成: {copied} 个文件");
+            recordLog(LogLevel.Info, $"[Vanilla] assets 映射完成: {copied} 个文件");
         }
 
         // ===================== 任务去重（保序） =====================
@@ -697,13 +698,13 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     else if (!eSha1Empty && !tSha1Empty &&
                              !existing.Sha1.Equals(t.Sha1, StringComparison.OrdinalIgnoreCase))
                     {
-                        Log($"[Vanilla] 警告: 同路径 {t.Dest} 有两个不同 SHA1，保留第一个");
+                        recordLog(LogLevel.Info, $"[Vanilla] 警告: 同路径 {t.Dest} 有两个不同 SHA1，保留第一个");
                     }
                 }
             }
 
             if (result.Count != tasks.Count)
-                Log($"[Vanilla] 去重: {tasks.Count} -> {result.Count}");
+                recordLog(LogLevel.Info, $"[Vanilla] 去重: {tasks.Count} -> {result.Count}");
             return result;
         }
 
@@ -727,7 +728,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             object statLock = new object();
             var failures = new List<string>();
 
-            Log($"[Vanilla] 开始并行下载（{maxConcurrency} 线程，共 {total} 个任务）...");
+            recordLog(LogLevel.Info, $"[Vanilla] 开始并行下载（{maxConcurrency} 线程，共 {total} 个任务）...");
 
             Interlocked.Exchange(ref _lastProgressTick, 0);
             lock (_consoleLock)
@@ -849,7 +850,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 {
                     if (string.IsNullOrEmpty(sha1))
                     {
-                        Log($"[Vanilla] 警告: {displayName} 严格模式但无 SHA1，降级为宽松模式");
+                        recordLog(LogLevel.Info, $"[Vanilla] 警告: {displayName} 严格模式但无 SHA1，降级为宽松模式");
                         try
                         {
                             if (new FileInfo(dest).Length > 0)
@@ -869,7 +870,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                                 outSkipped = true;
                                 return;
                             }
-                            Log($"[Vanilla] {displayName} 校验失败，重新下载");
+                            recordLog(LogLevel.Info, $"[Vanilla] {displayName} 校验失败，重新下载");
                             try { File.Delete(dest); } catch { }
 
                             // ★ 同时清掉可能存在的 .tmp，避免拿脏残留去续传
@@ -1247,15 +1248,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         }
 
         // ===================== 工具 =====================
-        private static void Log(string msg)
-        {
-            lock (_consoleLock)
-            {
-                Console.Write("\r" + new string(' ', 140) + "\r");
-                Console.WriteLine(msg);
-            }
-        }
-
         private static string FormatSize(long bytes)
         {
             if (bytes < 1024) return bytes + " B";

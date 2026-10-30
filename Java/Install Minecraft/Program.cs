@@ -1,7 +1,6 @@
 ﻿using System;
-using System.IO;
 using System.Net;
-using System.Threading;
+using static Jerry_Craft_Launcher.NET_Framework_4._5_WPF.App.AppLog;
 
 namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 {
@@ -24,7 +23,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             public string OptiFineVersion;
             public bool HasLiteLoader;
             public string LiteLoaderVersion;
-            public bool HasLabyMod;               // ★
+            public bool HasLabyMod;
 
             public bool IsEmpty()
             {
@@ -59,19 +58,19 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
                 LoaderSpec spec = ParseLoaderSpec(loaderType);
 
-                Console.WriteLine($"[参数] 类型={minecraftType} | 加载器={loaderType} | " +
+                recordLog(LogLevel.Info, $"[参数] 类型={minecraftType} | 加载器={loaderType} | " +
                                   $"版本={version} | 路径={minecraftPath} | " +
                                   $"manifest={loaderVersionList}");
-                Console.WriteLine($"[参数] 解析结果：");
-                Console.WriteLine($"[参数]   Vanilla      = {spec.HasVanilla}");
-                Console.WriteLine($"[参数]   Forge        = {spec.HasForge} ({spec.ForgeVersion ?? "latest"})");
-                Console.WriteLine($"[参数]   NeoForge     = {spec.HasNeoForge} ({spec.NeoForgeVersion ?? "latest"})");
-                Console.WriteLine($"[参数]   Fabric       = {spec.HasFabric} ({spec.FabricVersion ?? "latest"})");
-                Console.WriteLine($"[参数]   LegacyFabric = {spec.HasLegacyFabric} ({spec.LegacyFabricVersion ?? "latest"})");
-                Console.WriteLine($"[参数]   Quilt        = {spec.HasQuilt} ({spec.QuiltVersion ?? "latest"})");
-                Console.WriteLine($"[参数]   LiteLoader   = {spec.HasLiteLoader} ({spec.LiteLoaderVersion ?? "latest"})");
-                Console.WriteLine($"[参数]   OptiFine     = {spec.HasOptiFine} ({spec.OptiFineVersion ?? "latest"})");
-                Console.WriteLine($"[参数]   LabyMod      = {spec.HasLabyMod}");
+                recordLog(LogLevel.Info, $"[参数] 解析结果：");
+                recordLog(LogLevel.Info, $"[参数]   Vanilla      = {spec.HasVanilla}");
+                recordLog(LogLevel.Info, $"[参数]   Forge        = {spec.HasForge} ({spec.ForgeVersion ?? "latest"})");
+                recordLog(LogLevel.Info, $"[参数]   NeoForge     = {spec.HasNeoForge} ({spec.NeoForgeVersion ?? "latest"})");
+                recordLog(LogLevel.Info, $"[参数]   Fabric       = {spec.HasFabric} ({spec.FabricVersion ?? "latest"})");
+                recordLog(LogLevel.Info, $"[参数]   LegacyFabric = {spec.HasLegacyFabric} ({spec.LegacyFabricVersion ?? "latest"})");
+                recordLog(LogLevel.Info, $"[参数]   Quilt        = {spec.HasQuilt} ({spec.QuiltVersion ?? "latest"})");
+                recordLog(LogLevel.Info, $"[参数]   LiteLoader   = {spec.HasLiteLoader} ({spec.LiteLoaderVersion ?? "latest"})");
+                recordLog(LogLevel.Info, $"[参数]   OptiFine     = {spec.HasOptiFine} ({spec.OptiFineVersion ?? "latest"})");
+                recordLog(LogLevel.Info, $"[参数]   LabyMod      = {spec.HasLabyMod}");
 
                 if (spec.IsEmpty())
                     throw new ArgumentException($"无法识别任何加载器：{loaderType}");
@@ -168,7 +167,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     }
                 }
 
-                Console.WriteLine("[完成] 全部安装完成");
+                recordLog(LogLevel.Info, "[完成] 全部安装完成");
                 return 0;
             }
             catch (Exception ex)
@@ -198,7 +197,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 result.LiteLoaderVersion = v;
             });
 
-            work = TryExtract(work, "LabyMod", v =>   // ★
+            work = TryExtract(work, "LabyMod", v =>
             {
                 result.HasLabyMod = true;
             });

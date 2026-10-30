@@ -50,7 +50,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             "-Dsun.net.client.defaultReadTimeout=3000";
 
         // ===================== 客户端 =====================
-        // ===================== 客户端 =====================
         public static void InstallClient(string version, string minecraftDir, string loaderParam)
         {
             if (string.IsNullOrEmpty(version))

@@ -203,8 +203,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 cmd.RemoveAll(a => a == "--demo");
                 RemoveQuickPlayArgs(cmd);
 
-                recordLog(LogLevel.Info, $"[{LoaderName}] 完整命令行:");
-                recordLog(LogLevel.Info, string.Join(" ",
+                Console.WriteLine($"[{LoaderName}] 完整命令行:");
+                Console.WriteLine(string.Join(" ",
                     cmd.ConvertAll(a => a.Contains(" ") ? "\"" + a + "\"" : a).ToArray()));
 
                 StartProcess(cmd, context);
