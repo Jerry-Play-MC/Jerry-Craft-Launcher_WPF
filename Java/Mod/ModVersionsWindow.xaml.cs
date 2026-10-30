@@ -617,7 +617,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                             else
                             {
                                 versionId = mcVersion;
-                                Install_Minecraft_Versions.VersionInstaller.Run(
+                                VersionInstaller.Run(
                                     "client", "Vanilla", mcVersion, _minecraftDir, "none");
                             }
                         }
@@ -645,7 +645,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                                     break;
                             }
 
-                            Install_Minecraft_Versions.VersionInstaller.Run(
+                            VersionInstaller.Run(
                                 "client", loaderArg, mcVersion, _minecraftDir, "none");
 
                             versionId = GuessVersionId(loaderType, loaderVersion, mcVersion);
@@ -653,7 +653,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                         else if (string.IsNullOrEmpty(versionId) && loaderType != "vanilla")
                         {
                             versionId = mcVersion;
-                            Install_Minecraft_Versions.VersionInstaller.Run(
+                            VersionInstaller.Run(
                                 "client", "Vanilla", mcVersion, _minecraftDir, "none");
                         }
 

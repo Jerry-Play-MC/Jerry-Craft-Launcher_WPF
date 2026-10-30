@@ -165,7 +165,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 });
 
                 int rc = await Task.Run(() =>
-                    Install_Minecraft_Versions.VersionInstaller.Run(
+                    VersionInstaller.Run(
                         "server", loaderType, gameVersion, serverDir, "none"));
 
                 if (_uiWriter != null) { try { _uiWriter.Flush(); } catch { } }

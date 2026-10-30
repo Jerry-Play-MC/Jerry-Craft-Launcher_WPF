@@ -106,25 +106,25 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             try
             {
-                var status = Launch_Minecraft.ServerLauncher.CheckEula(info.FolderPath);
-                if (status == Launch_Minecraft.ServerEulaStatus.NeedAccept)
+                var status = ServerLauncher.CheckEula(info.FolderPath);
+                if (status == ServerEulaStatus.NeedAccept)
                 {
                     if (!AskAcceptEula(info.Name)) return;
-                    Launch_Minecraft.ServerLauncher.WriteEulaTrue(info.FolderPath);
+                    ServerLauncher.WriteEulaTrue(info.FolderPath);
                 }
 
                 var result = await Task.Run(() =>
-                    Launch_Minecraft.ServerLauncher.StartServer(
+                    ServerLauncher.StartServer(
                         info.FolderPath, App.Config.JavaBaseDir,
                         progress => ReportProgress(info, progress)));
 
-                if (result == Launch_Minecraft.ServerStartResult.NeedEula)
+                if (result == ServerStartResult.NeedEula)
                 {
                     if (!AskAcceptEula(info.Name)) return;
-                    Launch_Minecraft.ServerLauncher.WriteEulaTrue(info.FolderPath);
+                    ServerLauncher.WriteEulaTrue(info.FolderPath);
 
                     await Task.Run(() =>
-                        Launch_Minecraft.ServerLauncher.StartServer(
+                        ServerLauncher.StartServer(
                             info.FolderPath, App.Config.JavaBaseDir,
                             progress => ReportProgress(info, progress)));
                 }
@@ -135,7 +135,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             }
         }
 
-        private void ReportProgress(ServerInfo info, Launch_Minecraft.ServerStartProgress progress)
+        private void ReportProgress(ServerInfo info, ServerStartProgress progress)
         {
             Dispatcher.BeginInvoke(new Action(() =>
             {
@@ -143,14 +143,14 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
                 switch (progress.Phase)
                 {
-                    case Launch_Minecraft.ServerStartPhase.Detecting:
-                    case Launch_Minecraft.ServerStartPhase.Starting:
-                    case Launch_Minecraft.ServerStartPhase.Running:
+                    case ServerStartPhase.Detecting:
+                    case ServerStartPhase.Starting:
+                    case ServerStartPhase.Running:
                         info.IsRunning = true;
                         break;
 
-                    case Launch_Minecraft.ServerStartPhase.Stopped:
-                    case Launch_Minecraft.ServerStartPhase.Failed:
+                    case ServerStartPhase.Stopped:
+                    case ServerStartPhase.Failed:
                         info.IsRunning = false;
 
                         var timer = new DispatcherTimer

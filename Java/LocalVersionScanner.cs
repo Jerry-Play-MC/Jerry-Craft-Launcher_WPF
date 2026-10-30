@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text.RegularExpressions;
 using System.Web.Script.Serialization;
-using Launch_Minecraft;   // ★ 引用 LoaderDetector / LoaderInfo / LoaderType
 
 namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 {

@@ -87,22 +87,46 @@
       <SubType>Designer</SubType>
     </ApplicationDefinition>
     <Compile Include="Java\AppConfig.cs" />
-    <Compile Include="Java\ClientInstallWindow.xaml.cs">
+    <Compile Include="Java\Forms\ClientInstallWindow.xaml.cs">
       <DependentUpon>ClientInstallWindow.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Java\Install Java\Program.cs" />
+    <Compile Include="Java\Install Minecraft\Fabric.cs" />
+    <Compile Include="Java\Install Minecraft\Forge.cs" />
+    <Compile Include="Java\Install Minecraft\LabyMod.cs" />
+    <Compile Include="Java\Install Minecraft\LegacyFabric.cs" />
+    <Compile Include="Java\Install Minecraft\LiteLoader.cs" />
+    <Compile Include="Java\Install Minecraft\NeoForge.cs" />
+    <Compile Include="Java\Install Minecraft\OptiFine.cs" />
+    <Compile Include="Java\Install Minecraft\Program.cs" />
+    <Compile Include="Java\Install Minecraft\Quilt.cs" />
+    <Compile Include="Java\Install Minecraft\Vanilla.cs" />
     <Compile Include="Java\JavaRuntimeHelper.cs" />
+    <Compile Include="Java\Launch Minecraft\Fabric.cs" />
+    <Compile Include="Java\Launch Minecraft\Forge.cs" />
+    <Compile Include="Java\Launch Minecraft\LabyMod.cs" />
+    <Compile Include="Java\Launch Minecraft\LiteLoader.cs" />
+    <Compile Include="Java\Launch Minecraft\LoaderLauncher.cs" />
+    <Compile Include="Java\Launch Minecraft\NeoForge.cs" />
+    <Compile Include="Java\Launch Minecraft\Program.cs" />
+    <Compile Include="Java\Launch Minecraft\Quilt.cs" />
+    <Compile Include="Java\Launch Minecraft\ServerLauncher.cs" />
+    <Compile Include="Java\Launch Minecraft\Vanilla.cs" />
+    <Compile Include="Java\Roles\CreateRoleWindow.xaml.cs">
+      <DependentUpon>CreateRoleWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Java\Roles\MicrosoftLoginWindow.xaml.cs">
+      <DependentUpon>MicrosoftLoginWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Java\Roles\MinecraftAuthenticator.cs" />
+    <Compile Include="Java\Roles\MinecraftTokenHelper.cs" />
+    <Compile Include="Java\Roles\Role.cs" />
+    <Compile Include="Java\Roles\RoleManager.cs" />
     <Compile Include="Languages\FontManager.cs" />
     <Compile Include="Languages\LanguageManager.cs" />
     <Compile Include="Java\LogWriter.cs" />
-    <Compile Include="Roles\CreateRoleWindow.xaml.cs">
-      <DependentUpon>CreateRoleWindow.xaml</DependentUpon>
-    </Compile>
     <Compile Include="Java\JsonHelper.cs" />
     <Compile Include="Java\LocalVersionScanner.cs" />
-    <Compile Include="Roles\MicrosoftLoginWindow.xaml.cs">
-      <DependentUpon>MicrosoftLoginWindow.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Roles\MinecraftAuthenticator.cs" />
     <Compile Include="Java\MinecraftCore.cs" />
     <Compile Include="Java\Mod\ModApiService.cs" />
     <Compile Include="Java\Mod\ModInstallTargetWindow.xaml.cs">
@@ -116,11 +140,8 @@
       <DependentUpon>ModVersionsWindow.xaml</DependentUpon>
     </Compile>
     <Compile Include="Java\NativeLibraryLoader.cs" />
-    <Compile Include="Roles\MinecraftTokenHelper.cs" />
-    <Compile Include="Roles\Role.cs" />
-    <Compile Include="Roles\RoleManager.cs" />
     <Compile Include="Java\SecureStorage.cs" />
-    <Compile Include="Java\SelectLoginTypeWindow.xaml.cs">
+    <Compile Include="Java\Forms\SelectLoginTypeWindow.xaml.cs">
       <DependentUpon>SelectLoginTypeWindow.xaml</DependentUpon>
     </Compile>
     <Compile Include="Java\Server\ServerInfo.cs" />
@@ -136,7 +157,7 @@
       <DependentUpon>ServerView.xaml</DependentUpon>
     </Compile>
     <Compile Include="Java\SettingsManager.cs" />
-    <Compile Include="Java\SettingsView.xaml.cs">
+    <Compile Include="Java\Forms\SettingsView.xaml.cs">
       <DependentUpon>SettingsView.xaml</DependentUpon>
     </Compile>
     <Compile Include="Updates\UpdateService.cs" />
@@ -147,9 +168,17 @@
     <Compile Include="Java\VersionScanner.cs" />
     <Compile Include="Java\Mod\WebPHelper.cs" />
     <Compile Include="Java\Mod\WebPWrapper.cs" />
-    <Page Include="Java\ClientInstallWindow.xaml">
+    <Page Include="Java\Forms\ClientInstallWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Java\Roles\CreateRoleWindow.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Java\Roles\MicrosoftLoginWindow.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
     </Page>
     <Page Include="Languages\Strings.ar-SA.xaml">
       <SubType>Designer</SubType>
@@ -195,15 +224,11 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="Roles\CreateRoleWindow.xaml">
+    <Page Include="Java\Forms\DownloadView.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="Java\DownloadView.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="Java\LaunchView.xaml">
+    <Page Include="Java\Forms\LaunchView.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -215,20 +240,16 @@
       <DependentUpon>App.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="Java\DownloadView.xaml.cs">
+    <Compile Include="Java\Forms\DownloadView.xaml.cs">
       <DependentUpon>DownloadView.xaml</DependentUpon>
     </Compile>
-    <Compile Include="Java\LaunchView.xaml.cs">
+    <Compile Include="Java\Forms\LaunchView.xaml.cs">
       <DependentUpon>LaunchView.xaml</DependentUpon>
     </Compile>
     <Compile Include="MainWindow.xaml.cs">
       <DependentUpon>MainWindow.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
-    <Page Include="Roles\MicrosoftLoginWindow.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
     <Page Include="Java\Mod\ModInstallTargetWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
@@ -241,7 +262,7 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="Java\SelectLoginTypeWindow.xaml">
+    <Page Include="Java\Forms\SelectLoginTypeWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -257,7 +278,7 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="Java\SettingsView.xaml">
+    <Page Include="Java\Forms\SettingsView.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -293,20 +314,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="Download Java\Download Java.csproj">
-      <Project>{63055919-2791-49ce-8bf4-c9e2111ec160}</Project>
-      <Name>Download Java</Name>
-    </ProjectReference>
-    <ProjectReference Include="Install Minecraft Versions\Install Minecraft Versions.csproj">
-      <Project>{cc07ad9f-ebed-4ede-9282-a9791d1bd633}</Project>
-      <Name>Install Minecraft Versions</Name>
-    </ProjectReference>
-    <ProjectReference Include="Launch Minecraft\Launch Minecraft.csproj">
-      <Project>{f0f5c8cf-8ad0-4a01-a82f-fa255112e98e}</Project>
-      <Name>Launch Minecraft</Name>
-    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Java\libwebp_x86.dll" />

@@ -44,7 +44,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             string root = GetBuiltInJavaRoot();
             if (!Directory.Exists(root)) Directory.CreateDirectory(root);
 
-            int rc = Download_Java.JavaDownloader.Run(javaMajor, root);
+            int rc = JavaDownloader.Run(javaMajor, root);
             return rc == 0 && HasBuiltInJava(javaMajor);
         }
 
