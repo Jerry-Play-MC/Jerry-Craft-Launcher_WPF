@@ -31,8 +31,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         /// <param name="e"></param>
         protected override void OnStartup(StartupEventArgs e)
         {
-
-
             // 创建并占用日志文件，防止多个实例同时写入或外部移动、修改
             CreateLogFile(logPath);
             recordLog(LogLevel.Info, $"Jerry Craft Launcher {Version} 启动！");
