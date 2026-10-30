@@ -75,7 +75,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             FontManager.Initialize();
 
             // 4. 主窗口
-            recordLog(LogLevel.Info, "开始渲染主窗体");
+            recordLog(LogLevel.Info, "========== 开始渲染主窗体 ==========");
             var main = new MainWindow();
             MainWindow = main;
             main.Show();
@@ -107,14 +107,14 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
         private static void TryLoadWebPDll()
         {
-            recordLog(LogLevel.Info, "开始加载运行库");
+            recordLog(LogLevel.Info, "========== 开始加载运行库 ==========");
             string root = typeof(App).Namespace;
             try
             {
                 recordLog(LogLevel.Info, "加载libwebp_x86.dll");
                 NativeLibraryLoader.LoadEmbeddedDll(
                     root + ".Java.libwebp_x86.dll", "libwebp_x86.dll");
-                recordLog(LogLevel.Info, "加载运行库完成");
+                recordLog(LogLevel.Info, "========== 加载运行库完成 ==========");
             }
             catch (Exception ex)
             {
@@ -127,14 +127,17 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         /// </summary>
         private async System.Threading.Tasks.Task CheckUpdateAtStartupAsync(Window owner)
         {
-            recordLog(LogLevel.Info, "开始检查更新");
+            recordLog(LogLevel.Info, "========== 开始检查更新 ==========");
             try
             {
                 await System.Threading.Tasks.Task.Delay(1500);
 
                 var result = await UpdateService.CheckAsync();
 
-                if (!result.Success || !result.HasUpdate) return;
+                if (!result.Success || !result.HasUpdate) {
+                    recordLog(LogLevel.Info, "更新完成或无更新");
+                    return; 
+                }
 
                 await Dispatcher.InvokeAsync(() =>
                 {
@@ -157,7 +160,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         /// </summary>
         private async System.Threading.Tasks.Task RefreshExpiredTokensAsync()
         {
-            recordLog(LogLevel.Info, "刷新正版账号令牌");
+            recordLog(LogLevel.Info, "========== 刷新正版账号令牌 ==========");
             try
             {
                 // 延迟一点，让主界面先渲染出来，刷新流程悄悄跑
@@ -280,10 +283,9 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             /// </summary>
             public static void CreateLogFile(string filePath)
             {
-                System.Diagnostics.Debug.WriteLine("[AppLog] CreateLogFile 被调用: " + filePath);
                 lock (_fsLock)
                 {
-                    if (_fs != null) { System.Diagnostics.Debug.WriteLine("[AppLog] 已打开，跳过"); return; }
+                    if (_fs != null) return;
 
                     if (!Directory.Exists(filePath))
                         Directory.CreateDirectory(filePath);
@@ -301,7 +303,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                             // CreateNew 原子占坑；FileShare.Read 允许别人只读，禁写/删
                             _fs = new FileStream(path, FileMode.CreateNew,
                                                  FileAccess.Write, FileShare.Read);
-                            System.Diagnostics.Debug.WriteLine("[AppLog] 文件已创建: " + path);
                             _fsPath = path;
                             return;
                         }

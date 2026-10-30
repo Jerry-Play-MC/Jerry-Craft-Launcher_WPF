@@ -35,7 +35,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF.Languages
 
         public static void Initialize()
         {
-            recordLog(LogLevel.Info, "初始化语言系统，支持 " + Supported.Count + " 种语言");
+            recordLog(LogLevel.Info, "========== 初始化语言系统 ==========");
+            recordLog(LogLevel.Info, "支持 " + Supported.Count + " 种语言");
 
             // 1. 用户手动选择过 → 优先使用
             string saved = SettingsManager.GetLanguage();

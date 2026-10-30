@@ -25,7 +25,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
         public static void Initialize()
         {
-            recordLog(LogLevel.Info, "初始化角色管理器，角色目录: " + App.rolePath);
+            recordLog(LogLevel.Info, "========== 初始化角色管理器 ==========");
+            recordLog(LogLevel.Info, "角色目录: " + App.rolePath);
             _roleDir = App.rolePath;
 
             if (!Directory.Exists(_roleDir))

@@ -20,7 +20,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
         public static void Initialize()
         {
-            recordLog(LogLevel.Info, "读取启动器设置...");
+            recordLog(LogLevel.Info, "========== 读取启动器设置 ==========");
 
             string dir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Launcher Setting");
             if (!Directory.Exists(dir))

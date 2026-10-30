@@ -25,7 +25,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF.Languages
 
         public static void Initialize()
         {
-            recordLog(LogLevel.Info, "初始化字体系统，支持 " + Supported.Count + " 种字体");
+            recordLog(LogLevel.Info, "========== 初始化字体系统 ==========");
+            recordLog(LogLevel.Info, "支持 " + Supported.Count + " 种字体");
 
             string saved = SettingsManager.GetFont();
             if (string.IsNullOrEmpty(saved) || !Supported.ContainsKey(saved))
