@@ -113,7 +113,7 @@
                     <Grid>
                         <TextBox x:Name="LogBox"
                                  Background="Transparent"
-                                 Foreground="#D4D4D4"
+                                 Foreground="#000000"
                                  BorderThickness="0"
                                  FontFamily="{DynamicResource App.MonoFontFamily}"
                                  FontSize="11"
