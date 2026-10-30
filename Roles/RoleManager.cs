@@ -6,6 +6,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Web.Script.Serialization;
+using static Jerry_Craft_Launcher.NET_Framework_4._5_WPF.App.AppLog;
 
 namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 {
@@ -20,43 +21,45 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         public static IList<Role> Roles { get { return _roles; } }
         public static Role Current { get { return _current; } }
 
-        /// <summary>
-        /// 最近一次 Reload() 里因为无法解密而删除的角色文件数量。
-        /// UI 层可以在 Initialize / Reload 后读这个值，提示用户重新登录。
-        /// 每次 Reload 都会重置。
-        /// </summary>
         public static int LastRemovedInvalidCount { get; private set; }
 
         public static void Initialize()
         {
-            string baseDir = AppDomain.CurrentDomain.BaseDirectory;
-            _roleDir = Path.Combine(baseDir, "Launcher Setting", "Roles");
-            if (!Directory.Exists(_roleDir)) Directory.CreateDirectory(_roleDir);
+            recordLog(LogLevel.Info, "初始化角色管理器，角色目录: " + App.rolePath);
+            _roleDir = App.rolePath;
+
+            if (!Directory.Exists(_roleDir))
+            {
+                Directory.CreateDirectory(_roleDir);
+                recordLog(LogLevel.Info, "角色目录不存在，已创建: " + _roleDir);
+            }
+
             Reload();
         }
 
         public static void Reload()
         {
+            recordLog(LogLevel.Info, "开始重新加载角色列表...");
             LastRemovedInvalidCount = 0;
             _roles.Clear();
+
+            int parseFailed = 0;
 
             try
             {
                 if (Directory.Exists(_roleDir))
                 {
-                    // ★ 递归扫描：兼容 Roles\ 根（离线）和 Roles\Microsoft\（正版）
-                    foreach (var f in Directory.GetFiles(_roleDir, "*.json",
-                                                          SearchOption.AllDirectories))
+                    foreach (var f in Directory.GetFiles(_roleDir, "*.json", SearchOption.AllDirectories))
                     {
                         string json = null;
 
                         try
                         {
-                            // ★ DPAPI 解密读取，兼容旧明文并自动迁移
                             json = SecureStorage.ReadAllTextWithMigration(f);
                         }
-                        catch
+                        catch (Exception ex)
                         {
+                            recordLog(LogLevel.Warn, "解密角色文件失败: " + f + "，原因: " + ex.Message);
                             json = null;
                         }
 
@@ -67,21 +70,27 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                             {
                                 File.Delete(f);
                                 LastRemovedInvalidCount++;
+                                recordLog(LogLevel.Warn, "解密结果为空，已删除无效角色文件: " + f);
                             }
-                            catch { }
+                            catch (Exception ex)
+                            {
+                                recordLog(LogLevel.Warn, "删除无效角色文件失败: " + f + "，原因: " + ex.Message);
+                            }
                             continue;
                         }
 
-                        // 解密成功，解析 JSON
                         try
                         {
                             var role = new JavaScriptSerializer().Deserialize<Role>(json);
                             if (role == null || string.IsNullOrEmpty(role.Uuid))
+                            {
+                                parseFailed++;
+                                recordLog(LogLevel.Warn, "角色文件缺少 Uuid，已跳过: " + f);
                                 continue;
+                            }
 
                             if (string.IsNullOrEmpty(role.Type))
                             {
-                                // 兜底：JSON 里有 accessToken/refreshToken 字段 → 正版
                                 if (json.IndexOf("\"accessToken\"",
                                         StringComparison.OrdinalIgnoreCase) >= 0 ||
                                     json.IndexOf("\"refreshToken\"",
@@ -94,13 +103,26 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                                     role.Type = "Offline";
                                 }
                             }
+
                             _roles.Add(role);
+                            recordLog(LogLevel.Info, "已加载角色: " + role.Username + " [" + role.Type + "]");
                         }
-                        catch { }
+                        catch (Exception ex)
+                        {
+                            parseFailed++;
+                            recordLog(LogLevel.Warn, "解析角色文件失败: " + f + "，原因: " + ex.Message);
+                        }
                     }
                 }
+                else
+                {
+                    recordLog(LogLevel.Warn, "角色目录不存在，跳过扫描: " + _roleDir);
+                }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                recordLog(LogLevel.Error, "扫描角色目录异常: " + ex.Message);
+            }
 
             _roles.Sort((a, b) =>
                 string.Compare(a.Username, b.Username, StringComparison.OrdinalIgnoreCase));
@@ -110,6 +132,14 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 _current = _roles.FirstOrDefault();
                 RaiseChanged();
             }
+
+            recordLog(LogLevel.Info,
+                "========== 角色加载完成 ==========\r\n" +
+                "角色加载完成：共 " + _roles.Count + " 个，\r\n" +
+                "当前角色: " + (_current != null ? _current.Username : "(无)") + "，\r\n" +
+                "清理无效文件 " + LastRemovedInvalidCount + " 个，\r\n" +
+                "解析失败 " + parseFailed + " 个\r\n" +
+                "=================================");
         }
 
         public static bool HasAnyRole()
@@ -119,12 +149,15 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
         public static Role CreateOffline(string username)
         {
+            recordLog(LogLevel.Info, "创建离线角色: " + username);
+
             string uuid = GenerateOfflineUuid(username);
 
             var existing = _roles.FirstOrDefault(r =>
                 string.Equals(r.Uuid, uuid, StringComparison.OrdinalIgnoreCase));
             if (existing != null)
             {
+                recordLog(LogLevel.Info, "离线角色已存在，切换为当前: " + username);
                 SetCurrent(existing);
                 return existing;
             }
@@ -132,12 +165,21 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             var role = new Role { Username = username, Uuid = uuid, Type = "Offline" };
             string path = Path.Combine(_roleDir, uuid + ".json");
 
-            // ★ DPAPI 加密写入，与正版账号保持一致
-            SecureStorage.WriteAllTextEncrypted(path,
-                new JavaScriptSerializer().Serialize(role));
+            try
+            {
+                SecureStorage.WriteAllTextEncrypted(path,
+                    new JavaScriptSerializer().Serialize(role));
+            }
+            catch (Exception ex)
+            {
+                recordLog(LogLevel.Error, "保存离线角色失败: " + username + "，原因: " + ex.Message);
+                throw;
+            }
 
             _roles.Add(role);
             SetCurrent(role);
+
+            recordLog(LogLevel.Info, "离线角色创建成功: " + username + " (" + uuid + ")");
             return role;
         }
 
@@ -145,22 +187,25 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         {
             if (role == null) return;
             if (_current != null && _current.Uuid == role.Uuid) return;
+
+            recordLog(LogLevel.Info, "切换当前角色: " + (_current != null ? _current.Username : "(无)") + " -> " + role.Username);
+
             _current = role;
             RaiseChanged();
         }
 
-        /// <summary>
-        /// 把内存里的 Role 覆盖写回磁盘。会优先找已存在的同名 json，
-        /// 找不到才按 Type 决定放 Roles\ 还是 Roles\Microsoft\。
-        /// </summary>
         public static void SaveRole(Role role)
         {
-            if (role == null || string.IsNullOrEmpty(role.Uuid)) return;
+            if (role == null || string.IsNullOrEmpty(role.Uuid))
+            {
+                recordLog(LogLevel.Warn, "SaveRole 收到空角色或缺少 Uuid，忽略");
+                return;
+            }
+
             if (string.IsNullOrEmpty(_roleDir)) Initialize();
 
             string path = null;
 
-            // 1. 优先复用已存在的文件（不改变原有的存储位置）
             try
             {
                 if (Directory.Exists(_roleDir))
@@ -171,9 +216,11 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     if (hits.Length > 0) path = hits[0];
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                recordLog(LogLevel.Warn, "查找已存在角色文件失败，将按 Type 新建: " + ex.Message);
+            }
 
-            // 2. 没有已存在文件 → 按 Type 新建
             if (string.IsNullOrEmpty(path))
             {
                 if (string.Equals(role.Type, "Microsoft",
@@ -189,16 +236,22 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 }
             }
 
-            SecureStorage.WriteAllTextEncrypted(path,
-                new JavaScriptSerializer().Serialize(role));
+            try
+            {
+                SecureStorage.WriteAllTextEncrypted(path,
+                    new JavaScriptSerializer().Serialize(role));
+                recordLog(LogLevel.Info, "保存角色: " + role.Username + " -> " + path);
+            }
+            catch (Exception ex)
+            {
+                recordLog(LogLevel.Error, "保存角色失败: " + role.Username + "，原因: " + ex.Message);
+                throw;
+            }
         }
 
-        /// <summary>
-        /// 主动触发 CurrentRoleChanged，让订阅了该事件的 UI 刷新（比如头像/名字）。
-        /// 用于令牌刷新后，Role 对象内容变了但 Uuid 没变，SetCurrent 会直接 return 的情况。
-        /// </summary>
         public static void NotifyCurrentChanged()
         {
+            recordLog(LogLevel.Info, "主动通知当前角色刷新");
             RaiseChanged();
         }
 
@@ -241,10 +294,20 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         private static void RaiseChanged()
         {
             var h = CurrentRoleChanged;
-            if (h != null) h();
+            if (h == null) return;
+
+            try
+            {
+                h();
+            }
+            catch (Exception ex)
+            {
+                // UI 订阅者抛异常不能影响业务，但要留下痕迹
+                recordLog(LogLevel.Error, "CurrentRoleChanged 订阅者异常: " + ex.Message);
+                throw;
+            }
         }
 
-        /// <summary>清空计数。UI 层弹完对话框后调用，避免重复提示。</summary>
         public static void ClearLastRemovedInvalidCount()
         {
             LastRemovedInvalidCount = 0;

@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Windows;
+using static Jerry_Craft_Launcher.NET_Framework_4._5_WPF.App.AppLog;
 
 namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 {
@@ -33,7 +34,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
 
             // 创建并占用日志文件，防止多个实例同时写入或外部移动、修改
-            AppLog.CreateLogFile(logPath);
+            CreateLogFile(logPath);
+            recordLog(LogLevel.Info, $"Jerry Craft Launcher {Version} 启动！");
 
             base.OnStartup(e);
 
@@ -70,6 +72,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         /// <param name="e"></param>
         protected override void OnExit(ExitEventArgs e)
         {
+            recordLog(LogLevel.Info, $"程序退出！");
+
             // 关闭日志句柄：Flush 残余 → Dispose → 用户才能删日志文件
             AppLog.CloseLogFile();
 
@@ -78,16 +82,19 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
         private static void TryLoadWebPDll()
         {
+            recordLog(LogLevel.Info, "开始加载运行库");
             string root = typeof(App).Namespace;
             try
             {
+                recordLog(LogLevel.Info, "加载libwebp_x86.dll");
                 NativeLibraryLoader.LoadEmbeddedDll(
                     root + ".Java.libwebp_x86.dll", "libwebp_x86.dll");
             }
             catch (Exception ex)
             {
-                Console.WriteLine("[WebP] x86 加载失败：" + ex.Message);
+                recordLog(LogLevel.Error, "[libwebp_x86.dll] x86 加载失败：" + ex.Message);
             }
+            recordLog(LogLevel.Info, "加载运行库完成");
         }
 
         /// <summary>
@@ -228,7 +235,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         /// 全局日志写入器。OnStartup 调一次 CreateLogFile 打开文件，
         /// 之后任何地方调 WriteFile 直接追加到同一句柄。
         /// </summary>
-        internal static class AppLog
+        public static class AppLog
         {
             // ===== 状态藏在类内部，调用方完全感知不到 =====
             private static FileStream _fs;
@@ -243,9 +250,10 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             /// </summary>
             public static void CreateLogFile(string filePath)
             {
+                System.Diagnostics.Debug.WriteLine("[AppLog] CreateLogFile 被调用: " + filePath);
                 lock (_fsLock)
                 {
-                    if (_fs != null) return;   // 已打开，幂等
+                    if (_fs != null) { System.Diagnostics.Debug.WriteLine("[AppLog] 已打开，跳过"); return; }
 
                     if (!Directory.Exists(filePath))
                         Directory.CreateDirectory(filePath);
@@ -263,6 +271,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                             // CreateNew 原子占坑；FileShare.Read 允许别人只读，禁写/删
                             _fs = new FileStream(path, FileMode.CreateNew,
                                                  FileAccess.Write, FileShare.Read);
+                            System.Diagnostics.Debug.WriteLine("[AppLog] 文件已创建: " + path);
                             _fsPath = path;
                             return;
                         }
@@ -284,7 +293,11 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
                 lock (_fsLock)
                 {
-                    if (_fs == null) return;
+                    if (_fs == null)
+                    {
+                        System.Diagnostics.Debug.WriteLine("[AppLog] WriteFile 时 _fs 为 null，丢弃: " + content);
+                        return;
+                    }
                     _fs.Write(bytes, 0, bytes.Length);
                     _fs.Flush();   // 进 OS page cache，进程崩溃不丢
                 }
@@ -304,9 +317,9 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 }
             }
 
-            internal enum LogLevel { Info, Warn, Error, Fatal }   // ← ② 改为 public
+            public enum LogLevel { Info, Warn, Error, Fatal }
 
-            public static string Log(LogLevel level, string message)   // ← ③ 改为 internal（和 ② 二选一）
+            public static string Log(LogLevel level, string message)
             {
                 string tag;
                 switch (level)
