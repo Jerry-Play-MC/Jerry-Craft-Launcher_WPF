@@ -19,7 +19,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF.Updater
             _info = info;
 
             VersionText.Text = LanguageManager.Get("Settings.CurrentVersion")
-                + UpdateService.CurrentVersion + "  →  " + info.version;
+                + App.Version + "  →  " + info.version;
 
             NotesText.Text = string.IsNullOrEmpty(info.notes) ? "—" : info.notes;
         }

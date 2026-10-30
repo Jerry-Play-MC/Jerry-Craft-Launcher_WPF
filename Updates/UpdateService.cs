@@ -121,8 +121,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF.Updater
 
         // ============================================================
 
-        public static string CurrentVersion = "1.1.0";
-
         public static string ExeName =
             Path.GetFileName(Process.GetCurrentProcess().MainModule.FileName);
 
@@ -135,7 +133,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF.Updater
         {
             var result = new UpdateCheckResult
             {
-                CurrentVersion = CurrentVersion,
+                CurrentVersion = App.Version,
                 Success = false
             };
 
@@ -160,7 +158,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF.Updater
                     result.Info = info;
                     result.LatestVersion = info.version;
                     result.SourceUrl = url;
-                    result.HasUpdate = IsNewer(info.version, CurrentVersion);
+                    result.HasUpdate = IsNewer(info.version, App.Version);
                     result.Message = result.HasUpdate
                         ? "发现新版本 " + info.version
                         : "已是最新版本";

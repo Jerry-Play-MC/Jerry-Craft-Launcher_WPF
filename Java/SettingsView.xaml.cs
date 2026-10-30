@@ -98,7 +98,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         {
             if (CurrentVersionText == null) return;
             CurrentVersionText.Text = LanguageManager.Get("Settings.CurrentVersion")
-                + UpdateService.CurrentVersion;
+                + App.Version;
         }
 
         private async void CheckUpdate_Click(object sender, RoutedEventArgs e)
