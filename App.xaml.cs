@@ -368,7 +368,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             /// <summary>
             /// 写入日志文件<br/>
-            /// 调用：<code>App.AppLog.recordLog(LogLevel.等级, "日志内容");</code><br/>
+            /// 调用：<code>App.AppLog.recordLog(LogLevel.Info, "日志内容");</code><br/>
             /// logLevel.Info(默认)正常 Warn警告 Error错误 Fatal错误（致命）
             /// </summary>
             /// <param name="level"></param>

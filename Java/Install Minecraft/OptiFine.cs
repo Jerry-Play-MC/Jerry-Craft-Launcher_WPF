@@ -8,6 +8,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Web.Script.Serialization;
+using static Jerry_Craft_Launcher.NET_Framework_4._5_WPF.App.AppLog;
 
 namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 {
@@ -51,7 +52,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             minecraftDir = Path.GetFullPath(minecraftDir);
 
-            Log($"[OptiFine] 开始安装客户端 OptiFine {version}" +
+            recordLog(LogLevel.Info, $"[OptiFine] 开始安装客户端 OptiFine {version}" +
                 (forForge ? "（Forge 模式）" : "（独立模式）"));
 
             var versions = GetOptiFineVersions(version);
@@ -59,11 +60,11 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 throw new Exception($"未找到适用于 Minecraft {version} 的 OptiFine 版本");
 
             OptiFineVersion target = PickVersion(versions, loaderParam);
-            Log($"[OptiFine] 使用版本: {target.FileName}" +
+            recordLog(LogLevel.Info, $"[OptiFine] 使用版本: {target.FileName}" +
                 (string.IsNullOrEmpty(target.Forge) ? "" : $"（配套 {target.Forge}）"));
 
             string installerPath = DownloadInstaller(target);
-            Log($"[OptiFine] 安装器已下载: {installerPath}");
+            recordLog(LogLevel.Info, $"[OptiFine] 安装器已下载: {installerPath}");
 
             // ============================================================
             // Forge 模式：不运行安装器，直接把 OptiFine jar 复制到 mods 文件夹
@@ -71,7 +72,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             if (forForge)
             {
                 InstallToModsFolder(installerPath, minecraftDir);
-                Log($"[OptiFine] 客户端 OptiFine {version} 安装完成（Forge 模式）");
+                recordLog(LogLevel.Info, $"[OptiFine] 客户端 OptiFine {version} 安装完成（Forge 模式）");
                 return;
             }
 
@@ -79,7 +80,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             // 独立模式：运行安装器，生成 1.20.1-OptiFine_xxx 独立版本
             // ============================================================
             RunInstaller(installerPath, minecraftDir, version);
-            Log($"[OptiFine] 安装器执行完毕");
+            recordLog(LogLevel.Info, $"[OptiFine] 安装器执行完毕");
 
             string optifineVersionId = $"{version}-OptiFine_{target.Type}_{target.Patch}";
             string versionDir = Path.Combine(
@@ -93,7 +94,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             MergeParentJson(versionJsonPath, minecraftDir, version, forForge);
 
-            Log($"[OptiFine] 客户端 OptiFine {version} 安装完成");
+            recordLog(LogLevel.Info, $"[OptiFine] 客户端 OptiFine {version} 安装完成");
         }
 
         // ===================== 服务端：不提供 =====================
@@ -116,7 +117,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             if (!Directory.Exists(modsDir))
             {
                 Directory.CreateDirectory(modsDir);
-                Log($"[OptiFine] 已创建 mods 文件夹: {modsDir}");
+                recordLog(LogLevel.Info, $"[OptiFine] 已创建 mods 文件夹: {modsDir}");
             }
 
             string fileName = Path.GetFileName(optifineJarPath);
@@ -133,11 +134,11 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     try
                     {
                         File.Delete(old);
-                        Log($"[OptiFine] 已删除 mods 中旧版本: {Path.GetFileName(old)}");
+                        recordLog(LogLevel.Info, $"[OptiFine] 已删除 mods 中旧版本: {Path.GetFileName(old)}");
                     }
                     catch (Exception ex)
                     {
-                        Log($"[OptiFine] 删除旧文件失败（忽略）: {ex.Message}");
+                        recordLog(LogLevel.Warn, $"[OptiFine] 删除旧文件失败（忽略）: {ex.Message}");
                     }
                 }
             }
@@ -153,7 +154,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     long dstLen = new FileInfo(destPath).Length;
                     if (srcLen == dstLen)
                     {
-                        Log($"[OptiFine] mods 中已存在相同文件，跳过: {fileName}");
+                        recordLog(LogLevel.Info, $"[OptiFine] mods 中已存在相同文件，跳过: {fileName}");
                         return;
                     }
                 }
@@ -164,14 +165,14 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             // ---- 复制 ----
             File.Copy(optifineJarPath, destPath, true);
-            Log($"[OptiFine] 已复制到 mods: {destPath}");
+            recordLog(LogLevel.Info, $"[OptiFine] 已复制到 mods: {destPath}");
         }
 
         // ===================== 版本列表获取 =====================
         private static List<OptiFineVersion> GetOptiFineVersions(string mcVersion)
         {
             string url = $"{BMCL_BASE}/optifine/{Uri.EscapeDataString(mcVersion)}";
-            Log($"[OptiFine] 获取版本列表: {url}");
+            recordLog(LogLevel.Info, $"[OptiFine] 获取版本列表: {url}");
 
             string json = DownloadString(url);
             if (string.IsNullOrEmpty(json))
@@ -234,7 +235,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     if ($"{v.Type}_{v.Patch}".Equals(param, StringComparison.OrdinalIgnoreCase))
                         return v;
                 }
-                Log($"[OptiFine] 未找到指定版本 {param}，改用最新版");
+                recordLog(LogLevel.Info, $"[OptiFine] 未找到指定版本 {param}，改用最新版");
             }
 
             return versions[0];
@@ -261,7 +262,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
                 if (File.Exists(installerPath))
                 {
-                    Log($"[OptiFine] 安装器已存在: {installerPath}");
+                    recordLog(LogLevel.Info, $"[OptiFine] 安装器已存在: {installerPath}");
                     return installerPath;
                 }
             }
@@ -270,33 +271,33 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             string bmclUrl = $"{BMCL_BASE}/optifine/{Uri.EscapeDataString(target.McVersion)}/" +
                              $"{Uri.EscapeDataString(target.Type)}/{Uri.EscapeDataString(target.Patch)}";
 
-            Log($"[OptiFine] 下载安装器（最多 {INSTALLER_ROUNDS} 轮，每轮 2 源）: {fileName}");
+            recordLog(LogLevel.Info, $"[OptiFine] 下载安装器（最多 {INSTALLER_ROUNDS} 轮，每轮 2 源）: {fileName}");
 
             string lastError = null;
 
             for (int round = 1; round <= INSTALLER_ROUNDS; round++)
             {
                 if (round > 1)
-                    Log($"[OptiFine] 第 {round}/{INSTALLER_ROUNDS} 轮尝试...");
+                    recordLog(LogLevel.Info, $"[OptiFine] 第 {round}/{INSTALLER_ROUNDS} 轮尝试...");
 
                 // ============================================================
                 // 源 1：BMCLAPI
                 // ============================================================
                 try
                 {
-                    Log($"[OptiFine] 尝试源: {bmclUrl}");
+                    recordLog(LogLevel.Info, $"[OptiFine] 尝试源: {bmclUrl}");
                     try { if (File.Exists(installerPath)) File.Delete(installerPath); } catch { }
 
                     DownloadFile(bmclUrl, installerPath);
                     ValidateJarFile(installerPath);
 
-                    Log($"[OptiFine] 安装器已下载: {installerPath}");
+                    recordLog(LogLevel.Info, $"[OptiFine] 安装器已下载: {installerPath}");
                     return installerPath;
                 }
                 catch (Exception ex)
                 {
                     lastError = ex.Message;
-                    Log($"[OptiFine] 第 {round} 轮 BMCLAPI 失败: {ex.Message}");
+                    recordLog(LogLevel.Warn, $"[OptiFine] 第 {round} 轮 BMCLAPI 失败: {ex.Message}");
                     try { if (File.Exists(installerPath)) File.Delete(installerPath); } catch { }
                 }
 
@@ -305,26 +306,26 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 // ============================================================
                 try
                 {
-                    Log($"[OptiFine] 尝试源: OptiFine 官方");
+                    recordLog(LogLevel.Info, $"[OptiFine] 尝试源: OptiFine 官方");
                     try { if (File.Exists(installerPath)) File.Delete(installerPath); } catch { }
 
                     DownloadInstallerFromOfficial(fileName, installerPath);
                     ValidateJarFile(installerPath);
 
-                    Log($"[OptiFine] 安装器已下载: {installerPath}");
+                    recordLog(LogLevel.Info, $"[OptiFine] 安装器已下载: {installerPath}");
                     return installerPath;
                 }
                 catch (Exception ex)
                 {
                     lastError = ex.Message;
-                    Log($"[OptiFine] 第 {round} 轮官方源失败: {ex.Message}");
+                    recordLog(LogLevel.Warn, $"[OptiFine] 第 {round} 轮官方源失败: {ex.Message}");
                     try { if (File.Exists(installerPath)) File.Delete(installerPath); } catch { }
                 }
 
                 if (round < INSTALLER_ROUNDS)
                 {
                     int waitSec = round * 3;
-                    Log($"[OptiFine] 本轮全部源失败，{waitSec} 秒后重试...");
+                    recordLog(LogLevel.Info, $"[OptiFine] 本轮全部源失败，{waitSec} 秒后重试...");
                     Thread.Sleep(waitSec * 1000);
                 }
             }
@@ -405,7 +406,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 downloadPath = OPTIFINE_OFFICIAL + "/" + downloadPath;
             }
 
-            Log($"[OptiFine] 官方下载链接: {downloadPath}");
+            recordLog(LogLevel.Info, $"[OptiFine] 官方下载链接: {downloadPath}");
 
             // ---- 3. 下载真实文件 ----
             DownloadFile(downloadPath, dest);
@@ -415,7 +416,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         private static void RunInstaller(string installerPath, string minecraftDir, string mcVersion)
         {
             string javaPath = FindJavaForOptiFine(mcVersion);
-            Log($"[OptiFine] Java: {javaPath}");
+            recordLog(LogLevel.Info, $"[OptiFine] Java: {javaPath}");
 
             // ★ 关键修复：OptiFine 安装器需要 launcher_profiles.json
             EnsureLauncherProfiles(minecraftDir);
@@ -430,9 +431,9 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 $"-Djava.awt.headless=true " +
                 $"-cp \"{installerPath}\" optifine.Installer";
 
-            Log($"[OptiFine] 执行安装器...");
-            Log($"[OptiFine] WorkingDir: {gameParentDir}");
-            Log($"[OptiFine] APPDATA   : {gameParentDir}");
+            recordLog(LogLevel.Info, $"[OptiFine] 执行安装器...");
+            recordLog(LogLevel.Info, $"[OptiFine] WorkingDir: {gameParentDir}");
+            recordLog(LogLevel.Info, $"[OptiFine] APPDATA   : {gameParentDir}");
 
             var psi = new ProcessStartInfo
             {
@@ -456,12 +457,12 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 process.OutputDataReceived += (s, e) =>
                 {
                     if (!string.IsNullOrEmpty(e.Data))
-                        Log("[OptiFine] " + e.Data);
+                        recordLog(LogLevel.Info, $"[OptiFine] " + e.Data);
                 };
                 process.ErrorDataReceived += (s, e) =>
                 {
                     if (!string.IsNullOrEmpty(e.Data))
-                        Log("[OptiFine ERR] " + e.Data);
+                        recordLog(LogLevel.Error, $"[OptiFine ERR] " + e.Data);
                 };
 
                 process.Start();
@@ -507,7 +508,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             var utf8NoBom = new UTF8Encoding(false);
             File.WriteAllText(path, json, utf8NoBom);
 
-            Log($"[OptiFine] 已写入 launcher_profiles.json（无 BOM）: {path}");
+            recordLog(LogLevel.Info, $"[OptiFine] 已写入 launcher_profiles.json（无 BOM）: {path}");
         }
 
         // ===================== 合并 JSON =====================
@@ -520,7 +521,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             if (!optifineRoot.ContainsKey("inheritsFrom"))
             {
-                Log("[OptiFine] 无 inheritsFrom，无需合并");
+                recordLog(LogLevel.Info, $"[OptiFine] 无 inheritsFrom，无需合并");
                 return;
             }
 
@@ -536,7 +537,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             if (parentRoot == null)
                 throw new Exception("父版本 JSON 解析失败");
 
-            Log($"[OptiFine] 合并父版本 {parentId}" +
+            recordLog(LogLevel.Info, $"[OptiFine] 合并父版本 {parentId}" +
                 (forForge ? "（Forge 模式，tweakClass 将替换）" : ""));
 
             var merged = new Dictionary<string, object>();
@@ -619,7 +620,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                                 if (forForge && s == "optifine.OptiFineTweaker")
                                 {
                                     gameList.Add("optifine.OptiFineForgeTweaker");
-                                    Log("[OptiFine] tweakClass: optifine.OptiFineTweaker → optifine.OptiFineForgeTweaker");
+                                    recordLog(LogLevel.Info, $"[OptiFine] tweakClass: optifine.OptiFineTweaker → optifine.OptiFineForgeTweaker");
                                 }
                                 else gameList.Add(s);
                             }
@@ -650,7 +651,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             File.WriteAllText(optifineJsonPath,
                 new JavaScriptSerializer().Serialize(merged), Encoding.UTF8);
-            Log($"[OptiFine] 合并完成: {optifineJsonPath}");
+            recordLog(LogLevel.Info, $"[OptiFine] 合并完成: {optifineJsonPath}");
         }
 
         // ===================== Java 查找 =====================
@@ -844,15 +845,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             if (bytes < 1024 * 1024) return (bytes / 1024.0).ToString("F1") + " KB";
             if (bytes < 1024L * 1024 * 1024) return (bytes / 1024.0 / 1024).ToString("F1") + " MB";
             return (bytes / 1024.0 / 1024 / 1024).ToString("F2") + " GB";
-        }
-
-        private static void Log(string msg)
-        {
-            lock (_consoleLock)
-            {
-                Console.Write("\r" + new string(' ', 160) + "\r");
-                Console.WriteLine(msg);
-            }
         }
     }
 }

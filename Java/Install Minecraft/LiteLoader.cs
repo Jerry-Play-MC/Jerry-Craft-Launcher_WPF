@@ -6,6 +6,7 @@ using System.Net;
 using System.Text;
 using System.Threading;
 using System.Web.Script.Serialization;
+using static Jerry_Craft_Launcher.NET_Framework_4._5_WPF.App.AppLog;
 
 namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 {
@@ -91,7 +92,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             bool withForge = !string.IsNullOrEmpty(forgeVersionId);
 
-            Log($"[LiteLoader] 开始安装客户端 LiteLoader {version}"
+            recordLog(LogLevel.Info, $"[LiteLoader] 开始安装客户端 LiteLoader {version}"
                 + (withForge ? $"（与 Forge 组合，继承 {forgeVersionId}）" : ""));
 
             var info = GetLiteLoaderInfo(version, loaderParam);
@@ -100,8 +101,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     $"未找到适用于 Minecraft {version} 的 LiteLoader。\n" +
                     "LiteLoader 只支持 1.5.2 ~ 1.12.2。");
 
-            Log($"[LiteLoader] 使用版本: {info.Version}");
-            Log($"[LiteLoader] TweakClass: {info.TweakClass}");
+            recordLog(LogLevel.Info, $"[LiteLoader] 使用版本: {info.Version}");
+            recordLog(LogLevel.Info, $"[LiteLoader] TweakClass: {info.TweakClass}");
 
             // 父版本：Forge 存在则继承 Forge 版本
             string parentId = withForge ? forgeVersionId : version;
@@ -132,33 +133,33 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 if (parentJson != null)
                 {
                     versionJson = MergeParentJson(parentJson, versionJson, versionId);
-                    Log($"[LiteLoader] 已合并父版本 {parentId}");
+                    recordLog(LogLevel.Info, $"[LiteLoader] 已合并父版本 {parentId}");
                 }
                 else
                 {
-                    Log($"[LiteLoader] 警告: 父版本 JSON 解析失败，保留 inheritsFrom");
+                    recordLog(LogLevel.Warn, $"[LiteLoader] 警告: 父版本 JSON 解析失败，保留 inheritsFrom");
                 }
             }
             else
             {
-                Log($"[LiteLoader] 警告: 未找到父版本 JSON: {parentJsonPath}（保留 inheritsFrom）");
+                recordLog(LogLevel.Warn, $"[LiteLoader] 警告: 未找到父版本 JSON: {parentJsonPath}（保留 inheritsFrom）");
             }
 
             // 保存版本 JSON
             string versionJsonPath = Path.Combine(versionDir, versionId + ".json");
             File.WriteAllText(versionJsonPath,
                 new JavaScriptSerializer().Serialize(versionJson), Encoding.UTF8);
-            Log($"[LiteLoader] 版本 JSON 已保存: {versionJsonPath}");
+            recordLog(LogLevel.Info, $"[LiteLoader] 版本 JSON 已保存: {versionJsonPath}");
 
             // 下载 libraries
             var tasks = CollectLibraryTasks(info, librariesDir);
-            Log($"[LiteLoader] Libraries 任务: {tasks.Count}");
+            recordLog(LogLevel.Info, $"[LiteLoader] Libraries 任务: {tasks.Count}");
 
             if (tasks.Count > 0)
                 DownloadAllSerial(tasks);
 
-            Log($"[LiteLoader] 客户端 LiteLoader {version} 安装完成");
-            Log($"[LiteLoader] 版本 ID: {versionId}");
+            recordLog(LogLevel.Info, $"[LiteLoader] 客户端 LiteLoader {version} 安装完成");
+            recordLog(LogLevel.Info, $"[LiteLoader] 版本 ID: {versionId}");
             return versionId;
         }
 
@@ -166,25 +167,25 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         private static LiteLoaderInfo GetLiteLoaderInfo(string mcVersion, string loaderParam)
         {
             string url = $"{BMCL_BASE}/liteloader/list?mcversion={Uri.EscapeDataString(mcVersion)}";
-            Log($"[LiteLoader] 获取版本信息: {url}");
+            recordLog(LogLevel.Info, $"[LiteLoader] 获取版本信息: {url}");
 
             string json = DownloadString(url);
             if (string.IsNullOrEmpty(json))
             {
-                Log("[LiteLoader] BMCLAPI 返回为空");
+                recordLog(LogLevel.Error, $"[LiteLoader] BMCLAPI 返回为空");
                 return null;
             }
 
             if (json.IndexOf("\"error\"", StringComparison.OrdinalIgnoreCase) >= 0)
             {
-                Log("[LiteLoader] BMCLAPI 返回 error（该版本无 LiteLoader）");
+                recordLog(LogLevel.Warn, $"[LiteLoader] BMCLAPI 返回 error（该版本无 LiteLoader）");
                 return null;
             }
 
             var root = ParseJson(json);
             if (root == null || !root.ContainsKey("build"))
             {
-                Log("[LiteLoader] 返回数据缺少 build 字段");
+                recordLog(LogLevel.Error, $"[LiteLoader] 返回数据缺少 build 字段");
                 return null;
             }
 
@@ -203,7 +204,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             if (string.IsNullOrEmpty(info.Version))
             {
-                Log("[LiteLoader] build 中缺少 version 字段");
+                recordLog(LogLevel.Error, $"[LiteLoader] build 中缺少 version 字段");
                 return null;
             }
 
@@ -525,7 +526,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             int failed = 0, skipped = 0;
             int total = tasks.Count;
 
-            Log($"[LiteLoader] 开始下载（共 {total} 个文件，串行）...");
+            recordLog(LogLevel.Info, $"[LiteLoader] 开始下载（共 {total} 个文件，串行）...");
 
             for (int i = 0; i < total; i++)
             {
@@ -541,12 +542,12 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 {
                     bool wasSkipped = DownloadFileWithRetry(task);
                     if (wasSkipped) skipped++;
-                    else Log($"[LiteLoader] 已下载: {task.Name}");
+                    else recordLog(LogLevel.Info, $"[LiteLoader] 已下载: {task.Name}");
                 }
                 catch (Exception ex)
                 {
                     failed++;
-                    Log($"[LiteLoader] 下载失败: {task.Name} -> {ex.Message}");
+                    recordLog(LogLevel.Error, $"[LiteLoader] 下载失败: {task.Name} -> {ex.Message}");
                 }
             }
 
@@ -556,7 +557,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 try { Console.Out.Flush(); } catch { }
             }
 
-            Log($"[LiteLoader] 下载完成: 总计 {total}, 跳过 {skipped}, 失败 {failed}");
+            recordLog(LogLevel.Info, $"[LiteLoader] 下载完成: 总计 {total}, 跳过 {skipped}, 失败 {failed}");
 
             if (failed > 0)
                 throw new Exception($"[LiteLoader] 有 {failed}/{total} 个库下载失败");
@@ -579,7 +580,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             {
                 if (round > 0)
                 {
-                    Log($"[LiteLoader] 第 {round + 1}/{RETRY_ROUNDS} 轮重试: {task.Name}");
+                    recordLog(LogLevel.Info, $"[LiteLoader] 第 {round + 1}/{RETRY_ROUNDS} 轮重试: {task.Name}");
                     Thread.Sleep(ROUND_DELAY_MS);
                 }
 
@@ -617,13 +618,13 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                         if (forbidden)
                         {
                             permanentFailures.Add(url);
-                            Log($"[LiteLoader] 源不可用({GetHostSafe(url)})，切换备用源");
+                            recordLog(LogLevel.Warn, $"[LiteLoader] 源不可用({GetHostSafe(url)})，切换备用源");
                             continue;
                         }
 
                         if (rateLimited)
                         {
-                            Log($"[LiteLoader] 限流，等待 {RATE_LIMIT_DELAY_MS / 1000} 秒: {GetHostSafe(url)}");
+                            recordLog(LogLevel.Info, $"[LiteLoader] 限流，等待 {RATE_LIMIT_DELAY_MS / 1000} 秒: {GetHostSafe(url)}");
                             Thread.Sleep(RATE_LIMIT_DELAY_MS);
                         }
                         else
@@ -715,7 +716,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             if (!File.Exists(parentJar) || new FileInfo(parentJar).Length == 0)
             {
-                Log($"[LiteLoader] 警告: 未找到父版本核心 {parentJar}");
+                recordLog(LogLevel.Warn, $"[LiteLoader] 警告: 未找到父版本核心 {parentJar}");
                 return;
             }
 
@@ -724,16 +725,16 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 if (File.Exists(targetJar) &&
                     new FileInfo(targetJar).Length == new FileInfo(parentJar).Length)
                 {
-                    Log($"[LiteLoader] 版本核心已存在: {targetJar}");
+                    recordLog(LogLevel.Info, $"[LiteLoader] 版本核心已存在: {targetJar}");
                     return;
                 }
 
                 File.Copy(parentJar, targetJar, true);
-                Log($"[LiteLoader] 已复制父版本核心: {targetJar}");
+                recordLog(LogLevel.Info, $"[LiteLoader] 已复制父版本核心: {targetJar}");
             }
             catch (Exception ex)
             {
-                Log($"[LiteLoader] 复制父版本核心失败(不致命): {ex.Message}");
+                recordLog(LogLevel.Error, $"[LiteLoader] 复制父版本核心失败(不致命): {ex.Message}");
             }
         }
 
@@ -747,15 +748,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     .Deserialize<Dictionary<string, object>>(json);
             }
             catch { return null; }
-        }
-
-        private static void Log(string msg)
-        {
-            lock (_consoleLock)
-            {
-                Console.Write("\r" + new string(' ', 140) + "\r");
-                Console.WriteLine(msg);
-            }
         }
 
         private class DownloadTask

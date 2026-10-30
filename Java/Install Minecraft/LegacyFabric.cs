@@ -1,13 +1,12 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Net;
-using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Web.Script.Serialization;
+using static Jerry_Craft_Launcher.NET_Framework_4._5_WPF.App.AppLog;
 
 namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 {
@@ -41,12 +40,12 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             if (string.IsNullOrEmpty(minecraftDir))
                 throw new ArgumentException(".minecraft 路径不能为空", "minecraftDir");
 
-            Log($"[LegacyFabric] 开始安装客户端 Legacy Fabric {version}");
+            recordLog(LogLevel.Info, $"[LegacyFabric] 开始安装客户端 Legacy Fabric {version}");
 
             string loaderVersion = ResolveLoaderVersion(version, loaderParam);
             if (string.IsNullOrEmpty(loaderVersion))
                 throw new Exception("无法获取 Legacy Fabric Loader 版本");
-            Log($"[LegacyFabric] 使用 Loader 版本: {loaderVersion}");
+            recordLog(LogLevel.Info, $"[LegacyFabric] 使用 Loader 版本: {loaderVersion}");
 
             string versionId = $"legacyfabric-loader-{loaderVersion}-{version}";
 
@@ -54,7 +53,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             string profileUrl = $"{LEGACY_META}/v2/versions/loader/" +
                                 $"{Uri.EscapeDataString(version)}/" +
                                 $"{Uri.EscapeDataString(loaderVersion)}/profile/json";
-            Log($"[LegacyFabric] 获取 profile: {profileUrl}");
+            recordLog(LogLevel.Info,$"[LegacyFabric] 获取 profile: {profileUrl}");
             string profileJson = DownloadString(profileUrl);
 
             // 2. 合并父版本 JSON（去 inheritsFrom，生成独立版本）
@@ -66,7 +65,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             Directory.CreateDirectory(versionDir);
             string versionJsonPath = Path.Combine(versionDir, versionId + ".json");
             File.WriteAllText(versionJsonPath, mergedJson, Encoding.UTF8);
-            Log($"[LegacyFabric] 版本 JSON 已保存: {versionJsonPath}");
+            recordLog(LogLevel.Info, $"[LegacyFabric] 版本 JSON 已保存: {versionJsonPath}");
 
             // 4. 复制原版 client.jar
             CopyClientJar(versionsDir, version, versionDir, versionId);
@@ -78,12 +77,12 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             string librariesDir = Path.Combine(minecraftDir, "libraries");
             var tasks = CollectLibraryTasks(root, librariesDir, "client");
-            Log($"[LegacyFabric] Libraries 任务: {tasks.Count}");
+            recordLog(LogLevel.Info, $"[LegacyFabric] Libraries 任务: {tasks.Count}");
 
             if (tasks.Count > 0)
                 ParallelDownload(tasks, MAX_CONCURRENCY);
 
-            Log($"[LegacyFabric] 客户端 Legacy Fabric {version} 安装完成");
+            recordLog(LogLevel.Info, $"[LegacyFabric] 客户端 Legacy Fabric {version} 安装完成");
         }
 
         // ===================== 服务端：不支持 =====================
@@ -129,7 +128,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             }
             catch (Exception ex)
             {
-                Log($"[LegacyFabric] 获取最新 Loader 版本失败: {ex.Message}");
+                recordLog(LogLevel.Error, $"[LegacyFabric] 获取最新 Loader 版本失败: {ex.Message}");
             }
             return null;
         }
@@ -286,7 +285,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             object queueLock = new object();
             object statLock = new object();
 
-            Log($"[LegacyFabric] 开始并行下载（{maxConcurrency} 线程，共 {total} 个任务）...");
+            recordLog(LogLevel.Info, $"[LegacyFabric] 开始并行下载（{maxConcurrency} 线程，共 {total} 个任务）...");
             Interlocked.Exchange(ref _lastProgressTick, 0);
 
             lock (_consoleLock)
@@ -407,11 +406,11 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     if (task.SkipIfNotFound &&
                         msg.IndexOf("404", StringComparison.Ordinal) >= 0)
                     {
-                        Log($"[LegacyFabric] 404 跳过（natives-only 库）: {task.Name}");
+                        recordLog(LogLevel.Info, $"[LegacyFabric] 404 跳过（natives-only 库）: {task.Name}");
                         return true;
                     }
 
-                    Log($"[LegacyFabric] 下载失败({url}): {ex.Message}");
+                    recordLog(LogLevel.Error, $"[LegacyFabric] 下载失败({url}): {ex.Message}");
                     if (retry < RETRY_COUNT - 1) Thread.Sleep(500 * (retry + 1));
                 }
             }
@@ -485,7 +484,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             if (!File.Exists(originalClientJar) || new FileInfo(originalClientJar).Length == 0)
             {
-                Log($"[LegacyFabric] 警告: 未找到原版 client.jar({originalClientJar})，请先运行 Vanilla.InstallClient");
+                recordLog(LogLevel.Warn, $"[LegacyFabric] 警告: 未找到原版 client.jar({originalClientJar})，请先运行 Vanilla.InstallClient");
                 return;
             }
 
@@ -495,16 +494,16 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 if (File.Exists(fabricVersionJar) &&
                     new FileInfo(fabricVersionJar).Length == srcLen)
                 {
-                    Log($"[LegacyFabric] 版本核心已存在: {fabricVersionJar}");
+                    recordLog(LogLevel.Info,    $"[LegacyFabric] 版本核心已存在: {fabricVersionJar}");
                     return;
                 }
 
                 File.Copy(originalClientJar, fabricVersionJar, true);
-                Log($"[LegacyFabric] 已复制原版核心到: {fabricVersionJar}");
+                recordLog(LogLevel.Info, $"[LegacyFabric] 已复制原版核心到: {fabricVersionJar}");
             }
             catch (Exception ex)
             {
-                Log($"[LegacyFabric] 复制原版核心失败(不致命): {ex.Message}");
+                recordLog(LogLevel.Error, $"[LegacyFabric] 复制原版核心失败(不致命): {ex.Message}");
             }
         }
 
@@ -514,7 +513,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             var fabricRoot = ParseJson(fabricJson);
             if (fabricRoot == null)
             {
-                Log("[LegacyFabric] profile JSON 解析失败，跳过合并");
+                recordLog(LogLevel.Error, $"[LegacyFabric] profile JSON 解析失败，跳过合并");
                 return fabricJson;
             }
 
@@ -523,7 +522,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             if (!fabricRoot.ContainsKey("inheritsFrom"))
             {
-                Log("[LegacyFabric] profile JSON 无 inheritsFrom，仅改写 id");
+                recordLog(LogLevel.Info, $"[LegacyFabric] profile JSON 无 inheritsFrom，仅改写 id");
                 return new JavaScriptSerializer().Serialize(fabricRoot);
             }
 
@@ -532,18 +531,18 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             if (!File.Exists(parentPath))
             {
-                Log($"[LegacyFabric] 警告: 未找到父版本 JSON({parentPath})，跳过合并");
+                recordLog(LogLevel.Warn, $"[LegacyFabric] 警告: 未找到父版本 JSON({parentPath})，跳过合并");
                 return new JavaScriptSerializer().Serialize(fabricRoot);
             }
 
             var parentRoot = ParseJson(File.ReadAllText(parentPath));
             if (parentRoot == null)
             {
-                Log("[LegacyFabric] 父版本 JSON 解析失败，跳过合并");
+                recordLog(LogLevel.Error, $"[LegacyFabric] 父版本 JSON 解析失败，跳过合并");
                 return new JavaScriptSerializer().Serialize(fabricRoot);
             }
 
-            Log($"[LegacyFabric] 合并父版本 {parentId} 到 {versionId}");
+            recordLog(LogLevel.Info, $"[LegacyFabric] 合并父版本 {parentId} 到 {versionId}");
 
             var merged = new Dictionary<string, object>();
 
@@ -570,12 +569,12 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             try
             {
                 string result = new JavaScriptSerializer().Serialize(merged);
-                Log($"[LegacyFabric] 合并完成，JSON 长度: {result.Length}");
+                recordLog(LogLevel.Info, $"[LegacyFabric] 合并完成，JSON 长度: {result.Length}");
                 return result;
             }
             catch (Exception ex)
             {
-                Log($"[LegacyFabric] 序列化合并结果失败: {ex.Message}，使用原 JSON");
+                recordLog(LogLevel.Error, $"[LegacyFabric] 序列化合并结果失败: {ex.Message}，使用原 JSON");
                 return fabricJson;
             }
         }
@@ -676,15 +675,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     .Deserialize<Dictionary<string, object>>(json);
             }
             catch { return null; }
-        }
-
-        private static void Log(string msg)
-        {
-            lock (_consoleLock)
-            {
-                Console.Write("\r" + new string(' ', 140) + "\r");
-                Console.WriteLine(msg);
-            }
         }
 
         // ===================== 内部类 =====================

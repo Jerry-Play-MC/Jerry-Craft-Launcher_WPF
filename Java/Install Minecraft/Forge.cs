@@ -11,6 +11,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Web.Script.Serialization;
 using System.Xml;
+using static Jerry_Craft_Launcher.NET_Framework_4._5_WPF.App.AppLog;
 
 namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 {
@@ -49,12 +50,12 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             minecraftDir = Path.GetFullPath(minecraftDir);
 
-            Log($"[Forge] 开始安装客户端 Forge {version}");
+            recordLog(LogLevel.Info, $"[Forge] 开始安装客户端 Forge {version}");
 
             string forgeVersion = ResolveForgeVersion(version, loaderParam);
             if (string.IsNullOrEmpty(forgeVersion))
                 throw new Exception($"无法找到 Forge {version} 的版本");
-            Log($"[Forge] 使用 Forge 版本: {forgeVersion}");
+            recordLog(LogLevel.Info, $"[Forge] 使用 Forge 版本: {forgeVersion}");
 
             string versionId = $"{forgeVersion}";
             string versionsDir = Path.Combine(minecraftDir, "versions");
@@ -107,7 +108,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     CollectLibraryTasks(profile, librariesDir, tasks, "client");
                 tasks = DeduplicateTasks(tasks);
 
-                Log($"[Forge] Libraries 任务: {tasks.Count}");
+                recordLog(LogLevel.Info, $"[Forge] Libraries 任务: {tasks.Count}");
 
                 if (tasks.Count > 0)
                     ParallelDownload(tasks, MAX_CONCURRENCY);
@@ -124,32 +125,32 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                         if (parentJson != null)
                         {
                             versionJson = MergeParentJson(parentJson, versionJson, versionId);
-                            Log($"[Forge] 已合并父版本 {parentId}（inheritsFrom 已展开）");
+                            recordLog(LogLevel.Info, $"[Forge] 已合并父版本 {parentId}（inheritsFrom 已展开）");
                         }
                         else
                         {
-                            Log($"[Forge] 警告: 父版本 JSON 解析失败，保留 inheritsFrom: {parentJsonPath}");
+                            recordLog(LogLevel.Warn, $"[Forge] 警告: 父版本 JSON 解析失败，保留 inheritsFrom: {parentJsonPath}");
                         }
                     }
                     else
                     {
-                        Log($"[Forge] 警告: 找不到父版本 JSON，保留 inheritsFrom: {parentJsonPath}");
+                        recordLog(LogLevel.Warn, $"[Forge] 警告: 找不到父版本 JSON，保留 inheritsFrom: {parentJsonPath}");
                     }
                 }
 
                 string targetJson = Path.Combine(versionDir, versionId + ".json");
                 File.WriteAllText(targetJson,
                     new JavaScriptSerializer().Serialize(versionJson), Encoding.UTF8);
-                Log($"[Forge] 版本 JSON 已保存: {targetJson}");
+                recordLog(LogLevel.Info, $"[Forge] 版本 JSON 已保存: {targetJson}");
 
                 if (profile.ContainsKey("processors"))
                 {
-                    Log("[Forge] 执行 processor（打补丁）...");
+                    recordLog(LogLevel.Info, $"[Forge] 执行 processor（打补丁）...");
                     RunProcessors(profile, minecraftDir, tempDir, "client", installerPath);
                 }
                 else
                 {
-                    Log("[Forge] 无 processor，跳过");
+                    recordLog(LogLevel.Info, $"[Forge] 无 processor，跳过");
                 }
 
                 string originalClientJar = Path.Combine(versionsDir, version, version + ".jar");
@@ -159,12 +160,12 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     try
                     {
                         File.Copy(originalClientJar, forgeVersionJar, true);
-                        Log($"[Forge] 已复制原版核心到: {forgeVersionJar}");
+                        recordLog(LogLevel.Info, $"[Forge] 已复制原版核心到: {forgeVersionJar}");
                     }
                     catch { }
                 }
 
-                Log($"[Forge] 客户端 Forge {version} 安装完成");
+                recordLog(LogLevel.Info, $"[Forge] 客户端 Forge {version} 安装完成");
                 return versionId;   // ★ 返回版本 ID，供 LiteLoader 组合使用
             }
             finally
@@ -183,12 +184,12 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             serverDir = Path.GetFullPath(serverDir);
 
-            Log($"[Forge] 开始安装服务端 Forge {version}");
+            recordLog(LogLevel.Info, $"[Forge] 开始安装服务端 Forge {version}");
 
             string forgeVersion = ResolveForgeVersion(version, loaderParam);
             if (string.IsNullOrEmpty(forgeVersion))
                 throw new Exception($"无法找到 Forge {version} 的版本");
-            Log($"[Forge] 使用 Forge 版本: {forgeVersion}");
+            recordLog(LogLevel.Info, $"[Forge] 使用 Forge 版本: {forgeVersion}");
 
             Directory.CreateDirectory(serverDir);
             string librariesDir = Path.Combine(serverDir, "libraries");
@@ -237,14 +238,14 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     CollectLibraryTasks(profile, librariesDir, tasks, "server");
                 tasks = DeduplicateTasks(tasks);
 
-                Log($"[Forge] Libraries 任务: {tasks.Count}");
+                recordLog(LogLevel.Info, $"[Forge] Libraries 任务: {tasks.Count}");
 
                 if (tasks.Count > 0)
                     ParallelDownload(tasks, MAX_CONCURRENCY);
 
                 if (profile.ContainsKey("processors"))
                 {
-                    Log("[Forge] 执行 processor（打补丁）...");
+                    recordLog(LogLevel.Info, $"[Forge] 执行 processor（打补丁）...");
                     RunProcessors(profile, serverDir, tempDir, "server", installerPath);
                 }
 
@@ -261,16 +262,16 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     try
                     {
                         File.Copy(shimSrc, shimDst, true);
-                        Log($"[Forge] 已复制 shim jar 到: {shimDst}");
+                        recordLog(LogLevel.Info, $"[Forge] 已复制 shim jar 到: {shimDst}");
                     }
                     catch (Exception ex)
                     {
-                        Log($"[Forge] 复制 shim jar 失败: {ex.Message}");
+                        recordLog(LogLevel.Error, $"[Forge] 复制 shim jar 失败: {ex.Message}");
                     }
                 }
                 else
                 {
-                    Log($"[Forge] 警告: 未找到 shim jar: {shimSrc}");
+                    recordLog(LogLevel.Warn, $"[Forge] 警告: 未找到 shim jar: {shimSrc}");
                 }
 
                 // ============================================================
@@ -282,23 +283,23 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 string jvmArgs = Path.Combine(serverDir, "user_jvm_args.txt");
 
                 if (File.Exists(runBat))
-                    Log($"[Forge] 启动脚本已就绪: {runBat}");
+                    recordLog(LogLevel.Info, $"[Forge] 启动脚本已就绪: {runBat}");
                 else
-                    Log($"[Forge] 警告: 未找到 run.bat（processor 1 可能未成功）");
+                    recordLog(LogLevel.Warn, $"[Forge] 警告: 未找到 run.bat（processor 1 可能未成功）");
 
                 if (File.Exists(winArgs))
-                    Log($"[Forge] win_args.txt 已就绪");
+                    recordLog(LogLevel.Info, $"[Forge] win_args.txt 已就绪");
                 else
-                    Log($"[Forge] 警告: 未找到 win_args.txt");
+                    recordLog(LogLevel.Warn, $"[Forge] 警告: 未找到 win_args.txt");
 
                 if (File.Exists(jvmArgs))
-                    Log($"[Forge] user_jvm_args.txt 已就绪，可在此文件里修改内存等 JVM 参数");
+                    recordLog(LogLevel.Info, $"[Forge] user_jvm_args.txt 已就绪，可在此文件里修改内存等 JVM 参数");
                 else
-                    Log($"[Forge] 警告: 未找到 user_jvm_args.txt");
+                    recordLog(LogLevel.Warn, $"[Forge] 警告: 未找到 user_jvm_args.txt");
 
-                Log($"[Forge] 服务端 Forge {version} 安装完成");
-                Log($"[Forge] 首次启动前请：1) 修改 eula.txt 接受 EULA  2) 编辑 user_jvm_args.txt 设置内存");
-                Log($"[Forge] 启动方式：双击 {runBat}");
+                recordLog(LogLevel.Info, $"[Forge] 服务端 Forge {version} 安装完成");
+                recordLog(LogLevel.Info, $"[Forge] 首次启动前请：1) 修改 eula.txt 接受 EULA  2) 编辑 user_jvm_args.txt 设置内存");
+                recordLog(LogLevel.Info, $"[Forge] 启动方式：双击 {runBat}");
             }
             finally
             {
@@ -336,7 +337,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         {
             try
             {
-                Log("[Forge] 获取版本列表...");
+                recordLog(LogLevel.Info, $"[Forge] 获取版本列表...");
                 string xml = DownloadString(FORGE_METADATA);
                 if (string.IsNullOrEmpty(xml)) return null;
 
@@ -363,12 +364,12 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     return CompareVersions(vb, va);
                 });
 
-                Log($"[Forge] 最新版本: {candidates[0]}");
+                recordLog(LogLevel.Info, $"[Forge] 最新版本: {candidates[0]}");
                 return candidates[0];
             }
             catch (Exception ex)
             {
-                Log($"[Forge] 获取版本列表失败: {ex.Message}");
+                recordLog(LogLevel.Error, $"[Forge] 获取版本列表失败: {ex.Message}");
                 return null;
             }
         }
@@ -399,7 +400,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
                 if (File.Exists(installerPath))
                 {
-                    Log($"[Forge] 安装器已存在: {installerPath}");
+                    recordLog(LogLevel.Info, $"[Forge] 安装器已存在: {installerPath}");
                     return installerPath;
                 }
             }
@@ -410,7 +411,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 $"{BMCL_BASE}/maven/net/minecraftforge/forge/{forgeVersion}/{fileName}",
             };
 
-            Log($"[Forge] 下载安装器（{INSTALLER_CHUNKS} 段并行）: {fileName}");
+            recordLog(LogLevel.Info, $"[Forge] 下载安装器（{INSTALLER_CHUNKS} 段并行）: {fileName}");
 
             string lastError = null;
             foreach (var url in mirrors)
@@ -418,13 +419,13 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 try
                 {
                     DownloadLargeFile(url, installerPath, INSTALLER_CHUNKS);
-                    Log($"[Forge] 安装器已下载: {installerPath}");
+                    recordLog(LogLevel.Info, $"[Forge] 安装器已下载: {installerPath}");
                     return installerPath;
                 }
                 catch (Exception ex)
                 {
                     lastError = ex.Message;
-                    Log($"[Forge] 源失败({url}): {ex.Message}");
+                    recordLog(LogLevel.Error, $"[Forge] 源失败({url}): {ex.Message}");
                     try { if (File.Exists(installerPath)) File.Delete(installerPath); } catch { }
                     Thread.Sleep(1000);
                 }
@@ -440,12 +441,12 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             if (totalSize <= 0)
             {
-                Log("[Forge] 服务器不返回大小，退化为单线程下载");
+                recordLog(LogLevel.Info, $"[Forge] 服务器不返回大小，退化为单线程下载");
                 SingleDownloadWithProgress(url, dest, true);
                 return;
             }
 
-            Log($"[Forge] 文件大小: {FormatSize(totalSize)}，分 {chunks} 段并行");
+            recordLog(LogLevel.Info, $"[Forge] 文件大小: {FormatSize(totalSize)}，分 {chunks} 段并行");
 
             using (var fs = File.Create(dest))
                 fs.SetLength(totalSize);
@@ -534,7 +535,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             if (errors.Count > 0)
             {
-                Log($"[Forge] 分段失败（{errors.Count} 段），回退单线程重下");
+                recordLog(LogLevel.Error, $"[Forge] 分段失败（{errors.Count} 段），回退单线程重下");
                 try { if (File.Exists(dest)) File.Delete(dest); } catch { }
                 SingleDownloadWithProgress(url, dest, true);
                 return;
@@ -644,7 +645,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                         catch { }
                     }
                 }
-                Log($"[Forge] 安装器已解压到: {destDir}");
+                recordLog(LogLevel.Info, $"[Forge] 安装器已解压到: {destDir}");
             }
             catch (Exception ex)
             {
@@ -954,7 +955,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 if (seen.Add(key)) result.Add(t);
             }
             if (result.Count != tasks.Count)
-                Log($"[Forge] 去重: {tasks.Count} -> {result.Count}");
+                recordLog(LogLevel.Info, $"[Forge] 去重: {tasks.Count} -> {result.Count}");
             return result;
         }
 
@@ -965,7 +966,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         {
             string binPatchFile = Path.Combine(installerDir, "data",
                 side == "client" ? "client.lzma" : "server.lzma");
-            Log($"[Forge] 预期 BINPATCH 文件: {binPatchFile} (存在={File.Exists(binPatchFile)})");
+            recordLog(LogLevel.Info, $"[Forge] 预期 BINPATCH 文件: {binPatchFile} (存在={File.Exists(binPatchFile)})");
 
             var processors = profile["processors"] as ArrayList;
             if (processors == null) return;
@@ -983,7 +984,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 installerPath = installerPathArg;
             }
 
-            Log($"[Forge] processor 使用的 INSTALLER 路径: {installerPath}");
+            recordLog(LogLevel.Info, $"[Forge] processor 使用的 INSTALLER 路径: {installerPath}");
 
             string mcJar = side == "client"
                 ? Path.Combine(rootDir, "versions", GetMinecraftVersion(profile),
@@ -1008,7 +1009,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                                 matched = true;
                         if (!matched)
                         {
-                            Log($"[Forge] 跳过 processor {idx}（不适用 {side}）");
+                            recordLog(LogLevel.Info, $"[Forge] 跳过 processor {idx}（不适用 {side}）");
                             continue;
                         }
                     }
@@ -1032,7 +1033,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                         }
                         if (allExist)
                         {
-                            Log($"[Forge] processor {idx} 输出已存在，跳过");
+                            recordLog(LogLevel.Info, $"[Forge] processor {idx} 输出已存在，跳过");
                             continue;
                         }
                     }
@@ -1041,7 +1042,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 string jarCoord = proc.ContainsKey("jar") ? proc["jar"].ToString() : null;
                 if (string.IsNullOrEmpty(jarCoord))
                 {
-                    Log($"[Forge] processor {idx} 无 jar 字段，跳过");
+                    recordLog(LogLevel.Info, $"[Forge] processor {idx} 无 jar 字段，跳过");
                     continue;
                 }
 
@@ -1049,14 +1050,14 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 string procJar = Path.Combine(librariesDir, procJarRel);
                 if (!File.Exists(procJar))
                 {
-                    Log($"[Forge] processor {idx} jar 不存在: {procJar}");
+                    recordLog(LogLevel.Error, $"[Forge] processor {idx} jar 不存在: {procJar}");
                     continue;
                 }
 
                 try { ValidateJarFile(procJar); }
                 catch (Exception ex)
                 {
-                    Log($"[Forge] processor {idx} jar 损坏: {ex.Message}");
+                    recordLog(LogLevel.Error, $"[Forge] processor {idx} jar 损坏: {ex.Message}");
                     continue;
                 }
 
@@ -1066,11 +1067,11 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     mainClass = GetMainClassFromJar(procJar);
                 if (string.IsNullOrEmpty(mainClass))
                 {
-                    Log($"[Forge] processor {idx} 无法确定 mainClass，跳过");
+                    recordLog(LogLevel.Info, $"[Forge] processor {idx} 无法确定 mainClass，跳过");
                     continue;
                 }
 
-                Log($"[Forge] processor {idx} mainClass = {mainClass}");
+                recordLog(LogLevel.Info, $"[Forge] processor {idx} mainClass = {mainClass}");
 
                 var cpList = new List<string> { procJar };
                 if (proc.ContainsKey("classpath"))
@@ -1106,14 +1107,14 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     }
                 }
 
-                Log($"[Forge] processor {idx} 参数 ({argList.Count} 个):");
+                recordLog(LogLevel.Info, $"[Forge] processor {idx} 参数 ({argList.Count} 个):");
                 for (int i = 0; i < argList.Count; i++)
                 {
                     string mark = string.IsNullOrEmpty(argList[i]) ? " ★空!" : "";
-                    Log($"[Forge]   [{i}] RAW='{rawArgList[i]}' -> '{argList[i]}'{mark}");
+                    recordLog(LogLevel.Info, $"[Forge]   [{i}] RAW='{rawArgList[i]}' -> '{argList[i]}'{mark}");
                 }
 
-                Log($"[Forge] 执行 processor {idx}: {jarCoord}");
+                recordLog(LogLevel.Info, $"[Forge] 执行 processor {idx}: {jarCoord}");
                 RunJavaProcess(cpList, mainClass, argList, rootDir);
             }
         }
@@ -1261,17 +1262,17 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 string.Join(" ", args.ConvertAll(a =>
                     a.Contains(" ") ? "\"" + a + "\"" : a).ToArray());
 
-            Log($"[Processor] Java: {javaPath}");
-            Log($"[Processor] WorkingDir: {workingDir}");
-            Log($"[Processor] MainClass: {mainClass}");
-            Log($"[Processor] Classpath ({absClasspath.Count} 条):");
+            recordLog(LogLevel.Info, $"[Processor] Java: {javaPath}");
+            recordLog(LogLevel.Info, $"[Processor] WorkingDir: {workingDir}");
+            recordLog(LogLevel.Info, $"[Processor] MainClass: {mainClass}");
+            recordLog(LogLevel.Info, $"[Processor] Classpath ({absClasspath.Count} 条):");
             foreach (var p in absClasspath)
             {
                 bool exists = false;
                 try { exists = File.Exists(p); } catch { }
-                Log($"[Processor]   {(exists ? "√" : "×")} {p}");
+                recordLog(LogLevel.Info, $"[Processor]   {(exists ? "√" : "×")} {p}");
             }
-            Log($"[Processor] 完整命令行: {fullArgs}");
+            recordLog(LogLevel.Info, $"[Processor] 完整命令行: {fullArgs}");
 
             var psi = new ProcessStartInfo
             {
@@ -1291,12 +1292,12 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 process.OutputDataReceived += (s, e) =>
                 {
                     if (!string.IsNullOrEmpty(e.Data))
-                        Log("[Processor] " + e.Data);
+                        recordLog(LogLevel.Info, $"[Processor] " + e.Data);
                 };
                 process.ErrorDataReceived += (s, e) =>
                 {
                     if (!string.IsNullOrEmpty(e.Data))
-                        Log("[Processor ERR] " + e.Data);
+                        recordLog(LogLevel.Info, $"[Processor ERR] " + e.Data);
                 };
 
                 process.Start();
@@ -1349,7 +1350,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             object statLock = new object();
             var failures = new List<string>();
 
-            Log($"[Forge] 开始并行下载（{maxConcurrency} 线程，共 {total} 个任务）...");
+            recordLog(LogLevel.Info, $"[Forge] 开始并行下载（{maxConcurrency} 线程，共 {total} 个任务）...");
             Interlocked.Exchange(ref _lastProgressTick, 0);
 
             lock (_consoleLock)
@@ -1508,7 +1509,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     {
                         lastEx = ex;
                         try { if (File.Exists(tmpPath)) File.Delete(tmpPath); } catch { }
-                        Log($"[Forge] 下载失败({u}): {ex.Message}");
+                        recordLog(LogLevel.Info, $"[Forge] 下载失败({u}): {ex.Message}");
 
                         string msg = ex.Message ?? "";
                         if (msg.Contains("429") || msg.Contains("403") ||
@@ -1632,7 +1633,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             if (ipv4List.Count == 0)
             {
-                Log($"[Forge] 未解析到 IPv4，退回原 URL: {url}");
+                recordLog(LogLevel.Info, $"[Forge] 未解析到 IPv4，退回原 URL: {url}");
                 return SendRaw(url, null, timeoutMs, readWriteTimeoutMs);
             }
 
@@ -1773,15 +1774,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     .Deserialize<Dictionary<string, object>>(json);
             }
             catch { return null; }
-        }
-
-        private static void Log(string msg)
-        {
-            lock (_consoleLock)
-            {
-                Console.Write("\r" + new string(' ', 140) + "\r");
-                Console.WriteLine(msg);
-            }
         }
 
         private static string FormatSize(long bytes)

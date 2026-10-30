@@ -7,6 +7,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Web.Script.Serialization;
+using static Jerry_Craft_Launcher.NET_Framework_4._5_WPF.App.AppLog;
 
 namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 {
@@ -63,10 +64,10 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 channel = DEFAULT_CHANNEL;
 
             minecraftDir = Path.GetFullPath(minecraftDir);
-            Log($"[LabyMod] 开始安装客户端 LabyMod {version}（channel={channel}）");
+            recordLog(LogLevel.Info, $"[LabyMod] 开始安装客户端 LabyMod {version}（channel={channel}）");
 
             // ---------- 1. 拉取 manifest ----------
-            Log($"[LabyMod] 拉取 manifest: {MANIFEST_URL}");
+            recordLog(LogLevel.Info, $"[LabyMod] 拉取 manifest: {MANIFEST_URL}");
             string manifestJson = DownloadString(MANIFEST_URL);
             var manifest = ParseJson(manifestJson);
             if (manifest == null)
@@ -83,8 +84,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             if (string.IsNullOrEmpty(commitRef))
                 throw new Exception("manifest 缺少 commitReference");
 
-            Log($"[LabyMod] LabyMod 版本: {labyModVersion}");
-            Log($"[LabyMod] commitReference: {commitRef}");
+            recordLog(LogLevel.Info, $"[LabyMod] LabyMod 版本: {labyModVersion}");
+            recordLog(LogLevel.Info, $"[LabyMod] commitReference: {commitRef}");
 
             // ---------- 2. 找目标 MC 版本条目 ----------
             string mcTag = null;
@@ -113,8 +114,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             if (string.IsNullOrEmpty(mcTag) || string.IsNullOrEmpty(customManifestUrl))
                 throw new Exception($"LabyMod 不支持 Minecraft {version}");
 
-            Log($"[LabyMod] 目标 MC tag: {mcTag}");
-            Log($"[LabyMod] 基础 JSON URL: {customManifestUrl}");
+            recordLog(LogLevel.Info, $"[LabyMod] 目标 MC tag: {mcTag}");
+            recordLog(LogLevel.Info, $"[LabyMod] 基础 JSON URL: {customManifestUrl}");
 
             // ---------- 3. 下载基础版本 JSON ----------
             var versionRoot = ParseJson(DownloadString(customManifestUrl));
@@ -123,11 +124,11 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             int baseLibCount = (versionRoot.ContainsKey("libraries")
                 ? versionRoot["libraries"] as ArrayList : null)?.Count ?? 0;
-            Log($"[LabyMod] 基础 JSON 库数量: {baseLibCount}");
+            recordLog(LogLevel.Info, $"[LabyMod] 基础 JSON 库数量: {baseLibCount}");
 
             // ---------- 4. ★ 下载完整依赖清单 + 隔离列表 ----------
             string libUrl = LIBS_URL_TEMPLATE.Replace("{channel}", channel);
-            Log($"[LabyMod] 下载完整依赖清单: {libUrl}");
+            recordLog(LogLevel.Info, $"[LabyMod] 下载完整依赖清单: {libUrl}");
 
             try
             {
@@ -136,20 +137,20 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
                 if (libRoot == null)
                 {
-                    Log($"[LabyMod] ⚠ 完整依赖清单解析失败，仅使用基础 JSON");
+                    recordLog(LogLevel.Warn, $"[LabyMod] ⚠ 完整依赖清单解析失败，仅使用基础 JSON");
                 }
                 else
                 {
                     // 4.1 收集隔离列表
                     var isolatedSet = CollectIsolatedLibraries(libRoot, mcTag);
-                    Log($"[LabyMod] 需要隔离 {isolatedSet.Count} 个库");
+                    recordLog(LogLevel.Info, $"[LabyMod] 需要隔离 {isolatedSet.Count} 个库");
 
                     // 4.2 过滤基础 JSON 中被隔离的库
                     FilterIsolatedFromBase(versionRoot, isolatedSet);
 
                     // 4.3 追加完整依赖清单里的全部库
                     int appended = AppendFullLibraries(versionRoot, libRoot);
-                    Log($"[LabyMod] 从完整依赖清单追加 {appended} 个库");
+                    recordLog(LogLevel.Info, $"[LabyMod] 从完整依赖清单追加 {appended} 个库");
 
                     // 4.4 追加 LabyMod 主 jar
                     AppendLabyModCoreJar(versionRoot, channel, commitRef, coreJarSha1, coreJarSize);
@@ -166,20 +167,20 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             }
             catch (Exception ex)
             {
-                Log($"[LabyMod] ⚠ 完整依赖清单处理失败: {ex.Message}");
+                recordLog(LogLevel.Warn, $"[LabyMod] ⚠ 完整依赖清单处理失败: {ex.Message}");
             }
 
             int mergedLibCount = (versionRoot.ContainsKey("libraries")
                 ? versionRoot["libraries"] as ArrayList : null)?.Count ?? 0;
-            Log($"[LabyMod] 最终库数量: {mergedLibCount}");
+            recordLog(LogLevel.Info, $"[LabyMod] 最终库数量: {mergedLibCount}");
 
             if (mergedLibCount < 50)
-                Log($"[LabyMod] ⚠ 警告：库数量偏少（<50），启动时可能报 ClassNotFoundException");
+                recordLog(LogLevel.Warn, $"[LabyMod] ⚠ 警告：库数量偏少（<50），启动时可能报 ClassNotFoundException");
 
             // ---------- 5. 构建版本 ID ----------
             string shortCommit = commitRef.Length > 8 ? commitRef.Substring(0, 8) : commitRef;
             string versionId = $"LabyMod-4-{version}-{shortCommit}";
-            Log($"[LabyMod] 版本 ID: {versionId}");
+            recordLog(LogLevel.Info, $"[LabyMod] 版本 ID: {versionId}");
 
             versionRoot["id"] = versionId;
             versionRoot["jar"] = versionId;
@@ -219,7 +220,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 .Replace("{channel}", channel)
                 .Replace("{commit}", commitRef);
 
-            Log($"[LabyMod] 核心 jar: {coreJarUrl}");
+            recordLog(LogLevel.Info, $"[LabyMod] 核心 jar: {coreJarUrl}");
             tasks.Add(new DownloadTask
             {
                 Url = coreJarUrl,
@@ -307,14 +308,14 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             string versionJsonPath = Path.Combine(versionDir, versionId + ".json");
             File.WriteAllText(versionJsonPath,
                 new JavaScriptSerializer().Serialize(versionRoot), Encoding.UTF8);
-            Log($"[LabyMod] 版本 JSON 已保存: {versionJsonPath}");
+            recordLog(LogLevel.Info, $"[LabyMod] 版本 JSON 已保存: {versionJsonPath}");
 
             // ---------- 15. 下载 ----------
-            Log($"[LabyMod] 下载任务: {tasks.Count}");
+            recordLog(LogLevel.Info, $"[LabyMod] 下载任务: {tasks.Count}");
             ParallelDownload(tasks, MAX_CONCURRENCY);
 
-            Log($"[LabyMod] 客户端 LabyMod {version} 安装完成");
-            Log($"[LabyMod] 版本 ID: {versionId}");
+            recordLog(LogLevel.Info, $"[LabyMod] 客户端 LabyMod {version} 安装完成");
+            recordLog(LogLevel.Info, $"[LabyMod] 版本 ID: {versionId}");
             return versionId;
         }
 
@@ -385,7 +386,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     kept.Add(l);
             }
             versionRoot["libraries"] = kept;
-            Log($"[LabyMod] 隔离过滤: {before} -> {kept.Count}");
+            recordLog(LogLevel.Info, $"[LabyMod] 隔离过滤: {before} -> {kept.Count}");
         }
 
         private static bool ShouldIsolate(string libName, HashSet<string> isolatedSet)
@@ -583,7 +584,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     { "url", r.Url }
                 };
                 libs.Add(libObj);
-                Log($"[LabyMod] 注入兜底库: {r.Name}");
+                recordLog(LogLevel.Info, $"[LabyMod] 注入兜底库: {r.Name}");
             }
         }
 
@@ -713,7 +714,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             object queueLock = new object();
             object statLock = new object();
 
-            Log($"[LabyMod] 开始并行下载（{maxConcurrency} 线程，共 {total} 个任务）...");
+            recordLog(LogLevel.Info, $"[LabyMod] 开始并行下载（{maxConcurrency} 线程，共 {total} 个任务）...");
             Interlocked.Exchange(ref _lastProgressTick, 0);
 
             var threads = new List<Thread>();
@@ -964,15 +965,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     .Deserialize<Dictionary<string, object>>(json);
             }
             catch { return null; }
-        }
-
-        private static void Log(string msg)
-        {
-            lock (_consoleLock)
-            {
-                Console.Write("\r" + new string(' ', 140) + "\r");
-                Console.WriteLine(msg);
-            }
         }
 
         private class DownloadTask
