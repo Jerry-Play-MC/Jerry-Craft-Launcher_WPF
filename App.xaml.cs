@@ -33,7 +33,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         // --------------------------------  常量区  --------------------------------
 
         // =====程序版本信息=====
-        public static readonly string Version = "1.1.1"; // 主程序版本号
+        public static readonly string Version = "1.1.2"; // 主程序版本号
         // =====目录路径=====
         public static readonly string exePath = AppDomain.CurrentDomain.BaseDirectory; // 程序根目录
         public static readonly string settingPath = Path.Combine(exePath, "Launcher Setting"); // 设置目录
@@ -55,11 +55,42 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             }
             catch (Exception ex)
             {
-                // 日志失败不阻止启动，但要告诉用户
-                MessageBox.Show("日志文件创建失败，本次运行可能无法记录日志：\n" + ex.Message, "启动警告", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show("日志文件创建失败，本次运行可能无法记录日志：\n" + ex.Message,
+                    "启动警告", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
 
             recordLog(LogLevel.Info, $"Jerry Craft Launcher {Version} 启动！");
+
+            // ★ 提权辅助进程：只做注册表写入，写完就退出，不启动主窗口
+            if (e.Args.Length >= 2 &&
+                string.Equals(e.Args[0], "--register-java", StringComparison.OrdinalIgnoreCase))
+            {
+                string javaHome = e.Args[1];
+                recordLog(LogLevel.Info, $"[提权副本] 开始写入注册表: {javaHome}");
+
+                try
+                {
+                    string regPath = Java.Install_Java.JavaRegistryRegistrar.Register(javaHome);
+                    recordLog(LogLevel.Info, $"[提权副本] 注册表写入成功: {regPath}");
+
+                    MessageBox.Show(
+                        "已写入 HKLM 注册表：\n" + regPath +
+                        "\n\n其他启动器现在应该能自动发现该 Java。",
+                        "写入注册表", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                catch (Exception ex)
+                {
+                    recordLog(LogLevel.Error, $"[提权副本] 注册表写入失败: {ex.Message}");
+                    MessageBox.Show(
+                        "写入注册表失败：\n" + ex.Message,
+                        "写入注册表", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+
+                // Environment.Exit 不会触发 OnExit，必须手动关日志句柄
+                CloseLogFile();
+                Environment.Exit(0);
+                return;
+            }
 
             base.OnStartup(e);
 

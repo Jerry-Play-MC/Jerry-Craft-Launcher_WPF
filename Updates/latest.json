@@ -1,12 +1,12 @@
 {
-  "version": "1.1.1",
-  "notes": "修复了安装服务端时字迹与背景颜色过于相似，新增启动前检测并安装Java",
+  "version": "1.1.2",
+  "notes": "新增了Java列表和选择默认启动Minecraft 使用的Java的功能,\r\n新增了为Java写入注册表的功能"
   "force": false,
   "files": {
     "windows": {
       "url": "https://github.com/Jerry-Play-MC/Jerry-Craft-Launcher_WPF/releases/latest/download/Jerry_Craft_Launcher.exe",
-      "sha256": "d7e9280dde6487bd6b496bdbfce3000a176bc98b09dbc8d3889de32ce02e8073",
-      "size": 1400832
+      "sha256": "f0416fa678386c7880e17685c3f84472506a126e0179c5ddd141addb2247f8ec",
+      "size": 1314304
     }
   }
 }

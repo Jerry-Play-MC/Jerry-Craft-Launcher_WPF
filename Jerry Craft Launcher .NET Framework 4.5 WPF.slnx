@@ -14,8 +14,7 @@
   </Folder>
   <Project Path="Jerry Craft Launcher .NET Framework 4.5 WPF.csproj" Id="cc4de3d2-cb2c-457c-bb08-e381841646c5">
     <BuildDependency Project="Install Versions/Install Versions.csproj" />
-    <BuildDependency Project="Launch Bedrock/Launch Bedrock.csproj" />
+    <Platform Solution="*|x64" Project="x86" />
     <Platform Solution="*|x86" Project="x86" />
-    <Platform Solution="Debug|x64" Project="x86" />
   </Project>
 </Solution>

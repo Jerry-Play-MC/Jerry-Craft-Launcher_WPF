@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -175,6 +176,94 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         public static string GetFont()
         {
             return ReadString("Launcher", "Font", "Default");
+        }
+
+        // ---------- Java ----------
+
+        public static List<string> GetJavaPaths()
+        {
+            var result = new List<string>();
+
+            object rawJava;
+            if (!_root.TryGetValue("Java", out rawJava) || rawJava == null)
+                return result;
+
+            // 兼容旧结构：Java 直接是数组
+            if (!(rawJava is Dictionary<string, object>))
+            {
+                var seq = rawJava as IEnumerable;
+                if (seq != null)
+                {
+                    foreach (var item in seq)
+                    {
+                        string s = item as string;
+                        if (!string.IsNullOrEmpty(s)) result.Add(s);
+                    }
+                }
+                return result;
+            }
+
+            // 新结构：Java.Path 是数组
+            var javaSec = rawJava as Dictionary<string, object>;
+            object rawPaths;
+            if (!javaSec.TryGetValue("Path", out rawPaths) || rawPaths == null)
+                return result;
+
+            var pathSeq = rawPaths as IEnumerable;
+            if (pathSeq == null) return result;
+
+            foreach (var item in pathSeq)
+            {
+                string s = item as string;
+                if (!string.IsNullOrEmpty(s)) result.Add(s);
+            }
+            return result;
+        }
+
+        public static void SetJavaPaths(List<string> paths)
+        {
+            var javaSec = JsonHelper.GetObject(_root, "Java");
+            if (javaSec == null)
+            {
+                javaSec = new Dictionary<string, object>();
+                _root["Java"] = javaSec;
+            }
+
+            var arr = new ArrayList();
+            if (paths != null)
+                foreach (var p in paths)
+                    arr.Add(p);
+
+            recordLog(LogLevel.Info, "修改设置: Java.Path（共 " + arr.Count + " 项）");
+            javaSec["Path"] = arr;
+            Save();
+            RaiseChanged();
+        }
+
+        public static string GetJavaUse()
+        {
+            var javaSec = JsonHelper.GetObject(_root, "Java");
+            if (javaSec == null) return "auto";
+
+            var v = JsonHelper.GetString(javaSec, "use");
+            return string.IsNullOrEmpty(v) ? "auto" : v;
+        }
+
+        public static void SetJavaUse(string value)
+        {
+            if (string.IsNullOrEmpty(value)) value = "auto";
+
+            var javaSec = JsonHelper.GetObject(_root, "Java");
+            if (javaSec == null)
+            {
+                javaSec = new Dictionary<string, object>();
+                _root["Java"] = javaSec;
+            }
+
+            recordLog(LogLevel.Info, "修改设置: Java.use = " + value);
+            javaSec["use"] = value;
+            Save();
+            RaiseChanged();
         }
 
         public static void SetFont(string value)

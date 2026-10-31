@@ -149,11 +149,35 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 int requiredJava = GetRequiredJavaMajorVersion(root, context.VersionName);
                 recordLog(LogLevel.Info, $"[{LoaderName}] 版本要求 Java 主版本: {requiredJava}");
 
+                // 如果调用方没显式指定，读 Settings.json 的 Java.use
+                if (string.IsNullOrEmpty(context.JavaPath) && !context.IsServer)
+                {
+                    string useJava = "auto";
+                    try { useJava = SettingsManager.GetJavaUse(); }
+                    catch { }
+
+                    if (!string.IsNullOrEmpty(useJava) &&
+                        !string.Equals(useJava, "auto", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string exe = Path.Combine(useJava.TrimEnd('\\'), "bin", "java.exe");
+                        if (File.Exists(exe))
+                        {
+                            context.JavaPath = exe;
+                            recordLog(LogLevel.Info,
+                                $"[{LoaderName}] 使用设置中指定的 Java: {exe}");
+                        }
+                        else
+                        {
+                            recordLog(LogLevel.Warn,
+                                $"[{LoaderName}] 设置中指定的 Java 不存在，回退自动选择: {exe}");
+                        }
+                    }
+                }
+
                 string javaPath = context.JavaPath;
                 if (string.IsNullOrEmpty(javaPath) || !File.Exists(javaPath))
                     javaPath = ResolveJavaWithDownload(requiredJava, context.JavaBaseDir);
                 cmd.Add(javaPath);
-                recordLog(LogLevel.Info, $"[{LoaderName}] Java: {javaPath}");
 
                 PreLaunchFix(context, root);
 
@@ -1525,7 +1549,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             string installPath = null;
             try { installPath = App.javaPath; } catch { }
             if (string.IsNullOrEmpty(installPath))
-                installPath = JavaLocator.GetBuiltInJavaRoot();
+                installPath = App.javaPath;
 
             recordLog(LogLevel.Info, $"[Java] 开始下载 Java {major} → {installPath}");
 
@@ -1603,28 +1627,58 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
     internal static class JavaLocator
     {
-        private class JavaCandidate
+        public class JavaCandidate
         {
             public string Path;
             public int Major;
         }
 
-        /// <summary>
-        /// 启动器内置 Java 根目录。
-        /// 优先使用 App.javaPath（Launcher Setting\Java），
-        /// 无 App 上下文（如控制台单测）时回退默认路径。
-        /// </summary>
-        public static string GetBuiltInJavaRoot()
+        private static List<string> LoadImportedJavaHomes()
         {
+            try { return SettingsManager.GetJavaPaths(); }
+            catch { return new List<string>(); }
+        }
+
+        /// <summary>
+        /// 返回所有可用的 Java 候选（java.exe 路径 + 主版本），用于设置页展示。
+        /// 来源：内置目录 + 用户指定目录（可选）+ 注册表。
+        /// </summary>
+        public static List<JavaCandidate> GetAllCandidates(string javaBaseDir = null)
+        {
+            var candidates = new List<JavaCandidate>();
+
+            // 1) 内置 Java：Launcher Setting\Java\{任意子目录}\bin\java.exe
             try
             {
-                string p = App.javaPath;
-                if (!string.IsNullOrEmpty(p)) return p;
+                string root = App.javaPath;
+                if (Directory.Exists(root))
+                {
+                    foreach (var sub in Directory.GetDirectories(root))
+                    {
+                        string exe = Path.Combine(sub, "bin", "java.exe");
+                        if (!File.Exists(exe)) continue;
+                        int major = GetJavaMajorVersion(exe);
+                        if (major > 0)
+                            candidates.Add(new JavaCandidate { Path = exe, Major = major });
+                    }
+                }
             }
             catch { }
 
-            return Path.Combine(AppDomain.CurrentDomain.BaseDirectory,
-                                "Launcher Setting", "Java");
+            // 2) 用户指定目录
+            if (!string.IsNullOrEmpty(javaBaseDir) && Directory.Exists(javaBaseDir))
+                ScanJavaBaseDir(javaBaseDir, candidates);
+
+            // 3) 注册表
+            ScanAllRegistryPaths(candidates);
+
+            // 去重
+            var result = new List<JavaCandidate>();
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var c in candidates)
+                if (seen.Add(c.Path)) result.Add(c);
+
+            return result;
         }
 
         /// <summary>
@@ -1639,22 +1693,43 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         {
             var candidates = new List<JavaCandidate>();
 
-            // 1) 内置 Java
-            string builtIn = Path.Combine(GetBuiltInJavaRoot(),
+            // 1) 内置 Java：先查 {requiredMajor} 子目录，再遍历其他子目录
+            string builtInRoot = App.javaPath;
+            string builtIn = Path.Combine(builtInRoot,
                                           requiredMajor.ToString(), "bin", "java.exe");
-            if (File.Exists(builtIn))
+            if (File.Exists(builtIn) && GetJavaMajorVersion(builtIn) == requiredMajor)
             {
-                int actual = GetJavaMajorVersion(builtIn);
-                if (actual == requiredMajor)
-                {
-                    recordLog(LogLevel.Info, $"[Java] 使用内置 Java {requiredMajor}: {builtIn}");
-                    return builtIn;
-                }
-                recordLog(LogLevel.Info,
-                    $"[Java] 内置 Java 版本不符（需要 {requiredMajor}，实际 {actual}）: {builtIn}");
+                recordLog(LogLevel.Info, $"[Java] 使用内置 Java {requiredMajor}: {builtIn}");
+                return builtIn;
             }
 
-            // 2) 用户指定目录
+            if (Directory.Exists(builtInRoot))
+            {
+                try
+                {
+                    foreach (var sub in Directory.GetDirectories(builtInRoot))
+                    {
+                        string exe = Path.Combine(sub, "bin", "java.exe");
+                        if (!File.Exists(exe)) continue;
+                        if (GetJavaMajorVersion(exe) != requiredMajor) continue;
+                        recordLog(LogLevel.Info, $"[Java] 使用内置 Java {requiredMajor}: {exe}");
+                        return exe;
+                    }
+                }
+                catch { }
+            }
+
+            // 2) Settings.json 导入的
+            foreach (var root in LoadImportedJavaHomes())
+            {
+                string exe = Path.Combine(root.TrimEnd('\\'), "bin", "java.exe");
+                if (!File.Exists(exe)) continue;
+                if (GetJavaMajorVersion(exe) != requiredMajor) continue;
+                recordLog(LogLevel.Info, $"[Java] 使用导入的 Java {requiredMajor}: {exe}");
+                return exe;
+            }
+
+            // 3) 用户指定目录
             if (!string.IsNullOrEmpty(javaBaseDir))
             {
                 if (Directory.Exists(javaBaseDir))
@@ -1674,7 +1749,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 }
             }
 
-            // 3) 注册表
+            // 4) 注册表
             ScanAllRegistryPaths(candidates);
 
             if (candidates.Count == 0)
@@ -1682,7 +1757,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     $"未找到任何 Java 运行时（已扫描内置目录 + 指定目录 + 注册表）。\n" +
                     $"请通过启动器下载 Java {requiredMajor}（启动前会弹出提示），\n" +
                     $"或手动放置到：\n" +
-                    $"  {Path.Combine(GetBuiltInJavaRoot(), requiredMajor.ToString())}\\bin\\java.exe");
+                    $"  {Path.Combine(App.javaPath, requiredMajor.ToString())}\\bin\\java.exe");
 
             return PickBest(candidates, requiredMajor);
         }
@@ -1695,13 +1770,36 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         {
             try
             {
-                // 1) 内置
-                string builtIn = Path.Combine(GetBuiltInJavaRoot(),
+                // 1) 内置 Java：先查 {requiredMajor} 子目录，再遍历其他子目录
+                string builtInRoot = App.javaPath;
+                string builtIn = Path.Combine(builtInRoot,
                                               requiredMajor.ToString(), "bin", "java.exe");
                 if (File.Exists(builtIn) && GetJavaMajorVersion(builtIn) == requiredMajor)
                     return true;
 
-                // 2) 用户指定目录 + 注册表
+                if (Directory.Exists(builtInRoot))
+                {
+                    try
+                    {
+                        foreach (var sub in Directory.GetDirectories(builtInRoot))
+                        {
+                            string exe = Path.Combine(sub, "bin", "java.exe");
+                            if (!File.Exists(exe)) continue;
+                            if (GetJavaMajorVersion(exe) == requiredMajor) return true;
+                        }
+                    }
+                    catch { }
+                }
+
+                // 2) Settings.json 导入的
+                foreach (var root in LoadImportedJavaHomes())
+                {
+                    string exe = Path.Combine(root.TrimEnd('\\'), "bin", "java.exe");
+                    if (File.Exists(exe) && GetJavaMajorVersion(exe) == requiredMajor)
+                        return true;
+                }
+
+                // 3) 用户指定目录 + 注册表
                 var candidates = new List<JavaCandidate>();
 
                 if (!string.IsNullOrEmpty(javaBaseDir) && Directory.Exists(javaBaseDir))
@@ -1729,8 +1827,9 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             {
                 var candidates = new List<JavaCandidate>();
 
-                // 1) 内置（App.javaPath\{requiredMajor}\bin\java.exe）
-                string builtIn = Path.Combine(GetBuiltInJavaRoot(),
+                // 1) 内置 Java：{requiredMajor} 子目录 + 其他子目录
+                string builtInRoot = App.javaPath;
+                string builtIn = Path.Combine(builtInRoot,
                                               requiredMajor.ToString(), "bin", "java.exe");
                 if (File.Exists(builtIn))
                 {
@@ -1738,6 +1837,26 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     if (actual > 0)
                         candidates.Add(new JavaCandidate { Path = builtIn, Major = actual });
                 }
+
+                if (Directory.Exists(builtInRoot))
+                {
+                    try
+                    {
+                        foreach (var sub in Directory.GetDirectories(builtInRoot))
+                        {
+                            string exe = Path.Combine(sub, "bin", "java.exe");
+                            if (!File.Exists(exe)) continue;
+                            int actual = GetJavaMajorVersion(exe);
+                            if (actual > 0)
+                                candidates.Add(new JavaCandidate { Path = exe, Major = actual });
+                        }
+                    }
+                    catch { }
+                }
+
+                // 1.5) Settings.json 导入的
+                foreach (var root in LoadImportedJavaHomes())
+                    TryAddCandidate(candidates, root);
 
                 // 2) 用户指定目录
                 if (!string.IsNullOrEmpty(javaBaseDir) && Directory.Exists(javaBaseDir))
@@ -1892,8 +2011,9 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         }
 
         private static void ScanRegistryKey(
-            string basePath, List<JavaCandidate> list, string javaHomeValueName)
+    string basePath, List<JavaCandidate> list, string javaHomeValueName)
         {
+            // HKLM 64 位视图：regedit 里的 HKEY_LOCAL_MACHINE\SOFTWARE\...
             try
             {
                 using (var baseKey = RegistryKey.OpenBaseKey(
@@ -1901,11 +2021,13 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 using (var rootKey = baseKey.OpenSubKey(basePath))
                 {
                     if (rootKey != null)
-                        ScanSubKeysForJavaHome(rootKey, list, javaHomeValueName);
+                        ScanSubKeysForJavaHome(rootKey, list, javaHomeValueName,
+                            @"HKEY_LOCAL_MACHINE\" + basePath);
                 }
             }
             catch { }
 
+            // HKLM 32 位视图：regedit 里显示为 HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\...
             try
             {
                 using (var baseKey = RegistryKey.OpenBaseKey(
@@ -1913,31 +2035,34 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 using (var rootKey = baseKey.OpenSubKey(basePath))
                 {
                     if (rootKey != null)
-                        ScanSubKeysForJavaHome(rootKey, list, javaHomeValueName);
+                        ScanSubKeysForJavaHome(rootKey, list, javaHomeValueName,
+                            @"HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\" + StripSoftwarePrefix(basePath));
                 }
             }
             catch { }
 
+            // HKCU
             try
             {
                 using (var rootKey = Registry.CurrentUser.OpenSubKey(basePath))
                 {
                     if (rootKey != null)
-                        ScanSubKeysForJavaHome(rootKey, list, javaHomeValueName);
+                        ScanSubKeysForJavaHome(rootKey, list, javaHomeValueName,
+                            @"HKEY_CURRENT_USER\" + basePath);
                 }
             }
             catch { }
         }
 
         private static void ScanSubKeysForJavaHome(
-            RegistryKey rootKey, List<JavaCandidate> list, string valueName)
+    RegistryKey rootKey, List<JavaCandidate> list, string valueName, string displayPath)
         {
             try
             {
                 string javaHome = rootKey.GetValue(valueName) as string;
                 if (!string.IsNullOrEmpty(javaHome))
                 {
-                    TryAddCandidate(list, javaHome);
+                    TryAddCandidate(list, javaHome, displayPath, valueName);
                     return;
                 }
             }
@@ -1950,7 +2075,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     using (var subKey = rootKey.OpenSubKey(subName))
                     {
                         if (subKey == null) continue;
-                        ScanSubKeysForJavaHome(subKey, list, valueName);
+                        ScanSubKeysForJavaHome(subKey, list, valueName,
+                            displayPath + "\\" + subName);
                     }
                 }
                 catch { }
@@ -1958,8 +2084,9 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         }
 
         private static void ScanRegistryKeyWithMsiPath(
-            string basePath, List<JavaCandidate> list)
+    string basePath, List<JavaCandidate> list)
         {
+            // HKLM 64
             try
             {
                 using (var baseKey = RegistryKey.OpenBaseKey(
@@ -1967,11 +2094,12 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 using (var rootKey = baseKey.OpenSubKey(basePath))
                 {
                     if (rootKey != null)
-                        ScanMsiSubKeys(rootKey, list);
+                        ScanMsiSubKeys(rootKey, list, @"HKEY_LOCAL_MACHINE\" + basePath);
                 }
             }
             catch { }
 
+            // HKLM 32 → WOW6432Node
             try
             {
                 using (var baseKey = RegistryKey.OpenBaseKey(
@@ -1979,23 +2107,26 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 using (var rootKey = baseKey.OpenSubKey(basePath))
                 {
                     if (rootKey != null)
-                        ScanMsiSubKeys(rootKey, list);
+                        ScanMsiSubKeys(rootKey, list,
+                            @"HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\" + StripSoftwarePrefix(basePath));
                 }
             }
             catch { }
 
+            // HKCU
             try
             {
                 using (var rootKey = Registry.CurrentUser.OpenSubKey(basePath))
                 {
                     if (rootKey != null)
-                        ScanMsiSubKeys(rootKey, list);
+                        ScanMsiSubKeys(rootKey, list, @"HKEY_CURRENT_USER\" + basePath);
                 }
             }
             catch { }
         }
 
-        private static void ScanMsiSubKeys(RegistryKey rootKey, List<JavaCandidate> list)
+        private static void ScanMsiSubKeys(
+    RegistryKey rootKey, List<JavaCandidate> list, string displayPath)
         {
             foreach (var versionName in rootKey.GetSubKeyNames())
             {
@@ -2005,30 +2136,41 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     {
                         if (versionKey == null) continue;
 
+                        string versionDisplayPath = displayPath + "\\" + versionName;
+
                         string[] possibleSubPaths = {
-                        @"hotspot\MSI",
-                        @"MSI",
-                        @"hotspot",
-                        "",
-                    };
+                    @"hotspot\MSI",
+                    @"MSI",
+                    @"hotspot",
+                    "",
+                };
 
                         foreach (var subPath in possibleSubPaths)
                         {
                             RegistryKey keyToRead = versionKey;
+                            string subDisplayPath = versionDisplayPath;
+
                             if (!string.IsNullOrEmpty(subPath))
+                            {
                                 keyToRead = versionKey.OpenSubKey(subPath);
+                                subDisplayPath = versionDisplayPath + "\\" + subPath;
+                            }
 
                             if (keyToRead == null) continue;
 
                             try
                             {
-                                string path = keyToRead.GetValue("Path") as string;
+                                string valueName = "Path";
+                                string path = keyToRead.GetValue(valueName) as string;
                                 if (string.IsNullOrEmpty(path))
-                                    path = keyToRead.GetValue("JavaHome") as string;
+                                {
+                                    valueName = "JavaHome";
+                                    path = keyToRead.GetValue(valueName) as string;
+                                }
 
                                 if (!string.IsNullOrEmpty(path))
                                 {
-                                    TryAddCandidate(list, path);
+                                    TryAddCandidate(list, path, subDisplayPath, valueName);
                                     break;
                                 }
                             }
@@ -2047,7 +2189,9 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         // ============================================================
         //   候选管理
         // ============================================================
-        private static void TryAddCandidate(List<JavaCandidate> list, string javaHome)
+        private static void TryAddCandidate(
+    List<JavaCandidate> list, string javaHome,
+    string registryDisplayPath = null, string registryValueName = null)
         {
             if (string.IsNullOrEmpty(javaHome)) return;
             javaHome = javaHome.Trim().Trim('"');
@@ -2072,7 +2216,17 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             if (major <= 0) return;
 
             list.Add(new JavaCandidate { Path = full, Major = major });
-            recordLog(LogLevel.Info, $"[Java] 发现: Java {major} -> {full}");
+
+            // 固定输出，不设开关、不判断级别
+            if (!string.IsNullOrEmpty(registryDisplayPath))
+            {
+                recordLog(LogLevel.Info,
+                    $"[Java] 在注册表 {registryDisplayPath} 的 {registryValueName} 发现: Java {major} -> {full}");
+            }
+            else
+            {
+                recordLog(LogLevel.Info, $"[Java] 发现: Java {major} -> {full}");
+            }
         }
 
         private static string PickBest(List<JavaCandidate> candidates, int requiredMajor)
@@ -2167,6 +2321,14 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             }
             catch { }
             return 0;
+        }
+
+        private static string StripSoftwarePrefix(string path)
+        {
+            const string prefix = @"SOFTWARE\";
+            if (path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                return path.Substring(prefix.Length);
+            return path;
         }
     }
 }

@@ -56,6 +56,9 @@
     <ErrorReport>prompt</ErrorReport>
     <Prefer32Bit>true</Prefer32Bit>
   </PropertyGroup>
+  <PropertyGroup>
+    <ApplicationIcon>Jerry.ico</ApplicationIcon>
+  </PropertyGroup>
   <ItemGroup>
     <Reference Include="Costura, Version=4.1.0.0, Culture=neutral, PublicKeyToken=9919ef960d84173d, processorArchitecture=MSIL">
       <HintPath>packages\Costura.Fody.4.1.0\lib\net40\Costura.dll</HintPath>
@@ -90,6 +93,7 @@
     <Compile Include="Java\Forms\ClientInstallWindow.xaml.cs">
       <DependentUpon>ClientInstallWindow.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Java\Install Java\JavaRegistryRegistrar.cs" />
     <Compile Include="Java\Install Java\Program.cs" />
     <Compile Include="Java\Install Minecraft\Fabric.cs" />
     <Compile Include="Java\Install Minecraft\Forge.cs" />
@@ -317,6 +321,7 @@
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Java\libwebp_x86.dll" />
+    <Resource Include="Jerry.ico" />
     <Content Include="README-zh.md" />
     <Content Include="README.md" />
   </ItemGroup>

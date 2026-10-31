@@ -317,4 +317,24 @@
     <s:String x:Key="Settings.Language">语言</s:String>
     <s:String x:Key="Settings.LanguageDesc">切换启动器界面语言，切换后立即生效。</s:String>
 
+    <s:String x:Key="Settings.Java.Title">Java</s:String>
+    <s:String x:Key="Settings.Java.StartJava">启动 Java</s:String>
+    <s:String x:Key="Settings.Java.StartJavaDesc">自动选择会按版本要求匹配，也可以手动指定某个 Java。</s:String>
+    <s:String x:Key="Settings.Java.Import">导入 Java</s:String>
+    <s:String x:Key="Settings.Java.ListTitle">已发现的 Java</s:String>
+    <s:String x:Key="Settings.Java.Remove">移除</s:String>
+    <s:String x:Key="Settings.Java.Empty">还没有发现任何 Java，点击右上角「导入 Java」或运行一次游戏自动扫描。</s:String>
+    <s:String x:Key="Settings.Java.Auto">自动选择</s:String>
+    <s:String x:Key="Settings.Java.CountFormat">共 {0} 个</s:String>
+    <s:String x:Key="Settings.Java.Source.Imported">来源：导入</s:String>
+    <s:String x:Key="Settings.Java.Source.Scanned">来源：扫描</s:String>
+    <s:String x:Key="Settings.Java.Arch.x64">64 位</s:String>
+    <s:String x:Key="Settings.Java.Arch.x86">32 位</s:String>
+    <s:String x:Key="Settings.Java.Register">写入注册表</s:String>
+    <s:String x:Key="Settings.Java.RegisterTitle">写入注册表</s:String>
+    <s:String x:Key="Settings.Java.RegisterSuccess">已写入 HKLM 注册表：\n{0}\n\n其他启动器现在应该能自动发现该 Java。</s:String>
+    <s:String x:Key="Settings.Java.RegisterSuccessUser">已写入 HKCU 注册表：\n{0}\n\n当前用户下的启动器能发现该 Java（部分启动器只扫 HKLM，可能仍不可见）。</s:String>
+    <s:String x:Key="Settings.Java.RegisterNeedAdmin">当前实例不是以管理员权限运行，写入注册表需要管理员权限。\n\n【是】申请管理员权限（写入 HKLM）\n【否】写入用户注册表（HKCU，免管理员）\n【取消】放弃写入操作</s:String>
+    <s:String x:Key="Settings.Java.RegisterFailed">写入注册表失败：\n{0}</s:String>
+
 </ResourceDictionary>

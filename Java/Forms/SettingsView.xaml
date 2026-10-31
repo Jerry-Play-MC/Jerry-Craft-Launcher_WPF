@@ -92,9 +92,9 @@
 
                     <!-- 语言切换卡片 -->
                     <Border Background="#F7F7F7"
-        CornerRadius="8"
-        Padding="16"
-        Margin="0,10,0,0">
+                            CornerRadius="8"
+                            Padding="16"
+                            Margin="0,10,0,0">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
@@ -102,33 +102,182 @@
                             </Grid.ColumnDefinitions>
 
                             <StackPanel Grid.Column="0" Margin="0,0,16,0"
-                    VerticalAlignment="Center">
+                                        VerticalAlignment="Center">
                                 <TextBlock Text="{DynamicResource Settings.Language}"
-                       FontSize="14" FontWeight="SemiBold"
-                       Foreground="#333333"/>
+                                           FontSize="14" FontWeight="SemiBold"
+                                           Foreground="#333333"/>
                                 <TextBlock Text="{DynamicResource Settings.LanguageDesc}"
-                       FontSize="11" Foreground="#999999"
-                       Margin="0,4,0,0"
-                       TextWrapping="Wrap"/>
+                                           FontSize="11" Foreground="#999999"
+                                           Margin="0,4,0,0"
+                                           TextWrapping="Wrap"/>
                             </StackPanel>
 
                             <ComboBox Grid.Column="1"
-                  x:Name="LanguageBox"
-                  Style="{StaticResource ModernComboBoxStyle}"
-                  Width="200"
-                  VerticalAlignment="Center"
-                  SelectionChanged="LanguageBox_SelectionChanged"/>
+                                      x:Name="LanguageBox"
+                                      Style="{StaticResource ModernComboBoxStyle}"
+                                      Width="200"
+                                      VerticalAlignment="Center"
+                                      SelectionChanged="LanguageBox_SelectionChanged"/>
                         </Grid>
                     </Border>
-                    
+
                 </StackPanel>
             </Grid>
 
-            <!-- Java（占位） -->
-            <TextBlock x:Name="JavaPanel" Text="Java"
-                       FontSize="20" Foreground="#DDDDDD"
-                       HorizontalAlignment="Center" VerticalAlignment="Center"
-                       Visibility="Collapsed"/>
+            <!-- Java -->
+            <Grid x:Name="JavaPanel" Visibility="Collapsed">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- 顶部区域 -->
+                <StackPanel Grid.Row="0" Margin="32,24,32,0">
+                    <TextBlock Text="{DynamicResource Settings.Java.Title}"
+                               FontSize="22" FontWeight="SemiBold"
+                               Foreground="#333333"
+                               Margin="0,0,0,20"/>
+
+                    <!-- 启动 Java 选择卡片 -->
+                    <Border Background="#F7F7F7" CornerRadius="8" Padding="16">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" Margin="0,0,16,0" VerticalAlignment="Center">
+                                <TextBlock Text="{DynamicResource Settings.Java.StartJava}"
+                                           FontSize="14" FontWeight="SemiBold"
+                                           Foreground="#333333"/>
+                                <TextBlock Text="{DynamicResource Settings.Java.StartJavaDesc}"
+                                           FontSize="11" Foreground="#999999"
+                                           Margin="0,4,0,0" TextWrapping="Wrap"/>
+                            </StackPanel>
+
+                            <ComboBox Grid.Column="1"
+                                      x:Name="StartJavaBox"
+                                      Style="{StaticResource ModernComboBoxStyle}"
+                                      Width="240"
+                                      VerticalAlignment="Center"
+                                      DisplayMemberPath="Title"
+                                      SelectionChanged="StartJavaBox_SelectionChanged"/>
+
+                            <Button Grid.Column="2"
+                                    x:Name="ImportJavaButton"
+                                    Content="{DynamicResource Settings.Java.Import}"
+                                    Style="{StaticResource SecondaryButtonStyle}"
+                                    Height="38"
+                                    Padding="16,0"
+                                    Margin="8,0,0,0"
+                                    VerticalAlignment="Center"
+                                    Click="ImportJava_Click"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- 列表标题 -->
+                    <Grid Margin="0,20,0,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0"
+                                   Text="{DynamicResource Settings.Java.ListTitle}"
+                                   FontSize="13" FontWeight="SemiBold"
+                                   Foreground="#555555"
+                                   VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="1"
+                                   x:Name="JavaCountText"
+                                   FontSize="11" Foreground="#999999"
+                                   VerticalAlignment="Center"/>
+                    </Grid>
+                </StackPanel>
+
+                <!-- 列表 -->
+                <Grid Grid.Row="1" Margin="32,0,32,24">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled">
+                        <ItemsControl x:Name="JavaList">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="White"
+                                            BorderBrush="#E8E8E8"
+                                            BorderThickness="1"
+                                            CornerRadius="8"
+                                            Padding="16,12"
+                                            Margin="0,0,0,8">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <!-- JDK / JRE 标签 -->
+                                            <Border Grid.Column="0"
+                                                    Background="#EEF0FF"
+                                                    CornerRadius="4"
+                                                    Padding="8,2"
+                                                    VerticalAlignment="Top"
+                                                    Margin="0,2,12,0">
+                                                <TextBlock Text="{Binding Tag}"
+                                                           FontSize="11" FontWeight="SemiBold"
+                                                           Foreground="#4F46E5"/>
+                                            </Border>
+
+                                            <!-- 信息 -->
+                                            <StackPanel Grid.Column="1" Margin="0,0,12,0">
+                                                <TextBlock Text="{Binding Title}"
+                                                           FontSize="14" FontWeight="SemiBold"
+                                                           Foreground="#333333"
+                                                           TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Text="{Binding Path}"
+                                                           FontSize="11" Foreground="#999999"
+                                                           Margin="0,4,0,0"
+                                                           TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Text="{Binding MetaLine}"
+                                                           FontSize="11" Foreground="#999999"
+                                                           Margin="0,2,0,0"/>
+                                            </StackPanel>
+
+                                            <!-- 操作 -->
+                                            <StackPanel Grid.Column="2"
+                                                        Orientation="Horizontal"
+                                                        VerticalAlignment="Center">
+                                                <Button Content="{DynamicResource Settings.Java.Register}"
+                                                        Style="{StaticResource SecondaryButtonStyle}"
+                                                        Height="30"
+                                                        Padding="12,0"
+                                                        FontSize="12"
+                                                        Margin="0,0,6,0"
+                                                        Tag="{Binding}"
+                                                        Click="RegisterJava_Click"/>
+                                                <Button Content="{DynamicResource Settings.Java.Remove}"
+                                                        Style="{StaticResource SecondaryButtonStyle}"
+                                                        Height="30"
+                                                        Padding="12,0"
+                                                        FontSize="12"
+                                                        Tag="{Binding}"
+                                                        Click="RemoveJava_Click"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+
+                    <!-- 空状态 -->
+                    <TextBlock x:Name="JavaEmptyText"
+                               Text="{DynamicResource Settings.Java.Empty}"
+                               FontSize="12" Foreground="#BBBBBB"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Top"
+                               Margin="0,40,0,0"
+                               Visibility="Collapsed"/>
+                </Grid>
+            </Grid>
 
             <!-- 游戏 -->
             <Grid x:Name="GamePanel" Visibility="Collapsed">
