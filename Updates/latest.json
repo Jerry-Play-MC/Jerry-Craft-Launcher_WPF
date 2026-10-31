@@ -1,6 +1,6 @@
 {
   "version": "1.1.2",
-  "notes": "新增了Java列表和选择默认启动Minecraft 使用的Java的功能,\r\n新增了为Java写入注册表的功能"
+  "notes": "新增了Java列表和选择默认启动Minecraft 使用的Java的功能,新增了为Java写入注册表的功能",
   "force": false,
   "files": {
     "windows": {
