@@ -5,11 +5,11 @@ using System.Runtime.InteropServices;
 // 有关程序集的一般信息由以下
 // 控制。更改这些特性值可修改
 // 与程序集关联的信息。
-[assembly: AssemblyTitle("Install Games")]
+[assembly: AssemblyTitle("Install Minecraft")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
-[assembly: AssemblyProduct("Install Games")]
+[assembly: AssemblyProduct("Install Minecraft")]
 [assembly: AssemblyCopyright("Copyright ©  2026")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
@@ -20,7 +20,7 @@ using System.Runtime.InteropServices;
 [assembly: ComVisible(false)]
 
 // 如果此项目向 COM 公开，则下列 GUID 用于类型库的 ID
-[assembly: Guid("f21b0649-da7a-45f6-ba7c-999956dbcff6")]
+[assembly: Guid("e4277807-6e08-486d-81ee-f519a8644abf")]
 
 // 程序集的版本信息由下列四个值组成: 
 //

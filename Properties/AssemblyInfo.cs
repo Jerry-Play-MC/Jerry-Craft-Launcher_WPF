@@ -3,11 +3,12 @@ using System.Resources;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Windows;
+using Jerry_Craft_Launcher.NET_Framework_4._5_WPF;
 
 // 有关程序集的一般信息由以下
 // 控制。更改这些特性值可修改
 // 与程序集关联的信息。
-[assembly: AssemblyTitle("Jerry Craft Launcher .NET Framework 4.5 WPF")]
+[assembly: AssemblyTitle("Jerry Craft Launcher v" + App.Version)]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]

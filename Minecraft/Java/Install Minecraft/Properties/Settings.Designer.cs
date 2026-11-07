@@ -8,7 +8,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace Install_Games.Properties
+namespace Install_Minecraft.Properties
 {
 
 

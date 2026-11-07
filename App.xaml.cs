@@ -1,9 +1,11 @@
 ﻿using Jerry_Craft_Launcher.NET_Framework_4._5_WPF.Languages;
 using Jerry_Craft_Launcher.NET_Framework_4._5_WPF.Updater;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Web.Script.Serialization;
 using System.Windows;
 using static Jerry_Craft_Launcher.NET_Framework_4._5_WPF.App.AppLog;
 
@@ -33,9 +35,10 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         // --------------------------------  常量区  --------------------------------
 
         // =====程序版本信息=====
-        public static readonly string Version = "1.1.2"; // 主程序版本号
+        public const string Version = "1.1.2"; // 主程序版本号
         // =====目录路径=====
         public static readonly string exePath = AppDomain.CurrentDomain.BaseDirectory; // 程序根目录
+        public static readonly string minecraftPath = Path.Combine(exePath, ".minecraft"); // 设置目录
         public static readonly string settingPath = Path.Combine(exePath, "Launcher Setting"); // 设置目录
         public static readonly string logPath = Path.Combine(settingPath, "Logs"); // 日志目录
         public static readonly string rolePath = Path.Combine(settingPath, "Roles"); // 角色目录
@@ -93,6 +96,9 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             }
 
             base.OnStartup(e);
+
+            // 前置检查：launcher_profiles.json
+            EnsureLauncherProfiles(minecraftPath);
 
             // 1. 原生库
             TryLoadWebPDll();
@@ -167,7 +173,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
                 if (!result.Success || !result.HasUpdate) {
                     recordLog(LogLevel.Info, "更新完成或无更新");
-                    return; 
+                    return;
                 }
 
                 await Dispatcher.InvokeAsync(() =>
@@ -295,6 +301,41 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             }
         }
 
+        // 确保launcher_profiles.json存在
+        public static void EnsureLauncherProfiles(string minecraftDir)
+        {
+            string path = Path.Combine(minecraftDir, "launcher_profiles.json");
+
+            // 已存在 → 不动它，OptiFine 安装器会自己往里加版本条目
+            if (File.Exists(path))
+            {
+                try
+                {
+                    if (new FileInfo(path).Length > 0)
+                    {
+                        recordLog(LogLevel.Info, $"launcher_profiles.json 已存在，保持不变: {path}");
+                        return;
+                    }
+                }
+                catch { }
+            }
+
+            // 不存在或为空 → 写一个最小可用的
+            var root = new Dictionary<string, object>
+            {
+                { "profiles", new Dictionary<string, object>() },
+                { "settings", new Dictionary<string, object>() },
+                { "version", 3 }
+            };
+
+            File.WriteAllText(path,
+                new JavaScriptSerializer().Serialize(root),
+                new UTF8Encoding(false));
+
+            recordLog(LogLevel.Info, $"已写入 launcher_profiles.json（无 BOM）: {path}");
+        }
+    
+
         /// <summary>
         /// 全局日志写入器。OnStartup 调一次 CreateLogFile 打开文件，
         /// 之后任何地方调 WriteFile 直接追加到同一句柄。
@@ -392,7 +433,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     default: tag = "[INFO] "; break;
                 }
 
-                string logMessage = "[" + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff") + "] " + tag + message;
+                string logMessage = "[" + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "] " + tag + message;
 
                 return logMessage;
             }
@@ -407,14 +448,23 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             public static void recordLog(LogLevel level, string message)
             {
                 string logMessage = Log(level, message);
-                System.Diagnostics.Debug.WriteLine(logMessage);
+
+                try
+                {
+                    Console.WriteLine(logMessage);
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine("[AppLog] Console 输出失败: " + ex.Message);
+                    System.Diagnostics.Debug.WriteLine(logMessage);
+                }
+
                 try
                 {
                     WriteFile(logMessage + "\r\n");
                 }
                 catch (Exception ex)
                 {
-                    // 日志系统自身失败不应影响业务，更不能在崩溃处理器里二次抛异常
                     System.Diagnostics.Debug.WriteLine("[AppLog] 写日志失败: " + ex.Message);
                 }
             }

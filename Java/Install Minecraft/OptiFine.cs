@@ -8,6 +8,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Web.Script.Serialization;
+using static Jerry_Craft_Launcher.NET_Framework_4._5_WPF.App;
 using static Jerry_Craft_Launcher.NET_Framework_4._5_WPF.App.AppLog;
 
 namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
@@ -483,32 +484,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 if (process.ExitCode != 0)
                     throw new Exception($"OptiFine 安装器失败，退出码 {process.ExitCode}");
             }
-        }
-
-        // ===================== 确保 launcher_profiles.json 存在且无 BOM =====================
-        /// <summary>
-        /// OptiFine 安装器在更新启动器配置（updateLauncherJson）时，
-        /// 需要 .minecraft\launcher_profiles.json 存在，并且必须是合法的 JSON（不能带 BOM）。
-        /// 这里总是写入一个干净的、不带 BOM 的 launcher_profiles.json。
-        /// </summary>
-        private static void EnsureLauncherProfiles(string minecraftDir)
-        {
-            string path = Path.Combine(minecraftDir, "launcher_profiles.json");
-
-            var root = new Dictionary<string, object>
-            {
-                { "profiles", new Dictionary<string, object>() },
-                { "settings", new Dictionary<string, object>() },
-                { "version", 3 }
-            };
-
-            string json = new JavaScriptSerializer().Serialize(root);
-
-            // ★ 使用不带 BOM 的 UTF-8 编码
-            var utf8NoBom = new UTF8Encoding(false);
-            File.WriteAllText(path, json, utf8NoBom);
-
-            recordLog(LogLevel.Info, $"[OptiFine] 已写入 launcher_profiles.json（无 BOM）: {path}");
         }
 
         // ===================== 合并 JSON =====================

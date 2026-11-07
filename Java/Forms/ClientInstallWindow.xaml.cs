@@ -18,7 +18,15 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 {
     public partial class ClientInstallWindow : Window
     {
-        // ★ 加入 LabyMod
+        // ★ 日志批量合并：防止 processor 高并发输出打爆 UI 线程
+        private readonly object _logBufLock = new object();
+        private readonly List<string> _logBuf = new List<string>();
+        private bool _logFlushScheduled;
+        private DateTime _lastLogFlush = DateTime.MinValue;
+        private const int LOG_FLUSH_INTERVAL_MS = 16;
+        private const int LOG_FLUSH_MAX_LINES = 20;
+        private bool _autoScroll = true;
+
         private static readonly string[] LoaderTypes = {
             "Vanilla", "Forge", "NeoForge", "Fabric", "LegacyFabric", "Quilt", "LabyMod"
         };
@@ -26,7 +34,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         private static readonly HashSet<string> LoadersIncompatibleWithOptifine =
             new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
-                "NeoForge", "Fabric", "LegacyFabric", "Quilt", "LabyMod"   // ★ 加入 LabyMod
+                "NeoForge", "Fabric", "LegacyFabric", "Quilt", "LabyMod"
             };
 
         // ★ LiteLoader 只在 Vanilla / Forge 下工作
@@ -659,7 +667,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     case "Quilt":
                         LoaderVersionHint.Text = LanguageManager.Get("ClientInstall.LoaderHint");
                         break;
-                    case "LabyMod":   // ★
+                    case "LabyMod":
                         LoaderVersionHint.Text = "LabyMod 会自动使用最新版本，无需选择";
                         break;
                 }
@@ -1002,6 +1010,78 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         }
 
         private void AppendLogLines(List<string> lines)
+        {
+            if (lines == null || lines.Count == 0) return;
+
+            lock (_logBufLock)
+            {
+                _logBuf.AddRange(lines);
+                if (_logFlushScheduled) return;
+                _logFlushScheduled = true;
+            }
+
+            if (Dispatcher.CheckAccess())
+                ScheduleLogFlush();
+            else
+                Dispatcher.BeginInvoke(DispatcherPriority.Background,
+                    new Action(ScheduleLogFlush));
+        }
+
+        private void ScheduleLogFlush()
+        {
+            double elapsed = (DateTime.UtcNow - _lastLogFlush).TotalMilliseconds;
+            if (elapsed >= LOG_FLUSH_INTERVAL_MS)
+                FlushLogBuffer();
+            else
+            {
+                var timer = new DispatcherTimer
+                {
+                    Interval = TimeSpan.FromMilliseconds(LOG_FLUSH_INTERVAL_MS - elapsed)
+                };
+                timer.Tick += (s, e) => { timer.Stop(); FlushLogBuffer(); };
+                timer.Start();
+            }
+        }
+
+        private void FlushLogBuffer()
+        {
+            List<string> batch;
+            bool hasMore;
+
+            lock (_logBufLock)
+            {
+                if (_logBuf.Count == 0)
+                {
+                    _logFlushScheduled = false;
+                    return;
+                }
+
+                // ★ 只取前 N 行，剩余的留到下一 tick
+                int take = Math.Min(_logBuf.Count, LOG_FLUSH_MAX_LINES);
+                batch = _logBuf.GetRange(0, take);
+                _logBuf.RemoveRange(0, take);
+                hasMore = _logBuf.Count > 0;
+
+                if (!hasMore)
+                    _logFlushScheduled = false;
+            }
+
+            _lastLogFlush = DateTime.UtcNow;
+            DoAppendLogLines(batch);
+
+            // ★ 还有剩余 → 立即再排一次（保证连续滚动）
+            if (hasMore)
+            {
+                var timer = new DispatcherTimer
+                {
+                    Interval = TimeSpan.FromMilliseconds(LOG_FLUSH_INTERVAL_MS)
+                };
+                timer.Tick += (s, e) => { timer.Stop(); FlushLogBuffer(); };
+                timer.Start();
+            }
+        }
+
+        private void DoAppendLogLines(List<string> lines)
         {
             if (lines == null || lines.Count == 0) return;
 

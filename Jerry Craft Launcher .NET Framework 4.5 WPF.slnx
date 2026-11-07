@@ -4,16 +4,15 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
-  <Folder Name="/Bedrock/">
-    <Project Path="Install Versions/Install Versions.csproj" Id="3ace7ea0-6d67-4f31-b35e-c30e561ab14b" />
-    <Project Path="Launch Bedrock/Launch Bedrock.csproj" Id="510b1a0d-8aac-412c-bf83-3d38df0e6f7b">
-      <Platform Solution="Release|x64" Project="x64" />
-    </Project>
-    <Project Path="Launch Bedrock/Native/BootStrap/BootStrap.vcxproj" Id="30dd98da-aa22-40dc-be7f-041bbce8c46c" />
-    <Project Path="Launch Bedrock/Native/Preload/Preload.csproj" Id="5145abb7-4b6a-4544-8f3d-aa2064c8f745" />
+  <Folder Name="/Minecraft/" />
+  <Folder Name="/Minecraft/Bedrock/">
+    <Project Path="Minecraft/Bedrock/Install Versions/Install Versions.csproj" Id="3ace7ea0-6d67-4f31-b35e-c30e561ab14b" />
+    <Project Path="Minecraft/Bedrock/Launch Bedrock/Launch Bedrock.csproj" Id="510b1a0d-8aac-412c-bf83-3d38df0e6f7b" />
+    <Project Path="Minecraft/Bedrock/Launch Bedrock/Native/BootStrap/BootStrap.vcxproj" Id="30dd98da-aa22-40dc-be7f-041bbce8c46c" />
+    <Project Path="Minecraft/Bedrock/Launch Bedrock/Native/Preload/Preload.csproj" />
   </Folder>
   <Project Path="Jerry Craft Launcher .NET Framework 4.5 WPF.csproj" Id="cc4de3d2-cb2c-457c-bb08-e381841646c5">
-    <BuildDependency Project="Install Versions/Install Versions.csproj" />
+    <BuildDependency Project="Minecraft/Bedrock/Install Versions/Install Versions.csproj" />
     <Platform Solution="*|x64" Project="x86" />
     <Platform Solution="*|x86" Project="x86" />
   </Project>
