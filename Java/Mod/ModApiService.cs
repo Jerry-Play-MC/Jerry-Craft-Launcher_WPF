@@ -4,6 +4,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
+using System.Net.Http;
 using System.Text;
 using System.Web.Script.Serialization;
 
@@ -11,70 +12,48 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 {
     public static class ModApiService
     {
+        // 【提速优化】全局复用 HttpClient，显著提升高并发下载性能
+        // 注意：.NET Framework 4.5 不支持 MaxConnectionsPerServer，并发限制由 ServicePointManager 接管
+        public static readonly HttpClient HttpClient = new HttpClient(new HttpClientHandler
+        {
+            AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate
+        })
+        {
+            Timeout = TimeSpan.FromMinutes(5)
+        };
+
         static ModApiService()
         {
             ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072;
             ServicePointManager.Expect100Continue = false;
-            ServicePointManager.DefaultConnectionLimit = 20;
+
+            // 【核心提速】在 .NET Framework 中，这行代码决定了 HttpClient 的最大并发连接数
+            ServicePointManager.DefaultConnectionLimit = 64;
+
+            HttpClient.DefaultRequestHeaders.Add("User-Agent", "JerryStudioLauncher/1.0");
         }
 
-        // ---------- HTTP ----------
+        // ---------- HTTP (用于 JSON 接口) ----------
         private static string DownloadJson(string url)
         {
-            using (var client = new WebClient())
+            try
             {
-                client.Encoding = Encoding.UTF8;
-                client.Headers.Add("User-Agent", "JerryStudioLauncher/1.0");
-
-                try
-                {
-                    string json = client.DownloadString(url);
-
-                    // 清理非法控制字符（保留 \t \n \r）
-                    char[] chars = json.ToCharArray();
-                    int writeIndex = 0;
-                    for (int i = 0; i < chars.Length; i++)
-                    {
-                        char c = chars[i];
-                        if (c == '\t' || c == '\n' || c == '\r' || c >= 32)
-                            chars[writeIndex++] = c;
-                    }
-                    return new string(chars, 0, writeIndex);
-                }
-                catch (WebException ex)
-                {
-                    string detail = "";
-                    int status = 0;
-                    if (ex.Response != null)
-                    {
-                        var resp = (HttpWebResponse)ex.Response;
-                        status = (int)resp.StatusCode;
-                        try
-                        {
-                            using (var stream = ex.Response.GetResponseStream())
-                            using (var reader = new StreamReader(stream))
-                                detail = reader.ReadToEnd();
-                        }
-                        catch { }
-                    }
-
-                    string friendly;
-                    if (status == 429) friendly = LanguageManager.Get("Api.TooManyRequests");
-                    else if (status == 400) friendly = LanguageManager.Get("Api.BadRequest");
-                    else if (status == 404) friendly = LanguageManager.Get("Api.NotFound");
-                    else if (status == 0) friendly = LanguageManager.Get("Api.NetworkError");
-                    else friendly = string.Format(LanguageManager.Get("Api.HttpError"), status);
-
-                    throw new Exception(
-                        friendly + "\n详细：" + ex.Message + "\n响应内容：" + detail, ex);
-                }
+                // 对于纯文本接口，直接同步等待
+                return HttpClient.GetStringAsync(url).GetAwaiter().GetResult();
+            }
+            catch (Exception ex)
+            {
+                App.AppLog.recordLog(App.AppLog.LogLevel.Error, $"[API请求失败] {url} : {ex.Message}");
+                throw new Exception("请求服务器失败，请检查网络连接。", ex);
             }
         }
 
-        // ---------- 镜像 ----------
+        // ---------- 镜像规则 ----------
         public static string GetMirrorUrl(string url)
         {
             if (string.IsNullOrEmpty(url)) return url;
+
+            // 1. Modrinth 官方 CDN
             if (url.Contains("cdn.modrinth.com"))
             {
                 try
@@ -84,10 +63,31 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 }
                 catch { return url; }
             }
+
+            // 2. CurseForge 官方 CDN
+            if (url.Contains("edge.forgecdn.net") || url.Contains("mediafilez.forgecdn.net"))
+            {
+                try
+                {
+                    var uri = new Uri(url);
+                    return "https://bmclapi2.bangbang93.com" + uri.PathAndQuery;
+                }
+                catch { return url; }
+            }
+
+            // 3. GitHub 国内加速镜像 (包含实际文件下载域名)
+            if (url.Contains("github.com") ||
+                url.Contains("raw.githubusercontent.com") ||
+                url.Contains("objects.githubusercontent.com"))
+            {
+                // 使用相对稳定且支持大文件的 gh-proxy 镜像
+                return "https://gh-proxy.net/" + url;
+            }
+
             return url;
         }
 
-        // ---------- 搜索 ----------
+        // ---------- 搜索 (原版 Modrinth API) ----------
         public static List<ModrinthMod> SearchModrinth(
             string keyword, string mcVersion, int page, int limit,
             ModProjectType type, out int totalHits)
@@ -140,6 +140,71 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 });
             }
             return result;
+        }
+
+        // ---------- 搜索 (Modrinth + MCIM 翻译) ----------
+        public static List<ModrinthMod> SearchModsWithTranslation(
+            string keyword, int page, int limit, ModProjectType type, out int totalHits)
+        {
+            // 1. 始终以 Modrinth 的搜索结果为准
+            var mods = SearchModrinth(keyword, "", page, limit, type, out totalHits);
+            if (mods == null || mods.Count == 0) return mods;
+
+            // 2. 尝试用 MCIM 补充中文描述（尽力而为，失败不影响结果）
+            foreach (var mod in mods)
+            {
+                if (string.IsNullOrEmpty(mod.Id)) continue;
+                try
+                {
+                    var translation = GetMcimTranslation(mod.Id);
+                    if (translation != null && !string.IsNullOrEmpty(translation.Translated))
+                    {
+                        mod.DescriptionZh = translation.Translated;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // 单个翻译失败不应中断整个搜索，仅记录日志
+                    App.AppLog.recordLog(App.AppLog.LogLevel.Warn,
+                        $"[MCIM] 翻译 {mod.Id} 失败：{ex.Message}");
+                }
+            }
+            return mods;
+        }
+
+        // ---------- MCIM 翻译调用 ----------
+        private static McimTranslation GetMcimTranslation(string projectId)
+        {
+            // MCIM 翻译接口，使用 project_id 精确查询
+            string url = "https://mod.mcimirror.top/translate/modrinth?project_id="
+                       + Uri.EscapeDataString(projectId);
+            try
+            {
+                string json = DownloadJson(url);
+                if (string.IsNullOrEmpty(json)) return null;
+
+                var ser = new JavaScriptSerializer { MaxJsonLength = int.MaxValue };
+                var dict = ser.Deserialize<Dictionary<string, object>>(json);
+                if (dict == null) return null;
+
+                return new McimTranslation
+                {
+                    Original = JsonHelper.GetString(dict, "original"),
+                    Translated = JsonHelper.GetString(dict, "translated")
+                };
+            }
+            catch (Exception)
+            {
+                // 未找到翻译时接口可能返回 404，此处静默处理
+                return null;
+            }
+        }
+
+        // 内部辅助类，仅用于解析 MCIM 返回
+        private class McimTranslation
+        {
+            public string Original { get; set; }
+            public string Translated { get; set; }
         }
 
         // ---------- 版本列表 ----------

@@ -88,8 +88,10 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             SearchButton.IsEnabled = false;
             PrevButton.IsEnabled = false;
             NextButton.IsEnabled = false;
-            ModList.ItemsSource = new List<string> {
-                LanguageManager.Get("ModSearch.Loading")
+
+            // 修复：用 List<ModrinthMod> 占位，防止模板数据类型不匹配导致 UI 空白
+            ModList.ItemsSource = new List<ModrinthMod> {
+                new ModrinthMod { Title = LanguageManager.Get("ModSearch.Loading") }
             };
 
             try
@@ -97,8 +99,9 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 var result = await Task.Run(() =>
                 {
                     int total;
-                    var list = ModApiService.SearchModrinth(
-                        _currentKeyword, "", _currentPage, PageSize, _currentType, out total);
+                    // 修改点：调用 SearchMineKuai (支持中文)
+                    var list = ModApiService.SearchModsWithTranslation(
+                        _currentKeyword, _currentPage, PageSize, _currentType, out total);
                     return Tuple.Create(list, total);
                 });
 
@@ -107,8 +110,9 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
                 if (mods == null || mods.Count == 0)
                 {
-                    ModList.ItemsSource = new List<string> {
-                        LanguageManager.Get("ModSearch.NoResult")
+                    // 修复：同样用 ModrinthMod 占位
+                    ModList.ItemsSource = new List<ModrinthMod> {
+                        new ModrinthMod { Title = LanguageManager.Get("ModSearch.NoResult") }
                     };
                     PageInfoText.Text = string.Format(
                         LanguageManager.Get("ModSearch.PageInfo"), 1, 1, 0);
@@ -129,8 +133,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             }
             catch (Exception ex)
             {
-                ModList.ItemsSource = new List<string> {
-                    LanguageManager.Get("Download.Failure") + "：" + ex.Message
+                ModList.ItemsSource = new List<ModrinthMod> {
+                    new ModrinthMod { Title = LanguageManager.Get("Download.Failure") + "：" + ex.Message }
                 };
                 PageInfoText.Text = string.Format(
                     LanguageManager.Get("ModSearch.PageInfo"), 1, 1, 0);

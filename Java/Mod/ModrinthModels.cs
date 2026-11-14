@@ -24,6 +24,35 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         public string Author { get; set; }
         public string ProjectType { get; set; }
 
+        // ====== 新增：中文支持 ======
+        public string TitleZh { get; set; }
+        public string DescriptionZh { get; set; }
+
+        /// <summary>
+        /// 优先展示中文，如果有中文且与英文不同，则拼接展示：中文 (英文)
+        /// </summary>
+        public string DisplayTitle
+        {
+            get
+            {
+                if (!string.IsNullOrEmpty(TitleZh) && TitleZh != Title)
+                    return $"{TitleZh} ({Title})";
+                return Title;
+            }
+        }
+
+        /// <summary>
+        /// 优先展示中文描述
+        /// </summary>
+        public string DisplayDescription
+        {
+            get
+            {
+                return !string.IsNullOrEmpty(DescriptionZh) ? DescriptionZh : Description;
+            }
+        }
+        // ============================
+
         private ImageSource _icon;
         public ImageSource Icon
         {

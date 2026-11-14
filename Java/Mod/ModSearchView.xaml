@@ -1,9 +1,9 @@
 ﻿<UserControl x:Class="Jerry_Craft_Launcher.NET_Framework_4._5_WPF.ModSearchView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-             mc:Ignorable="d"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             mc:Ignorable="d" 
              d:DesignHeight="600" d:DesignWidth="700">
 
     <Grid Background="White">
@@ -100,18 +100,20 @@
                                    RenderOptions.BitmapScalingMode="HighQuality"/>
                         </Border>
 
+                        <!-- 修改点：绑定 DisplayTitle 和 DisplayDescription -->
                         <StackPanel Grid.Column="1"
                                     Margin="12,0,12,0"
                                     VerticalAlignment="Center">
-                            <TextBlock Text="{Binding Title}"
+                            <TextBlock Text="{Binding DisplayTitle}"
                                        FontSize="14" FontWeight="SemiBold"
                                        Foreground="#333333"
                                        TextTrimming="CharacterEllipsis"/>
-                            <TextBlock Text="{Binding Description}"
+                            <TextBlock Text="{Binding DisplayDescription}"
                                        FontSize="11" Foreground="#999999"
                                        Margin="0,2,0,0"
                                        TextTrimming="CharacterEllipsis"/>
                         </StackPanel>
+                        <!-- ========================================== -->
 
                         <TextBlock Grid.Column="2"
                                    Text="{Binding DownloadsText}"

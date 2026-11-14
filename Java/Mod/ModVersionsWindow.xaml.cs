@@ -6,6 +6,8 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -14,6 +16,7 @@ using System.Web.Script.Serialization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using static Jerry_Craft_Launcher.NET_Framework_4._5_WPF.App;
 
 namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 {
@@ -62,8 +65,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             StatusText.Text = LanguageManager.Get("ModVersions.Loading");
             VersionList.ItemsSource = new List<string> {
-        LanguageManager.Get("ModVersions.Loading")
-    };
+                LanguageManager.Get("ModVersions.Loading")
+            };
             SetFilterEnabled(false);
 
             try
@@ -74,8 +77,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 if (_allVersions.Count == 0)
                 {
                     VersionList.ItemsSource = new List<string> {
-                LanguageManager.Get("ModVersions.NoResult")
-            };
+                        LanguageManager.Get("ModVersions.NoResult")
+                    };
                     StatusText.Text = LanguageManager.Get("ModVersions.CountZero");
                     return;
                 }
@@ -85,9 +88,10 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             }
             catch (Exception ex)
             {
+                App.AppLog.recordLog(App.AppLog.LogLevel.Error, "[ModVersions] 加载版本失败: " + ex.Message);
                 VersionList.ItemsSource = new List<string> {
-            LanguageManager.Get("Download.Failure") + "：" + ex.Message
-        };
+                    LanguageManager.Get("Download.Failure") + "：" + ex.Message
+                };
                 StatusText.Text = LanguageManager.Get("Download.Failure");
             }
             finally
@@ -258,17 +262,10 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             }
         }
 
-        /// <summary>
-        /// Mod 下载入口：
-        ///   · 未开启版本隔离 → 直接下载到 .minecraft\mods
-        ///   · 开启版本隔离   → 扫描本地版本，列出所有符合该 Mod 要求的实例，让用户选择
-        /// </summary>
         private void HandleModDownload(ModVersion version, string url, string fileName)
         {
-            // 实时读设置，避免用户中途改设置导致判断过时
             bool isolated = SettingsManager.GetIsolationGameData();
 
-            // ---------- 未隔离：直接下到 .minecraft\mods ----------
             if (!isolated)
             {
                 string targetDir = Path.Combine(_minecraftDir, "mods");
@@ -276,7 +273,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 return;
             }
 
-            // ---------- 已隔离：找出所有符合要求的版本实例 ----------
             var all = LocalVersionScanner.Scan();
             var matched = new List<LocalVersionInfo>();
 
@@ -286,7 +282,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     matched.Add(lv);
             }
 
-            // 没有任何匹配 → 询问是否直接下到 .minecraft\mods
             if (matched.Count == 0)
             {
                 string gameReq = version.GameVersions != null && version.GameVersions.Count > 0
@@ -302,7 +297,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 return;
             }
 
-            // ---------- 弹出选择窗口 ----------
             var dlg = new ModInstallTargetWindow(matched, version)
             {
                 Owner = this
@@ -316,16 +310,10 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             HandleSimpleDownload(version, url, fileName, target);
         }
 
-        /// <summary>
-        /// 判断本地版本是否满足 Mod 的 GameVersions / Loaders 要求。
-        /// · GameVersions 为空 → 视为不限，匹配通过
-        /// · Loaders 为空     → 视为不限，匹配通过
-        /// </summary>
         private static bool MatchModRequirements(LocalVersionInfo local, ModVersion mod)
         {
             if (local == null || mod == null) return false;
 
-            // 游戏版本
             if (mod.GameVersions != null && mod.GameVersions.Count > 0)
             {
                 bool hit = false;
@@ -338,7 +326,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 if (!hit) return false;
             }
 
-            // 加载器
             if (mod.Loaders != null && mod.Loaders.Count > 0)
             {
                 string loaderLower = (local.LoaderType ?? "vanilla").ToLowerInvariant();
@@ -419,13 +406,26 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             ModVersion version, string extractTarget)
         {
             StatusText.Text = LanguageManager.Get("ModVersions.DownloadingPack");
+
             try
             {
-                await Task.Run(() => DownloadFileWithRetry(url, savePath, null, 3));
+                bool ok = false;
+                string mirrorUrl = ModApiService.GetMirrorUrl(url);
+                ok = await DownloadFileMultithreadedAsync(mirrorUrl, savePath, version.VersionNumber);
+
+                if (!ok)
+                {
+                    ok = await DownloadFileMultithreadedAsync(url, savePath, version.VersionNumber);
+                }
+
+                if (!ok)
+                    throw new Exception("整合包下载失败（所有节点均重试失败）");
+
                 await ProcessModpackAsync(savePath, version, extractTarget);
             }
             catch (Exception ex)
             {
+                App.AppLog.recordLog(App.AppLog.LogLevel.Error, "[Modpack] 下载/处理失败: " + ex.Message);
                 LanguageManager.ShowError("ModVersions.ModpackDownloadFailed", ex.Message);
             }
         }
@@ -451,29 +451,36 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             }
             catch (Exception ex)
             {
+                App.AppLog.recordLog(App.AppLog.LogLevel.Error, $"[Mod] 下载失败 {versionNumber}: {ex.Message}");
                 StatusText.Text = LanguageManager.Get("ModVersions.DownloadFailed");
                 LanguageManager.ShowError("ModVersions.DownloadFailedMsg", ex.Message);
             }
         }
 
         /// <summary>
-        /// 带进度回调的下载：状态栏显示"已下载 / 总大小"。
-        /// 返回 true 表示成功，false 表示失败（会清理半截文件）。
+        /// 带进度回调的单线程下载 (用于单个 Mod 下载)
         /// </summary>
-        private async Task<bool> DownloadWithProgressAsync(
-            string url, string savePath, string versionNumber)
+        private async Task<bool> DownloadWithProgressAsync(string url, string savePath, string versionNumber)
         {
             try
             {
                 using (var wc = new WebClient())
                 {
                     wc.Headers.Add("User-Agent", "JerryStudioLauncher/1.0");
+                    int lastLoggedPct = -1;
 
                     wc.DownloadProgressChanged += (s, e) =>
                     {
                         long total = e.TotalBytesToReceive;
                         long received = e.BytesReceived;
                         int pct = total > 0 ? (int)(received * 100 / total) : 0;
+
+                        if (pct >= lastLoggedPct + 10 || pct == 100)
+                        {
+                            lastLoggedPct = pct;
+                            App.AppLog.recordLog(App.AppLog.LogLevel.Info,
+                                $"[Download] {versionNumber} 进度: {pct}% ({FormatSize(received)} / {FormatSize(total)})");
+                        }
 
                         Dispatcher.BeginInvoke(new Action(() =>
                         {
@@ -496,10 +503,111 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     return true;
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                App.AppLog.recordLog(App.AppLog.LogLevel.Warn,
+                    $"[Download] {versionNumber} 下载节点异常: {ex.Message}");
                 try { if (File.Exists(savePath)) File.Delete(savePath); } catch { }
                 return false;
+            }
+        }
+
+        /// <summary>
+        /// 多线程分块下载大文件（用于整合包本体）
+        /// </summary>
+        private async Task<bool> DownloadFileMultithreadedAsync(string url, string savePath, string versionNumber, int threadCount = 4)
+        {
+            try
+            {
+                long fileSize = 0;
+                var headReq = (HttpWebRequest)WebRequest.Create(url);
+                headReq.Method = "HEAD";
+                headReq.UserAgent = "JerryStudioLauncher/1.0";
+                using (var resp = (HttpWebResponse)await headReq.GetResponseAsync())
+                {
+                    fileSize = resp.ContentLength;
+                }
+
+                if (fileSize < 5 * 1024 * 1024)
+                    return await DownloadWithProgressAsync(url, savePath, versionNumber);
+
+                long partSize = fileSize / threadCount;
+                var tasks = new List<Task>();
+
+                long[] partProgress = new long[threadCount];
+                long totalReceived = 0;
+                var progressLock = new object();
+                var lastLogTime = DateTime.Now;
+
+                for (int i = 0; i < threadCount; i++)
+                {
+                    int index = i;
+                    long start = index * partSize;
+                    long end = (index == threadCount - 1) ? fileSize - 1 : (start + partSize - 1);
+
+                    tasks.Add(Task.Run(async () =>
+                    {
+                        string tempPartPath = savePath + ".part" + index;
+                        var req = (HttpWebRequest)WebRequest.Create(url);
+                        req.UserAgent = "JerryStudioLauncher/1.0";
+                        req.AddRange(start, end);
+
+                        using (var resp = (HttpWebResponse)await req.GetResponseAsync())
+                        using (var stream = resp.GetResponseStream())
+                        using (var fs = new FileStream(tempPartPath, FileMode.Create, FileAccess.Write))
+                        {
+                            byte[] buffer = new byte[8192];
+                            int read;
+                            while ((read = await stream.ReadAsync(buffer, 0, buffer.Length)) > 0)
+                            {
+                                await fs.WriteAsync(buffer, 0, read);
+
+                                lock (progressLock)
+                                {
+                                    partProgress[index] += read;
+                                    totalReceived = partProgress.Sum();
+
+                                    if ((DateTime.Now - lastLogTime).TotalMilliseconds > 200 || totalReceived == fileSize)
+                                    {
+                                        lastLogTime = DateTime.Now;
+                                        int pct = (int)(totalReceived * 100 / fileSize);
+                                        Dispatcher.BeginInvoke(new Action(() =>
+                                        {
+                                            StatusText.Text = string.Format(
+                                                LanguageManager.Get("ModVersions.Downloading"),
+                                                versionNumber, pct, FormatSize(totalReceived), FormatSize(fileSize));
+                                        }));
+                                    }
+                                }
+                            }
+                        }
+                    }));
+                }
+
+                await Task.WhenAll(tasks);
+
+                using (var finalFs = new FileStream(savePath, FileMode.Create, FileAccess.Write))
+                {
+                    for (int i = 0; i < threadCount; i++)
+                    {
+                        string tempPartPath = savePath + ".part" + i;
+                        using (var partFs = new FileStream(tempPartPath, FileMode.Open, FileAccess.Read))
+                        {
+                            await partFs.CopyToAsync(finalFs);
+                        }
+                        File.Delete(tempPartPath);
+                    }
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                App.AppLog.recordLog(App.AppLog.LogLevel.Warn, $"[多线程下载] 失败，降级为单线程: {ex.Message}");
+                for (int i = 0; i < threadCount; i++)
+                    try { File.Delete(savePath + ".part" + i); } catch { }
+
+                return await DownloadWithProgressAsync(url, savePath, versionNumber);
             }
         }
 
@@ -515,15 +623,13 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         // ============================================================
         //   整合包处理
         // ============================================================
-        private async Task ProcessModpackAsync(string filePath, ModVersion version,
-            string extractTarget)
+        private async Task ProcessModpackAsync(string filePath, ModVersion version, string extractTarget)
         {
-            await Task.Run(() =>
+            await Task.Run(async () =>
             {
                 try
                 {
-                    string extractTemp = Path.Combine(Path.GetTempPath(),
-                        "modpack_extract_" + Guid.NewGuid().ToString("N"));
+                    string extractTemp = Path.Combine(Path.GetTempPath(), "modpack_extract_" + Guid.NewGuid().ToString("N"));
                     Directory.CreateDirectory(extractTemp);
 
                     string overridesDir = Path.Combine(extractTemp, "overrides");
@@ -713,7 +819,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                         string modsDir = Path.Combine(packDir, "mods");
                         CleanCorruptedFiles(modsDir);
 
-                        var tasks = new List<DownloadTaskWithSha>();
+                        var downloadTasks = new List<DownloadTaskWithSha>();
                         var filesArr = JsonHelper.GetArray(index, "files");
                         if (filesArr != null)
                         {
@@ -740,7 +846,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                                 if (File.Exists(targetPath) && IsValidJarFile(targetPath, sha1))
                                     continue;
 
-                                tasks.Add(new DownloadTaskWithSha
+                                downloadTasks.Add(new DownloadTaskWithSha
                                 {
                                     Url = downloadUrl,
                                     SavePath = targetPath,
@@ -750,42 +856,47 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                             }
                         }
 
-                        var failedFiles = new List<string>();
-                        object lockFailed = new object();
-                        int total = tasks.Count;
+                        int total = downloadTasks.Count;
                         int completed = 0;
                         int failedCount = 0;
+                        var failedFiles = new List<string>();
+                        object lockFailed = new object();
 
                         if (total > 0)
                         {
                             this.Dispatcher.Invoke(() =>
-                            StatusText.Text = string.Format(
-                                LanguageManager.Get("ModVersions.DownloadingFile"), 0, total, ""));
+                                StatusText.Text = string.Format(
+                                    LanguageManager.Get("ModVersions.DownloadingFile"), 0, total, ""));
 
-                            var handles = new List<ManualResetEvent>();
-                            int maxC = Math.Min(10, total);
+                            App.AppLog.recordLog(App.AppLog.LogLevel.Info,
+                                $"[Modpack] 开始异步下载内部文件，共 {total} 个");
 
-                            using (var sem = new Semaphore(maxC, maxC))
+                            // 【核心提速】使用 SemaphoreSlim + 异步 HttpClient 进行高并发调度
+                            using (var semaphore = new SemaphoreSlim(32)) // 提高到 32 个并发
                             {
-                                foreach (var task in tasks)
-                                {
-                                    var done = new ManualResetEvent(false);
-                                    handles.Add(done);
+                                var asyncTasks = new List<Task>();
 
-                                    ThreadPool.QueueUserWorkItem(_ =>
+                                foreach (var task in downloadTasks)
+                                {
+                                    asyncTasks.Add(Task.Run(async () =>
                                     {
+                                        await semaphore.WaitAsync();
                                         try
                                         {
-                                            sem.WaitOne();
-                                            bool ok = DownloadFileWithRetry(
+                                            bool ok = await DownloadFileWithRetryAsync(
                                                 task.Url, task.SavePath, task.ExpectedSha1, 3);
+
                                             if (ok)
                                             {
-                                                Interlocked.Increment(ref completed);
-                                                int c = completed;
-                                                this.Dispatcher.Invoke(() =>
-                                                StatusText.Text = string.Format(
-                                                    LanguageManager.Get("ModVersions.DownloadingFile"), c, total, task.FileName));
+                                                int current = Interlocked.Increment(ref completed);
+
+                                                // 降低 UI 更新频率 (每完成 5 个或最后几个才更新)
+                                                if (current % 5 == 0 || current >= total - 5)
+                                                {
+                                                    this.Dispatcher.Invoke(() =>
+                                                        StatusText.Text = string.Format(
+                                                            LanguageManager.Get("ModVersions.DownloadingFile"), current, total, task.FileName));
+                                                }
                                             }
                                             else
                                             {
@@ -793,39 +904,44 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                                                 Interlocked.Increment(ref failedCount);
                                             }
                                         }
-                                        catch
+                                        catch (Exception ex)
                                         {
+                                            App.AppLog.recordLog(App.AppLog.LogLevel.Error,
+                                                $"[Modpack] 下载 {task.FileName} 异常: {ex.Message}");
                                             lock (lockFailed) failedFiles.Add(task.FileName);
                                             Interlocked.Increment(ref failedCount);
                                         }
                                         finally
                                         {
-                                            sem.Release();
-                                            done.Set();
+                                            semaphore.Release();
                                         }
-                                    });
+                                    }));
                                 }
 
-                                foreach (var h in handles) { h.WaitOne(); h.Close(); }
+                                await Task.WhenAll(asyncTasks);
                             }
 
                             this.Dispatcher.Invoke(() =>
-                            StatusText.Text = string.Format(
-                                LanguageManager.Get("ModVersions.Progress"), completed, failedCount));
+                                StatusText.Text = string.Format(
+                                    LanguageManager.Get("ModVersions.Progress"), completed, failedCount));
                         }
 
                         if (failedFiles.Count > 0)
                         {
                             var finalFailed = new List<string>();
-                            var retryTasks = tasks.Where(t => failedFiles.Contains(t.FileName)).ToList();
+                            var retryTasks = downloadTasks.Where(t => failedFiles.Contains(t.FileName)).ToList();
+
                             foreach (var t in retryTasks)
                             {
-                                if (!DownloadFileWithRetry(t.Url, t.SavePath, t.ExpectedSha1, 2))
-                                    finalFailed.Add(t.FileName);
+                                // 失败重试改用同步或直接跑异步
+                                bool ok = await DownloadFileWithRetryAsync(t.Url, t.SavePath, t.ExpectedSha1, 2);
+                                if (!ok) finalFailed.Add(t.FileName);
                             }
 
                             if (finalFailed.Count > 0)
                             {
+                                App.AppLog.recordLog(App.AppLog.LogLevel.Warn,
+                                    $"[Modpack] 部分文件最终下载失败: {string.Join(", ", finalFailed.ToArray())}");
                                 this.Dispatcher.Invoke(() =>
                                     LanguageManager.ShowWarning("ModVersions.Incomplete",
                                         string.Join("\n", finalFailed.ToArray())));
@@ -833,7 +949,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                         }
 
                         CleanCorruptedFiles(modsDir);
-                        DownloadMissingDependencies(packDir, mcVersion, originalLoaderType);
+                        await DownloadMissingDependenciesAsync(packDir, mcVersion, originalLoaderType);
 
                         try { Directory.Delete(extractTemp, true); } catch { }
 
@@ -845,6 +961,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     }
                     else
                     {
+                        // fallback ...
                         foreach (var dir in Directory.GetDirectories(extractTemp))
                         {
                             if (Path.GetFileName(dir) != "META-INF")
@@ -853,23 +970,69 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                         foreach (var file in Directory.GetFiles(extractTemp))
                         {
                             if (Path.GetFileName(file) != "modrinth.index.json")
-                                File.Copy(file,
-                                    Path.Combine(extractTarget, Path.GetFileName(file)), true);
+                                File.Copy(file, Path.Combine(extractTarget, Path.GetFileName(file)), true);
                         }
                         try { Directory.Delete(extractTemp, true); } catch { }
                         this.Dispatcher.Invoke(() =>
-                        LanguageManager.ShowWarning("ModVersions.ExtractedNoIndex"));
+                            LanguageManager.ShowWarning("ModVersions.ExtractedNoIndex"));
                     }
                 }
                 catch (Exception ex)
                 {
+                    App.AppLog.recordLog(App.AppLog.LogLevel.Error, "[Modpack] 处理整合包时崩溃: " + ex.ToString());
                     this.Dispatcher.Invoke(() =>
                         LanguageManager.ShowError("ModVersions.ProcessFailed", ex.Message));
                 }
             });
         }
 
-        private void DownloadMissingDependencies(string packDir, string mcVersion, string loaderType)
+        /// <summary>
+        /// 【核心提速】异步的带校验与重试的下载方法
+        /// </summary>
+        private async Task<bool> DownloadFileWithRetryAsync(string url, string savePath, string expectedSha1 = null, int maxRetries = 3)
+        {
+            string dir = Path.GetDirectoryName(savePath);
+            if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                Directory.CreateDirectory(dir);
+
+            if (File.Exists(savePath) && IsValidJarFile(savePath, expectedSha1))
+                return true;
+
+            if (File.Exists(savePath))
+            {
+                try { File.Delete(savePath); } catch { }
+            }
+
+            for (int attempt = 0; attempt < maxRetries; attempt++)
+            {
+                string currentUrl = (attempt % 2 == 0) ? ModApiService.GetMirrorUrl(url) : url;
+                try
+                {
+                    using (var response = await ModApiService.HttpClient.GetAsync(currentUrl, HttpCompletionOption.ResponseHeadersRead))
+                    {
+                        response.EnsureSuccessStatusCode();
+                        using (var fs = new FileStream(savePath, FileMode.Create, FileAccess.Write, FileShare.None))
+                        {
+                            await response.Content.CopyToAsync(fs);
+                        }
+                    }
+
+                    if (IsValidJarFile(savePath, expectedSha1)) return true;
+                    try { File.Delete(savePath); } catch { }
+                }
+                catch
+                {
+                    try { if (File.Exists(savePath)) File.Delete(savePath); } catch { }
+                }
+
+                if (attempt < maxRetries - 1)
+                    await Task.Delay(2000 * (attempt + 1));
+            }
+
+            return false;
+        }
+
+        private async Task DownloadMissingDependenciesAsync(string packDir, string mcVersion, string loaderType)
         {
             string modsDir = Path.Combine(packDir, "mods");
             if (!Directory.Exists(modsDir)) return;
@@ -909,7 +1072,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     if (!string.IsNullOrEmpty(url))
                     {
                         string savePath = Path.Combine(modsDir, "fabric-api-latest.jar");
-                        if (DownloadFileWithRetry(url, savePath, null, 3))
+                        if (await DownloadFileWithRetryAsync(url, savePath, null, 3))
                         {
                             installed.Add("fabric-api");
                             missing.RemoveWhere(d =>
@@ -930,7 +1093,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     if (string.IsNullOrEmpty(url)) continue;
 
                     string savePath = Path.Combine(modsDir, modId + "-" + mcVersion + ".jar");
-                    DownloadFileWithRetry(url, savePath, null, 3);
+                    await DownloadFileWithRetryAsync(url, savePath, null, 3);
                 }
                 catch { }
             }
@@ -1000,7 +1163,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             }
             catch (Exception ex)
             {
-                Console.WriteLine("[整合包] 获取 " + loaderType + " 最新版本失败：" + ex.Message);
+                App.AppLog.recordLog(App.AppLog.LogLevel.Warn, "[整合包] 获取 " + loaderType + " 最新版本失败：" + ex.Message);
             }
             return null;
         }
@@ -1081,7 +1244,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             }
             catch (Exception ex)
             {
-                Console.WriteLine("[搜索] " + modId + " 失败：" + ex.Message);
+                App.AppLog.recordLog(App.AppLog.LogLevel.Warn, "[搜索] " + modId + " 失败：" + ex.Message);
             }
             return null;
         }
@@ -1177,7 +1340,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 if (!string.IsNullOrEmpty(expectedSha1))
                 {
                     using (var fs = File.OpenRead(filePath))
-                    using (var sha1 = System.Security.Cryptography.SHA1.Create())
+                    using (var sha1 = SHA1.Create())
                     {
                         byte[] hash = sha1.ComputeHash(fs);
                         string actual = BitConverter.ToString(hash).Replace("-", "").ToLower();
@@ -1204,47 +1367,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     try { File.Delete(file); } catch { }
                 }
             }
-        }
-
-        private bool DownloadFileWithRetry(string url, string savePath,
-            string expectedSha1 = null, int maxRetries = 3)
-        {
-            string dir = Path.GetDirectoryName(savePath);
-            if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
-                Directory.CreateDirectory(dir);
-
-            if (File.Exists(savePath) && IsValidJarFile(savePath, expectedSha1))
-                return true;
-
-            if (File.Exists(savePath))
-            {
-                try { File.Delete(savePath); } catch { }
-            }
-
-            for (int attempt = 0; attempt < maxRetries; attempt++)
-            {
-                try
-                {
-                    string u = (attempt == 0) ? ModApiService.GetMirrorUrl(url) : url;
-                    using (var client = new WebClient())
-                    {
-                        client.Headers.Add("User-Agent", "JerryStudioLauncher/1.0");
-                        client.DownloadFile(u, savePath);
-                    }
-
-                    if (IsValidJarFile(savePath, expectedSha1)) return true;
-                    try { File.Delete(savePath); } catch { }
-                }
-                catch
-                {
-                    try { if (File.Exists(savePath)) File.Delete(savePath); } catch { }
-                }
-
-                if (attempt < maxRetries - 1)
-                    Thread.Sleep(2000 * (attempt + 1));
-            }
-
-            return false;
         }
 
         private static void ExtractZipSafely(string zipPath, string targetDir)
