@@ -35,7 +35,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         // --------------------------------  常量区  --------------------------------
 
         // =====程序版本信息=====
-        public const string Version = "1.1.2"; // 主程序版本号
+        public const string Version = "1.2.0"; // 主程序版本号
         // =====目录路径=====
         public static readonly string exePath = AppDomain.CurrentDomain.BaseDirectory; // 程序根目录
         public static readonly string minecraftPath = Path.Combine(exePath, ".minecraft"); // 设置目录
