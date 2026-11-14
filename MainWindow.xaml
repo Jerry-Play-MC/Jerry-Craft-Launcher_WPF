@@ -82,6 +82,8 @@
         <!-- 内容区 -->
         <ContentControl Grid.Row="1"
                         x:Name="MainContent"
-                        Margin="0"/>
+                        Margin="0"
+                        HorizontalContentAlignment="Stretch"
+                        VerticalContentAlignment="Stretch"/>
     </Grid>
 </Window>

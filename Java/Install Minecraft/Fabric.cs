@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.IO.Compression;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -28,7 +29,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         private const int PROGRESS_REFRESH_MS = 100;
         private const int HTTP_TIMEOUT_MS = 15000;
 
-        // 首次启动验证超时（Fabric 首次要 remap 原版 jar，给 15 分钟）
         private const int FIRST_LAUNCH_TIMEOUT_MS = 15 * 60 * 1000;
 
         private const string UA_STRING =
@@ -38,17 +38,21 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         private static readonly object _consoleLock = new object();
         private static int _lastProgressTick = 0;
 
-        // ===================== 服务端启动参数（可调） =====================
         private const string SERVER_MAX_MEMORY = "4G";
         private const string SERVER_MIN_MEMORY = "4G";
 
-        // 统一 JVM 参数（start.bat 和首次启动验证共用）
         private const string JVM_ARGS =
             "-Djava.net.preferIPv4Stack=true " +
             "-Dsun.net.spi.nameservice.nameservers=223.5.5.5,119.29.29.29 " +
             "-Dsun.net.inetaddr.ttl=0 " +
             "-Dsun.net.client.defaultConnectTimeout=3000 " +
             "-Dsun.net.client.defaultReadTimeout=3000";
+
+        // ===================== 统一异常日志 =====================
+        private static void LogEx(string context, Exception ex, LogLevel level = LogLevel.Error)
+        {
+            recordLog(level, context + " -> " + (ex == null ? "null" : ex.ToString()));
+        }
 
         // ===================== 客户端 =====================
         public static void InstallClient(string version, string minecraftDir, string loaderParam)
@@ -74,18 +78,25 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             recordLog(LogLevel.Info, $"[Fabric] 获取 profile: {profileUrl}");
             string profileJson = DownloadString(profileUrl);
 
-            // 2. ★ 合并父版本 JSON（去 inheritsFrom，生成独立版本）
-            string mergedJson = MergeParentJson(profileJson, minecraftDir);
+            // 2. ★ 合并父版本 JSON（传入 versionId，强制锁定 id/jar）
+            string mergedJson = MergeParentJson(profileJson, minecraftDir, versionId);
 
             // 3. 保存版本 JSON
             string versionsDir = Path.Combine(minecraftDir, "versions");
             string versionDir = Path.Combine(versionsDir, versionId);
             Directory.CreateDirectory(versionDir);
             string versionJsonPath = Path.Combine(versionDir, versionId + ".json");
-            File.WriteAllText(versionJsonPath, mergedJson, Encoding.UTF8);
+            try
+            {
+                File.WriteAllText(versionJsonPath, mergedJson, Encoding.UTF8);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"[Fabric] 写入版本 JSON 失败: {versionJsonPath}", ex);
+            }
             recordLog(LogLevel.Info, $"[Fabric] 版本 JSON 已保存: {versionJsonPath}");
 
-            // 4. ★ 复制原版 client.jar 到 Fabric 版本目录
+            // 4. ★ 复制原版 client.jar 到 Fabric 版本目录（失败会抛异常）
             CopyClientJar(versionsDir, version, versionDir, versionId);
 
             // 5. 解析（已合并的）JSON 收集 libraries
@@ -156,11 +167,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             if (tasks.Count > 0)
                 ParallelDownload(tasks, MAX_CONCURRENCY);
 
-            // ★ 生成 start.bat（纯启动参数）
             GenerateStartBat(serverDir);
 
-            // ★ 首次启动验证：让 Fabric 自己下载缺失库、remap 原版 jar，
-            //   直到出现 eula 相关日志（说明一切准备就绪），视为安装成功。
             recordLog(LogLevel.Info, $"[Fabric] 首次启动验证（Fabric 会自行下载缺失库并 remap 原版 jar，可能需要几分钟）...");
             VerifyFirstLaunch(serverDir);
 
@@ -169,7 +177,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             recordLog(LogLevel.Info, $"[Fabric] 首次启动会提示接受 EULA，请按提示操作");
         }
 
-        // ===================== 生成 start.bat（纯启动参数） =====================
+        // ===================== 生成 start.bat =====================
         private static void GenerateStartBat(string serverDir)
         {
             try
@@ -182,27 +190,17 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 sb.AppendLine($"java {JVM_ARGS} -Xms{SERVER_MIN_MEMORY} -Xmx{SERVER_MAX_MEMORY} -jar fabric-server-launch.jar nogui");
                 sb.AppendLine("pause");
 
-                // 用 GBK 写（中文 Windows 默认），避免乱码
                 File.WriteAllText(batPath, sb.ToString(), Encoding.Default);
                 recordLog(LogLevel.Info, $"[Fabric] start.bat 已生成: {batPath}");
             }
             catch (Exception ex)
             {
-                recordLog(LogLevel.Error, $"[Fabric] 生成 start.bat 失败(不致命): {ex.Message}");
+                // start.bat 生成失败不致命，但必须完整记录堆栈
+                LogEx($"[Fabric] 生成 start.bat 失败(不致命): {serverDir}", ex);
             }
         }
 
         // ===================== 首次启动验证 =====================
-        /// <summary>
-        /// 首次启动 Fabric 服务端：
-        /// 1. Fabric Launcher 会检查缺失库，联网下载
-        /// 2. 从原版 server.jar 解压原版依赖
-        /// 3. 把原版 jar remap 成 server-intermediary.jar
-        /// 4. 最后才检查 eula.txt
-        /// 出现 eula 相关日志，说明前面所有步骤都成功，安装验证通过。
-        /// 若 eula.txt 已 eula=true，服务器会继续启动，进程不退出——
-        /// 这种情况下 eula.txt / server.properties 存在也视为验证通过。
-        /// </summary>
         private static void VerifyFirstLaunch(string serverDir)
         {
             string javaPath = FindJavaForServer();
@@ -237,7 +235,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     string line = e.Data;
                     lock (outLock) outputBuilder.AppendLine(line);
 
-                    // 只打印关键行
                     string trimmed = line.Trim();
                     if (trimmed.Contains("下载") || trimmed.Contains("Unpacking") ||
                         trimmed.Contains("Loading Minecraft") || trimmed.Contains("Starting") ||
@@ -248,14 +245,12 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                         recordLog(LogLevel.Info, $"[服务器] {trimmed}");
                     }
 
-                    // 检测 eula 相关日志 → 说明前面都成功了
                     if (trimmed.Contains("You need to agree to the EULA") ||
                         trimmed.Contains("Failed to load eula.txt"))
                     {
                         eulaDetected = true;
                     }
 
-                    // 检测服务器真正启动（eula 已接受时的场景）
                     if (trimmed.Contains("Done (") && trimmed.Contains("For help"))
                     {
                         startedDetected = true;
@@ -268,30 +263,40 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     lock (outLock) outputBuilder.AppendLine(e.Data);
                 };
 
-                process.Start();
+                try
+                {
+                    process.Start();
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception($"[Fabric] 启动 java 进程失败: {javaPath}", ex);
+                }
+
                 process.BeginOutputReadLine();
                 process.BeginErrorReadLine();
 
-                // 等待进程退出 / 或超时
                 bool exited = process.WaitForExit(FIRST_LAUNCH_TIMEOUT_MS);
                 if (exited) process.WaitForExit();
 
                 if (!exited)
                 {
-                    // 进程一直没退出 → 说明服务器真的起来了（eula 已接受）
                     recordLog(LogLevel.Info, $"[Fabric] 服务器已启动，发送 stop 命令...");
                     try
                     {
                         process.StandardInput.WriteLine("stop");
                         process.StandardInput.Flush();
                     }
-                    catch { }
+                    catch (Exception ex)
+                    {
+                        // 进程可能已经退出，忽略但记录
+                        LogEx($"[Fabric] 向服务器发送 stop 失败（可能已退出）", ex, LogLevel.Warn);
+                    }
 
-                    // 再等 30 秒让它正常退出
                     if (!process.WaitForExit(30000))
                     {
                         recordLog(LogLevel.Error, $"[Fabric] 服务器未正常退出，强制结束");
-                        try { process.Kill(); } catch { }
+                        try { process.Kill(); }
+                        catch (Exception ex) { LogEx($"[Fabric] Kill 服务器进程失败", ex); }
                         process.WaitForExit(5000);
                     }
                 }
@@ -299,7 +304,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 string fullOutput;
                 lock (outLock) fullOutput = outputBuilder.ToString();
 
-                // 判断验证是否成功
                 if (eulaDetected)
                 {
                     recordLog(LogLevel.Info, $"[Fabric] ✅ 检测到 EULA 提示，Fabric 库已下载完成，安装验证通过");
@@ -312,7 +316,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     return;
                 }
 
-                // 兜底：看 eula.txt / server.properties 是否生成
                 string eulaPath = Path.Combine(serverDir, "eula.txt");
                 string propsPath = Path.Combine(serverDir, "server.properties");
                 if (File.Exists(eulaPath) || File.Exists(propsPath))
@@ -321,7 +324,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     return;
                 }
 
-                // 失败
                 throw new Exception(
                     "Fabric 首次启动验证失败，未检测到 EULA 提示或服务器启动。\n" +
                     "输出摘要:\n" + Truncate(fullOutput, 2000));
@@ -338,7 +340,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         // ===================== 查找 Java =====================
         private static string FindJavaForServer()
         {
-            // 1. JAVA_HOME
             string javaHome = Environment.GetEnvironmentVariable("JAVA_HOME");
             if (!string.IsNullOrEmpty(javaHome))
             {
@@ -347,7 +348,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 if (File.Exists(exe)) return exe;
             }
 
-            // 2. PATH
             string pathEnv = Environment.GetEnvironmentVariable("PATH");
             if (!string.IsNullOrEmpty(pathEnv))
             {
@@ -361,7 +361,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 }
             }
 
-            // 3. 常见目录
             string[] roots = new string[]
             {
                 @"C:\Program Files\Java",
@@ -380,14 +379,21 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             foreach (string root in roots)
             {
                 if (!Directory.Exists(root)) continue;
-                foreach (string sub in Directory.GetDirectories(root))
+                try
                 {
-                    string exe = Path.Combine(sub, "bin", "java.exe");
-                    if (File.Exists(exe)) return exe;
+                    foreach (string sub in Directory.GetDirectories(root))
+                    {
+                        string exe = Path.Combine(sub, "bin", "java.exe");
+                        if (File.Exists(exe)) return exe;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    LogEx($"[Fabric] 枚举 Java 目录失败: {root}", ex, LogLevel.Warn);
                 }
             }
 
-            return "java";   // 兜底：依赖 PATH
+            return "java";
         }
 
         // ===================== 版本解析 =====================
@@ -425,7 +431,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             }
             catch (Exception ex)
             {
-                recordLog(LogLevel.Error, $"[Fabric] 获取最新 Loader 版本失败: {ex.Message}");
+                LogEx($"[Fabric] 获取最新 Loader 版本失败: {gameVersion}", ex);
             }
             return null;
         }
@@ -445,7 +451,11 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                         return first["version"].ToString();
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                // 兜底返回默认版本，需要记录
+                LogEx($"[Fabric] 获取 Installer 版本失败，使用默认 1.1.2", ex, LogLevel.Warn);
+            }
             return "1.1.2";
         }
 
@@ -521,6 +531,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             int nextIndex = 0;
             object queueLock = new object();
             object statLock = new object();
+            var failures = new List<string>();
 
             recordLog(LogLevel.Info, $"[Fabric] 开始并行下载（{maxConcurrency} 线程，共 {total} 个任务）...");
             Interlocked.Exchange(ref _lastProgressTick, 0);
@@ -555,12 +566,18 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                         }
                         catch (Exception ex)
                         {
-                            lock (statLock) { failed++; completed++; }
+                            lock (statLock)
+                            {
+                                failed++;
+                                completed++;
+                                if (failures.Count < 50)
+                                    failures.Add($"{task.Name} <- {ex.Message}");
+                            }
                             lock (_consoleLock)
                             {
                                 Console.Write("\r" + new string(' ', 140) + "\r");
-                                Console.WriteLine($"[Fabric] 下载失败: {task.Name} -> {ex.Message}");
                             }
+                            LogEx($"[Fabric] 下载失败: {task.Name}", ex);
                         }
 
                         int now = Environment.TickCount;
@@ -591,11 +608,29 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             {
                 Console.WriteLine();
                 Console.WriteLine($"[Fabric] 下载完成: 总计 {total}, 跳过 {skipped}, 失败 {failed}");
+                if (failed > 0 && failures.Count > 0)
+                {
+                    Console.WriteLine($"[Fabric] 失败清单（前 {Math.Min(failures.Count, 20)} 条）:");
+                    int n = Math.Min(failures.Count, 20);
+                    for (int i = 0; i < n; i++)
+                        Console.WriteLine($"  - {failures[i]}");
+                }
             }
 
-            // 有失败就抛异常，避免"假成功"
+            // ★ 有失败就抛异常，且带失败清单
             if (failed > 0)
-                throw new Exception($"[Fabric] 有 {failed}/{total} 个库下载失败");
+            {
+                var sb = new StringBuilder();
+                sb.Append($"[Fabric] 有 {failed}/{total} 个文件下载失败");
+                int n = Math.Min(failures.Count, 20);
+                if (n > 0)
+                {
+                    sb.Append("\n失败清单（前 ").Append(n).Append(" 条）:");
+                    for (int i = 0; i < n; i++)
+                        sb.Append("\n  - ").Append(failures[i]);
+                }
+                throw new Exception(sb.ToString());
+            }
         }
 
         private static void PrintProgressLine(int skipped, int failed, int completed, int total)
@@ -641,11 +676,14 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                         ipv4List.Add(a);
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                LogEx($"[Fabric] DNS 解析失败: {uri.Host}", ex, LogLevel.Warn);
+            }
 
             if (ipv4List.Count == 0)
             {
-                recordLog(LogLevel.Error, $"[Fabric] 未解析到 IPv4，退回原 URL: {url}");
+                recordLog(LogLevel.Warn, $"[Fabric] 未解析到 IPv4，退回原 URL: {url}");
                 return SendRaw(url, null, timeoutMs, readWriteTimeoutMs);
             }
 
@@ -684,23 +722,87 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             return (HttpWebResponse)req.GetResponse();
         }
 
-        // ===================== 底层下载 =====================
+        // ===================== jar 校验 =====================
+        private static bool IsJarPath(string path)
+        {
+            return path.EndsWith(".jar", StringComparison.OrdinalIgnoreCase) ||
+                   path.EndsWith(".zip", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static void ValidateJarFile(string path)
+        {
+            using (var fs = File.OpenRead(path))
+            {
+                if (fs.Length < 4)
+                    throw new Exception("文件太小，不是有效 zip/jar");
+
+                byte[] header = new byte[4];
+                int n = fs.Read(header, 0, 4);
+                if (n < 4 || header[0] != 0x50 || header[1] != 0x4B)
+                    throw new Exception("不是有效的 zip/jar 文件（可能是 HTML 错误页）");
+
+                fs.Seek(0, SeekOrigin.Begin);
+                try
+                {
+                    using (var archive = new ZipArchive(fs, ZipArchiveMode.Read))
+                    {
+                        int count = 0;
+                        foreach (var entry in archive.Entries)
+                        {
+                            count++;
+                            if (count > 100000) break;
+                        }
+                        if (count == 0)
+                            throw new Exception("zip/jar 内无任何文件（可能是半截下载）");
+                    }
+                }
+                catch (InvalidDataException ex)
+                {
+                    throw new Exception($"zip/jar 文件损坏: {ex.Message}", ex);
+                }
+            }
+        }
+
+        // ===================== 底层下载（.tmp + jar 校验） =====================
         private static bool DownloadFile(string url, string dest, bool showProgress)
         {
+            bool isJar = IsJarPath(dest);
+
+            // ---- 已存在检查 ----
             if (File.Exists(dest))
             {
                 try
                 {
                     if (new FileInfo(dest).Length > 0)
-                        return true;
+                    {
+                        if (!isJar) return true;
+                        try
+                        {
+                            ValidateJarFile(dest);
+                            return true;
+                        }
+                        catch (Exception ex)
+                        {
+                            LogEx($"[Fabric] 已存在文件校验失败，删除重下: {dest}", ex, LogLevel.Warn);
+                            try { File.Delete(dest); }
+                            catch (Exception delEx) { LogEx($"[Fabric] 删除损坏文件失败: {dest}", delEx); }
+                        }
+                    }
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    LogEx($"[Fabric] 检查文件失败: {dest}", ex, LogLevel.Warn);
+                }
             }
 
             string dir = Path.GetDirectoryName(dest);
             if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
-                Directory.CreateDirectory(dir);
+            {
+                try { Directory.CreateDirectory(dir); }
+                catch (Exception ex) { throw new Exception($"[Fabric] 创建目录失败: {dir}", ex); }
+            }
 
+            string tmpPath = dest + ".tmp";
             string[] urls = BuildUrlCandidates(url);
             Exception lastEx = null;
 
@@ -710,13 +812,34 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 {
                     try
                     {
-                        SingleDownload(u, dest, showProgress);
+                        SingleDownload(u, tmpPath, showProgress);
+
+                        if (isJar)
+                        {
+                            try { ValidateJarFile(tmpPath); }
+                            catch (Exception ex)
+                            {
+                                try { File.Delete(tmpPath); }
+                                catch (Exception delEx) { LogEx($"[Fabric] 删除损坏 .tmp 失败: {tmpPath}", delEx, LogLevel.Warn); }
+                                throw new Exception($"[Fabric] jar 校验失败: {tmpPath}", ex);
+                            }
+                        }
+
+                        // 原子替换
+                        if (File.Exists(dest))
+                        {
+                            try { File.Delete(dest); }
+                            catch (Exception ex) { LogEx($"[Fabric] 删除旧目标失败: {dest}", ex, LogLevel.Warn); }
+                        }
+                        File.Move(tmpPath, dest);
                         return false;
                     }
                     catch (Exception ex)
                     {
                         lastEx = ex;
-                        recordLog(LogLevel.Error, $"[Fabric] 下载失败({u}): {ex.Message}");
+                        try { if (File.Exists(tmpPath)) File.Delete(tmpPath); }
+                        catch (Exception delEx) { LogEx($"[Fabric] 清理 .tmp 失败: {tmpPath}", delEx, LogLevel.Warn); }
+                        LogEx($"[Fabric] 下载失败({u})", ex);
                     }
                 }
                 if (retry < RETRY_COUNT - 1)
@@ -793,7 +916,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     catch (Exception ex)
                     {
                         lastEx = ex;
-                        recordLog(LogLevel.Error, $"[Fabric] 请求失败({u}): {ex.Message}");
+                        LogEx($"[Fabric] 请求失败({u})", ex);
                     }
                 }
                 if (retry < RETRY_COUNT - 1)
@@ -818,13 +941,16 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 return new JavaScriptSerializer()
                     .Deserialize<Dictionary<string, object>>(json);
             }
-            catch { return null; }
+            catch (Exception ex)
+            {
+                LogEx("[Fabric] JSON 解析失败", ex);
+                return null;
+            }
         }
 
         /// <summary>
-        /// 把原版 client.jar 复制到 Fabric 版本目录。
-        /// Fabric profile 本身不生成 jar，靠 inheritsFrom 从原版目录拿；
-        /// 合并后变成独立版本，需要同名 jar 才能被启动器识别。
+        /// 复制原版 client.jar 到 Fabric 版本目录。
+        /// ★ 失败必须抛异常：否则版本目录里没有 jar，启动器会报"找不到核心"。
         /// </summary>
         private static void CopyClientJar(string versionsDir, string originalVersion,
                                            string versionDir, string versionId)
@@ -835,8 +961,10 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             if (!File.Exists(originalClientJar) || new FileInfo(originalClientJar).Length == 0)
             {
-                recordLog(LogLevel.Warn, $"[Fabric] 警告: 未找到原版 client.jar({originalClientJar})，请先运行 Vanilla.InstallClient");
-                return;
+                // ★ 强制失败：原版 jar 缺失意味着 Vanilla 安装未完成或目录被清
+                throw new Exception(
+                    $"[Fabric] 原版 client.jar 缺失: {originalClientJar}\n" +
+                    "请先执行 Vanilla.InstallClient 完成原版安装。");
             }
 
             try
@@ -854,28 +982,38 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             }
             catch (Exception ex)
             {
-                recordLog(LogLevel.Error, $"[Fabric] 复制原版核心失败(不致命): {ex.Message}");
+                // ★ 强制失败：核心 jar 复制不出来，安装不算完成
+                throw new Exception(
+                    $"[Fabric] 复制原版核心失败: {originalClientJar} -> {fabricVersionJar}", ex);
             }
         }
 
         /// <summary>
-        /// 把 profile JSON 里 inheritsFrom 指向的父版本内容合并到当前 JSON，
-        /// 并删除 inheritsFrom，使 Fabric 版本成为一个独立的版本。
+        /// 合并父版本 JSON，并强制把 id / jar 锁定为 versionId。
+        /// ★ 这是修复"文件都下完了但启动器找不到版本"的核心改动。
         /// </summary>
-        private static string MergeParentJson(string fabricJson, string minecraftDir)
+        private static string MergeParentJson(string fabricJson, string minecraftDir, string versionId)
         {
             var fabricRoot = ParseJson(fabricJson);
             if (fabricRoot == null)
             {
-                recordLog(LogLevel.Error, $"[Fabric] profile JSON 解析失败，跳过合并");
-                return fabricJson;
+                LogEx("[Fabric] profile JSON 解析失败", null, LogLevel.Error);
+                throw new Exception("[Fabric] profile JSON 解析失败，无法继续安装");
             }
 
-            // 没有 inheritsFrom → 不需要合并
+            // ★ 无论是否有 inheritsFrom，先强制改 id
+            fabricRoot["id"] = versionId;
+
+            // 无 inheritsFrom → 只改 id
             if (!fabricRoot.ContainsKey("inheritsFrom"))
             {
-                recordLog(LogLevel.Info, $"[Fabric] profile JSON 无 inheritsFrom，无需合并");
-                return fabricJson;
+                recordLog(LogLevel.Info, $"[Fabric] profile JSON 无 inheritsFrom，仅改写 id={versionId}");
+                try { return new JavaScriptSerializer().Serialize(fabricRoot); }
+                catch (Exception ex)
+                {
+                    LogEx("[Fabric] 序列化 profile JSON 失败", ex);
+                    throw;
+                }
             }
 
             string parentId = fabricRoot["inheritsFrom"].ToString();
@@ -883,22 +1021,27 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             if (!File.Exists(parentPath))
             {
-                recordLog(LogLevel.Warn, $"[Fabric] 警告: 未找到父版本 JSON({parentPath})，跳过合并");
-                return fabricJson;
+                LogEx($"[Fabric] 未找到父版本 JSON，无法合并", null, LogLevel.Error);
+                throw new Exception(
+                    $"[Fabric] 找不到父版本 JSON: {parentPath}\n" +
+                    "请先安装原版 Minecraft。");
             }
 
-            var parentRoot = ParseJson(File.ReadAllText(parentPath));
-            if (parentRoot == null)
+            Dictionary<string, object> parentRoot;
+            try
             {
-                recordLog(LogLevel.Error, $"[Fabric] 父版本 JSON 解析失败，跳过合并");
-                return fabricJson;
+                parentRoot = ParseJson(File.ReadAllText(parentPath));
             }
+            catch (Exception ex)
+            {
+                throw new Exception($"[Fabric] 读取父版本 JSON 失败: {parentPath}", ex);
+            }
+            if (parentRoot == null)
+                throw new Exception($"[Fabric] 父版本 JSON 解析失败: {parentPath}");
 
-            // ★ 三元表达式先算出来，避免在内插里写
-            string fabricId = fabricRoot.ContainsKey("id") ? fabricRoot["id"].ToString() : "?";
+            string fabricId = fabricRoot.ContainsKey("id") ? fabricRoot["id"].ToString() : versionId;
             recordLog(LogLevel.Info, $"[Fabric] 合并父版本 {parentId} 到 {fabricId}");
 
-            // ---- 开始合并 ----
             var merged = new Dictionary<string, object>();
 
             // 1. 复制父版本所有字段
@@ -913,15 +1056,19 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 merged[kv.Key] = kv.Value;
             }
 
-            // 3. 合并 libraries（Fabric 优先，父版本去重补充）
+            // 3. ★ 强制锁定 id 和 jar（关键修复）
+            merged["id"] = versionId;
+            merged["jar"] = versionId;
+
+            // 4. 合并 libraries（Fabric 优先，父版本去重补充）
             merged["libraries"] = MergeLibraries(fabricRoot, parentRoot);
 
-            // 4. 合并 arguments（父 + Fabric）
+            // 5. 合并 arguments（父 + Fabric）
             var mergedArgs = MergeArguments(fabricRoot, parentRoot);
             if (mergedArgs != null)
                 merged["arguments"] = mergedArgs;
 
-            // 5. 序列化
+            // 6. 序列化
             try
             {
                 string result = new JavaScriptSerializer().Serialize(merged);
@@ -930,21 +1077,17 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             }
             catch (Exception ex)
             {
-                recordLog(LogLevel.Error, $"[Fabric] 序列化合并结果失败: {ex.Message}，使用原 JSON");
-                return fabricJson;
+                LogEx("[Fabric] 序列化合并结果失败", ex);
+                throw;
             }
         }
 
-        /// <summary>
-        /// 合并 libraries：Fabric 优先，父版本按 name 去重补充。
-        /// </summary>
         private static List<object> MergeLibraries(Dictionary<string, object> fabricRoot,
                                                     Dictionary<string, object> parentRoot)
         {
             var result = new List<object>();
             var seenNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-            // Fabric 库优先
             if (fabricRoot.ContainsKey("libraries"))
             {
                 var libs = fabricRoot["libraries"] as ArrayList;
@@ -961,7 +1104,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 }
             }
 
-            // 父版本库补充
             if (parentRoot.ContainsKey("libraries"))
             {
                 var libs = parentRoot["libraries"] as ArrayList;
@@ -981,9 +1123,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             return result;
         }
 
-        /// <summary>
-        /// 合并 arguments：jvm 和 game 都按"父 + Fabric"顺序拼接。
-        /// </summary>
         private static Dictionary<string, object> MergeArguments(
             Dictionary<string, object> fabricRoot,
             Dictionary<string, object> parentRoot)
@@ -998,14 +1137,12 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             var mergedArgs = new Dictionary<string, object>();
 
-            // jvm 参数
             var jvmList = new List<object>();
             if (parentArgs != null && parentArgs.ContainsKey("jvm"))
             {
                 var l = parentArgs["jvm"] as ArrayList;
                 if (l != null)
                 {
-                    // ★ 用 foreach 替代 AddRange，绕过 IEnumerable<object> 转换问题
                     foreach (var item in l) jvmList.Add(item);
                 }
             }
@@ -1020,7 +1157,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             if (jvmList.Count > 0)
                 mergedArgs["jvm"] = jvmList;
 
-            // game 参数
             var gameList = new List<object>();
             if (parentArgs != null && parentArgs.ContainsKey("game"))
             {
@@ -1044,7 +1180,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             return mergedArgs;
         }
 
-        // ===================== 内部类 =====================
         private class DownloadTask
         {
             public string Url { get; set; }

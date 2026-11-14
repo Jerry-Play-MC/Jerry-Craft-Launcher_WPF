@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
 using System.Net;
 using System.Text;
 using System.Threading;
@@ -15,7 +16,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         // ===================== 源 =====================
         private const string BMCL_BASE = "https://bmclapi2.bangbang93.com";
         private const string BMCL_MAVEN = BMCL_BASE + "/maven/";
-        private const string QLU_MAVEN = "https://mirrors.qlu.edu.cn/bmclapi/maven/";   // ★ 新增
+        private const string QLU_MAVEN = "https://mirrors.qlu.edu.cn/bmclapi/maven/";
         private const string LITELOADER_MAVEN = "http://dl.liteloader.com/versions/";
         private const string MOJANG_LIBS = "https://libraries.minecraft.net/";
         private const string MAVEN_CENTRAL = "https://repo1.maven.org/maven2/";
@@ -34,6 +35,13 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
         private static readonly object _consoleLock = new object();
 
+        // ===================== 统一异常日志 =====================
+        private static void LogEx(string context, Exception ex, LogLevel level = LogLevel.Error)
+        {
+            recordLog(level, context + " -> " + (ex == null ? "null" : ex.ToString()));
+        }
+
+        // ===================== 内部模型 =====================
         private class LiteLoaderLibrary
         {
             public string Name { get; set; }
@@ -47,6 +55,11 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             public string FileName { get; set; }
             public string Md5 { get; set; }
             public List<LiteLoaderLibrary> Libraries = new List<LiteLoaderLibrary>();
+        }
+
+        private enum HttpErrorKind
+        {
+            None, NotFound, Forbidden, RateLimited, Other
         }
 
         // ===================== 公开入口 =====================
@@ -119,36 +132,50 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             Directory.CreateDirectory(versionDir);
             Directory.CreateDirectory(librariesDir);
 
-            // ★ 复制父版本核心 jar（Forge 版本目录或原版目录）
+            // ★ 复制父版本核心 jar（Forge 版本目录或原版目录），失败必 throw
             CopyParentJar(versionsDir, parentId, versionDir, versionId);
 
             // 构造版本 JSON
             var versionJson = BuildVersionJson(parentId, versionId, info, withForge);
 
-            // 合并父版本
+            // 合并父版本（父 JSON 缺失必 throw）
             string parentJsonPath = Path.Combine(versionsDir, parentId, parentId + ".json");
-            if (File.Exists(parentJsonPath))
+            if (!File.Exists(parentJsonPath))
             {
-                var parentJson = ParseJson(File.ReadAllText(parentJsonPath));
-                if (parentJson != null)
-                {
-                    versionJson = MergeParentJson(parentJson, versionJson, versionId);
-                    recordLog(LogLevel.Info, $"[LiteLoader] 已合并父版本 {parentId}");
-                }
-                else
-                {
-                    recordLog(LogLevel.Warn, $"[LiteLoader] 警告: 父版本 JSON 解析失败，保留 inheritsFrom");
-                }
+                throw new Exception(
+                    $"[LiteLoader] 找不到父版本 JSON: {parentJsonPath}\n" +
+                    (withForge
+                        ? "Forge 安装可能未完成，请重新安装 Forge。"
+                        : "请先执行 Vanilla.InstallClient 完成原版安装。"));
             }
-            else
+
+            Dictionary<string, object> parentJson;
+            try
             {
-                recordLog(LogLevel.Warn, $"[LiteLoader] 警告: 未找到父版本 JSON: {parentJsonPath}（保留 inheritsFrom）");
+                parentJson = ParseJson(File.ReadAllText(parentJsonPath));
             }
+            catch (Exception ex)
+            {
+                throw new Exception($"[LiteLoader] 读取父版本 JSON 失败: {parentJsonPath}", ex);
+            }
+            if (parentJson == null)
+                throw new Exception($"[LiteLoader] 父版本 JSON 解析失败: {parentJsonPath}");
+
+            versionJson = MergeParentJson(parentJson, versionJson, versionId);
+            recordLog(LogLevel.Info, $"[LiteLoader] 已合并父版本 {parentId}（id/jar={versionId}）");
 
             // 保存版本 JSON
             string versionJsonPath = Path.Combine(versionDir, versionId + ".json");
-            File.WriteAllText(versionJsonPath,
-                new JavaScriptSerializer().Serialize(versionJson), Encoding.UTF8);
+            try
+            {
+                File.WriteAllText(versionJsonPath,
+                    new JavaScriptSerializer().Serialize(versionJson),
+                    new UTF8Encoding(false));
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"[LiteLoader] 写入版本 JSON 失败: {versionJsonPath}", ex);
+            }
             recordLog(LogLevel.Info, $"[LiteLoader] 版本 JSON 已保存: {versionJsonPath}");
 
             // 下载 libraries
@@ -265,17 +292,11 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             foreach (var lib in info.Libraries)
             {
                 var libObj = new Dictionary<string, object> { { "name", lib.Name } };
-
-                // ★ 无条件写 url 字段：
-                //   - lib.Url 非空 → 用它
-                //   - lib.Url 为空 → 兜底为 BMCL_MAVEN
                 string url = string.IsNullOrEmpty(lib.Url) ? BMCL_MAVEN : lib.Url;
                 libObj["url"] = url;
-
                 libs.Add(libObj);
             }
 
-            // ★ 根据是否与 Forge 组合，采用不同的 tweak 参数
             string tweakArgs = withForge
                 ? $"--tweakClass net.minecraftforge.fml.common.launcher.FMLTweaker " +
                   $"--cascadedTweaks {info.TweakClass}"
@@ -298,7 +319,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             };
         }
 
-        // ===================== 合并父版本 =====================
+        // ===================== 合并父版本（id/jar 双重锁定） =====================
         private static Dictionary<string, object> MergeParentJson(
             Dictionary<string, object> parentRoot,
             Dictionary<string, object> childRoot,
@@ -318,6 +339,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 merged[kv.Key] = kv.Value;
             }
 
+            // ★ 强制锁定 id / jar（父版本 JSON 若带 jar 字段指向父目录，会冲突）
             merged["id"] = versionId;
             merged["jar"] = versionId;
 
@@ -454,7 +476,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             return tasks;
         }
 
-        // ★ BuildCandidateUrls 加了 QLU 优先
         private static string[] BuildCandidateUrls(string coord, string relPath)
         {
             var list = new List<string>();
@@ -477,10 +498,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             }
             else if (group.Equals("com.mumfrey", StringComparison.OrdinalIgnoreCase))
             {
-                // ★ LiteLoader 本体：
-                //   1) QLU 镜像优先（同数据，不同服务器，不受 BMCLAPI 主站限流）
-                //   2) BMCLAPI 兜底
-                //   官方 dl.liteloader.com 已挂，不再尝试
+                // LiteLoader 本体：QLU 优先（BMCLAPI 主站对 liteloader 常限流），BMCL 兜底
                 list.Add(QLU_MAVEN + relPath);
                 list.Add(BMCL_MAVEN + relPath);
             }
@@ -506,6 +524,14 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             string classifier = parts.Length >= 4 ? parts[3] : null;
             string ext = ".jar";
 
+            // 补 version 的 @extension 处理（Forge/NeoForge 都有，这里也补齐）
+            if (!string.IsNullOrEmpty(version) && version.Contains("@"))
+            {
+                int at = version.IndexOf('@');
+                ext = "." + version.Substring(at + 1);
+                version = version.Substring(0, at);
+            }
+
             if (!string.IsNullOrEmpty(classifier) && classifier.Contains("@"))
             {
                 int at = classifier.IndexOf('@');
@@ -520,11 +546,12 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             return $"{group}/{artifact}/{version}/{fileName}";
         }
 
-        // ===================== 串行下载 =====================
+        // ===================== 串行下载（带失败清单） =====================
         private static void DownloadAllSerial(List<DownloadTask> tasks)
         {
             int failed = 0, skipped = 0;
             int total = tasks.Count;
+            var failures = new List<string>();
 
             recordLog(LogLevel.Info, $"[LiteLoader] 开始下载（共 {total} 个文件，串行）...");
 
@@ -535,7 +562,11 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 lock (_consoleLock)
                 {
                     Console.Write($"\r[LiteLoader] 进度 {i + 1}/{total} - {task.Name}   ");
-                    try { Console.Out.Flush(); } catch { }
+                    try { Console.Out.Flush(); }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine("[LiteLoader] Console.Flush 失败: " + ex.Message);
+                    }
                 }
 
                 try
@@ -547,34 +578,115 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 catch (Exception ex)
                 {
                     failed++;
-                    recordLog(LogLevel.Error, $"[LiteLoader] 下载失败: {task.Name} -> {ex.Message}");
+                    if (failures.Count < 20)
+                        failures.Add($"{task.Name} <- {ex.Message}");
+                    LogEx($"[LiteLoader] 下载失败: {task.Name}", ex);
                 }
             }
 
             lock (_consoleLock)
             {
                 Console.Write("\r" + new string(' ', 140) + "\r");
-                try { Console.Out.Flush(); } catch { }
+                try { Console.Out.Flush(); }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine("[LiteLoader] Console.Flush 失败: " + ex.Message);
+                }
             }
 
             recordLog(LogLevel.Info, $"[LiteLoader] 下载完成: 总计 {total}, 跳过 {skipped}, 失败 {failed}");
 
+            // ★ 有失败就抛异常，且带失败清单
             if (failed > 0)
-                throw new Exception($"[LiteLoader] 有 {failed}/{total} 个库下载失败");
+            {
+                var sb = new StringBuilder();
+                sb.Append($"[LiteLoader] 有 {failed}/{total} 个库下载失败");
+                int n = Math.Min(failures.Count, 20);
+                if (n > 0)
+                {
+                    sb.Append("\n失败清单（前 ").Append(n).Append(" 条）:");
+                    for (int j = 0; j < n; j++)
+                        sb.Append("\n  - ").Append(failures[j]);
+                }
+                throw new Exception(sb.ToString());
+            }
+        }
+
+        // ===================== 精确 HTTP 错误分类 =====================
+        private static HttpErrorKind ClassifyHttpError(Exception ex)
+        {
+            // 优先 WebException.Response.StatusCode 精确判断
+            for (Exception cur = ex; cur != null; cur = cur.InnerException)
+            {
+                var wex = cur as WebException;
+                if (wex != null)
+                {
+                    var resp = wex.Response as HttpWebResponse;
+                    if (resp != null)
+                    {
+                        int code = (int)resp.StatusCode;
+                        if (code == 404) return HttpErrorKind.NotFound;
+                        if (code == 403) return HttpErrorKind.Forbidden;
+                        if (code == 429) return HttpErrorKind.RateLimited;
+                        return HttpErrorKind.Other;
+                    }
+                }
+            }
+
+            // 兜底字符串匹配：仅匹配明确模式，不再用 "404" / "403" / "429" 裸串
+            string msg = ex?.Message ?? "";
+            if (msg.IndexOf("404 Not Found", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                msg.IndexOf("(404)", StringComparison.Ordinal) >= 0)
+                return HttpErrorKind.NotFound;
+            if (msg.IndexOf("403 Forbidden", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                msg.IndexOf("(403)", StringComparison.Ordinal) >= 0)
+                return HttpErrorKind.Forbidden;
+            if (msg.IndexOf("429 Too Many", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                msg.IndexOf("(429)", StringComparison.Ordinal) >= 0)
+                return HttpErrorKind.RateLimited;
+
+            return HttpErrorKind.None;
         }
 
         private static bool DownloadFileWithRetry(DownloadTask task)
         {
             if (File.Exists(task.Dest) && new FileInfo(task.Dest).Length > 0)
-                return true;
+            {
+                // ★ jar 走完整校验
+                bool isJar = task.Dest.EndsWith(".jar", StringComparison.OrdinalIgnoreCase) ||
+                             task.Dest.EndsWith(".zip", StringComparison.OrdinalIgnoreCase);
+                if (isJar)
+                {
+                    try
+                    {
+                        ValidateJarFile(task.Dest);
+                        return true;
+                    }
+                    catch (Exception ex)
+                    {
+                        LogEx($"[LiteLoader] 已有文件校验失败，删除重下: {task.Dest}", ex, LogLevel.Warn);
+                        try { File.Delete(task.Dest); }
+                        catch (Exception delEx) { LogEx($"[LiteLoader] 删除损坏文件失败: {task.Dest}", delEx, LogLevel.Warn); }
+                    }
+                }
+                else
+                {
+                    return true;
+                }
+            }
 
             string dir = Path.GetDirectoryName(task.Dest);
             if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
-                Directory.CreateDirectory(dir);
+            {
+                try { Directory.CreateDirectory(dir); }
+                catch (Exception ex) { throw new Exception($"[LiteLoader] 创建目录失败: {dir}", ex); }
+            }
 
             string tmpPath = task.Dest + ".tmp";
             Exception lastEx = null;
             var permanentFailures = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            bool isJarFile = task.Dest.EndsWith(".jar", StringComparison.OrdinalIgnoreCase) ||
+                             task.Dest.EndsWith(".zip", StringComparison.OrdinalIgnoreCase);
 
             for (int round = 0; round < RETRY_ROUNDS; round++)
             {
@@ -593,42 +705,47 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
                     try
                     {
-                        SingleDownload(url, tmpPath);
+                        SingleDownload(url, tmpPath, task.ShowProgress);
 
-                        if (File.Exists(task.Dest))
+                        // ★ jar 校验（在 .tmp 上做，失败删 .tmp 换源/重试）
+                        if (isJarFile)
                         {
-                            try { File.Delete(task.Dest); } catch { }
+                            try { ValidateJarFile(tmpPath); }
+                            catch (Exception ex)
+                            {
+                                try { File.Delete(tmpPath); }
+                                catch (Exception delEx) { LogEx($"[LiteLoader] 删除损坏 .tmp 失败: {tmpPath}", delEx, LogLevel.Warn); }
+                                throw new Exception($"[LiteLoader] jar 校验失败: {tmpPath}", ex);
+                            }
                         }
-                        File.Move(tmpPath, task.Dest);
+
+                        MoveOrReplace(tmpPath, task.Dest);
                         return false;
                     }
                     catch (Exception ex)
                     {
                         lastEx = ex;
-                        try { if (File.Exists(tmpPath)) File.Delete(tmpPath); } catch { }
+                        try { if (File.Exists(tmpPath)) File.Delete(tmpPath); }
+                        catch (Exception delEx) { LogEx($"[LiteLoader] 清理 .tmp 失败: {tmpPath}", delEx, LogLevel.Warn); }
 
-                        string msg = ex.Message ?? "";
-                        bool forbidden =
-                            msg.IndexOf("403", StringComparison.Ordinal) >= 0 ||
-                            msg.IndexOf("404", StringComparison.Ordinal) >= 0;
-                        bool rateLimited =
-                            msg.IndexOf("429", StringComparison.Ordinal) >= 0 ||
-                            msg.IndexOf("Too Many", StringComparison.OrdinalIgnoreCase) >= 0;
+                        // ★ 精确分类，不再字符串匹配
+                        var kind = ClassifyHttpError(ex);
 
-                        if (forbidden)
+                        if (kind == HttpErrorKind.NotFound || kind == HttpErrorKind.Forbidden)
                         {
                             permanentFailures.Add(url);
-                            recordLog(LogLevel.Warn, $"[LiteLoader] 源不可用({GetHostSafe(url)})，切换备用源");
+                            recordLog(LogLevel.Warn, $"[LiteLoader] 源不可用({GetHostSafe(url)}) [{kind}]，切换备用源");
                             continue;
                         }
 
-                        if (rateLimited)
+                        if (kind == HttpErrorKind.RateLimited)
                         {
-                            recordLog(LogLevel.Info, $"[LiteLoader] 限流，等待 {RATE_LIMIT_DELAY_MS / 1000} 秒: {GetHostSafe(url)}");
+                            recordLog(LogLevel.Info, $"[LiteLoader] 限流 [{kind}]，等待 {RATE_LIMIT_DELAY_MS / 1000} 秒: {GetHostSafe(url)}");
                             Thread.Sleep(RATE_LIMIT_DELAY_MS);
                         }
                         else
                         {
+                            LogEx($"[LiteLoader] 下载失败({url})", ex, LogLevel.Warn);
                             Thread.Sleep(NORMAL_DELAY_MS);
                         }
                     }
@@ -643,10 +760,14 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         private static string GetHostSafe(string url)
         {
             try { return new Uri(url).Host; }
-            catch { return url; }
+            catch (Exception ex)
+            {
+                LogEx($"[LiteLoader] 解析 URL host 失败: {url}", ex, LogLevel.Warn);
+                return url;
+            }
         }
 
-        private static void SingleDownload(string url, string dest)
+        private static void SingleDownload(string url, string dest, bool showProgress)
         {
             using (var resp = SendRequest(url, HTTP_TIMEOUT_MS, HTTP_TIMEOUT_MS))
             using (var netStream = resp.GetResponseStream())
@@ -686,18 +807,18 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 catch (Exception ex)
                 {
                     lastEx = ex;
+                    LogEx($"[LiteLoader] 请求失败({url})（第 {retry + 1}/3 次）", ex, LogLevel.Warn);
                     if (retry < 2) Thread.Sleep(2000 * (retry + 1));
                 }
             }
             throw new Exception($"下载 {url} 失败: {lastEx?.Message}", lastEx);
         }
 
-        // ★ UA 改成简短版，避免被 BMCLAPI 的 WAF 拦
         private static HttpWebResponse SendRequest(
             string url, int timeoutMs, int readWriteTimeoutMs)
         {
             var req = (HttpWebRequest)WebRequest.Create(url);
-            req.UserAgent = "Mozilla/5.0";   // ★ 从 UA_STRING 改成简短版
+            req.UserAgent = "Mozilla/5.0";   // 简短版，避免被 BMCLAPI 的 WAF 拦
             req.AllowAutoRedirect = true;
             req.KeepAlive = false;
             req.Timeout = timeoutMs;
@@ -707,7 +828,56 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             return (HttpWebResponse)req.GetResponse();
         }
 
-        // ===================== 复制父版本 jar =====================
+        // ===================== 原子替换（对齐 Forge/NeoForge） =====================
+        private static void MoveOrReplace(string src, string dst)
+        {
+            if (File.Exists(dst))
+            {
+                try
+                {
+                    File.Replace(src, dst, null);
+                    return;
+                }
+                catch (PlatformNotSupportedException ex)
+                {
+                    LogEx($"[LiteLoader] File.Replace 平台不支持，回退 Delete+Move: {dst}", ex, LogLevel.Warn);
+                }
+                catch (IOException ex)
+                {
+                    LogEx($"[LiteLoader] File.Replace 失败（可能被占用），回退 Delete+Move: {dst}", ex, LogLevel.Warn);
+                }
+
+                for (int attempt = 0; attempt < 3; attempt++)
+                {
+                    try { File.Delete(dst); break; }
+                    catch (IOException ex)
+                    {
+                        if (attempt == 2)
+                            throw new Exception($"[LiteLoader] 删除目标文件失败（可能被占用）: {dst}", ex);
+                        LogEx($"[LiteLoader] 删除目标文件失败，重试 {attempt + 1}: {dst}", ex, LogLevel.Warn);
+                        Thread.Sleep(200 * (attempt + 1));
+                    }
+                }
+            }
+
+            for (int attempt = 0; attempt < 3; attempt++)
+            {
+                try
+                {
+                    File.Move(src, dst);
+                    return;
+                }
+                catch (IOException ex)
+                {
+                    if (attempt == 2)
+                        throw new Exception($"[LiteLoader] 移动临时文件失败（可能被占用）: {src} -> {dst}", ex);
+                    LogEx($"[LiteLoader] File.Move 失败，重试 {attempt + 1}: {dst}", ex, LogLevel.Warn);
+                    Thread.Sleep(200 * (attempt + 1));
+                }
+            }
+        }
+
+        // ===================== 复制父版本核心（失败必 throw） =====================
         private static void CopyParentJar(
             string versionsDir, string parentId, string versionDir, string versionId)
         {
@@ -716,8 +886,10 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             if (!File.Exists(parentJar) || new FileInfo(parentJar).Length == 0)
             {
-                recordLog(LogLevel.Warn, $"[LiteLoader] 警告: 未找到父版本核心 {parentJar}");
-                return;
+                // ★ 强制失败：父版本 jar 缺失 → 版本目录无核心 → "找不到版本"
+                throw new Exception(
+                    $"[LiteLoader] 父版本核心 jar 缺失: {parentJar}\n" +
+                    "请先完成父版本（原版或 Forge）的安装。");
             }
 
             try
@@ -734,7 +906,44 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             }
             catch (Exception ex)
             {
-                recordLog(LogLevel.Error, $"[LiteLoader] 复制父版本核心失败(不致命): {ex.Message}");
+                // ★ 强制失败：核心 jar 复制不出来，版本目录不可用
+                throw new Exception(
+                    $"[LiteLoader] 复制父版本核心失败: {parentJar} -> {targetJar}", ex);
+            }
+        }
+
+        // ===================== jar 校验（完整 Zip 遍历） =====================
+        private static void ValidateJarFile(string path)
+        {
+            using (var fs = File.OpenRead(path))
+            {
+                if (fs.Length < 4)
+                    throw new Exception($"文件太小，不是有效 zip/jar: {path}（{fs.Length} B）");
+
+                byte[] header = new byte[4];
+                int n = fs.Read(header, 0, 4);
+                if (n < 4 || header[0] != 0x50 || header[1] != 0x4B)
+                    throw new Exception($"不是有效的 zip/jar 文件（可能是 HTML 错误页）: {path}");
+
+                fs.Seek(0, SeekOrigin.Begin);
+                try
+                {
+                    using (var archive = new ZipArchive(fs, ZipArchiveMode.Read))
+                    {
+                        int count = 0;
+                        foreach (var entry in archive.Entries)
+                        {
+                            count++;
+                            if (count > 100000) break;
+                        }
+                        if (count == 0)
+                            throw new Exception($"zip/jar 内无任何文件（可能是半截下载）: {path}");
+                    }
+                }
+                catch (InvalidDataException ex)
+                {
+                    throw new Exception($"zip/jar 文件损坏: {path}", ex);
+                }
             }
         }
 
@@ -747,7 +956,11 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 return new JavaScriptSerializer()
                     .Deserialize<Dictionary<string, object>>(json);
             }
-            catch { return null; }
+            catch (Exception ex)
+            {
+                LogEx("[LiteLoader] JSON 解析失败", ex);
+                return null;
+            }
         }
 
         private class DownloadTask
@@ -755,6 +968,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             public string[] Urls { get; set; }
             public string Dest { get; set; }
             public string Name { get; set; }
+            public bool ShowProgress { get; set; }
         }
     }
 }

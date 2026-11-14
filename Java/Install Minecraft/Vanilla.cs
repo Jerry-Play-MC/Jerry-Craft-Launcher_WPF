@@ -26,8 +26,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         private const long SMALL_FILE_SHA1_SKIP = 64 * 1024;
         private const int PROGRESS_REFRESH_MS = 100;
         private const int MAX_FAILURE_PRINT = 20;
-        // ★ .tmp 保留时长：只有超过这个时长的陈旧 .tmp 才会被清理
-        //   24 小时以内的 .tmp 保留，供跨会话断点续传
+        // 只有超过这个时长的陈旧 .tmp 才清理，24 小时以内的保留供跨会话断点续传
         private const int TMP_MAX_AGE_HOURS = 24;
 
         private const string UA_STRING =
@@ -36,9 +35,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
         // ===================== 可配置项 =====================
         // 全局静态属性，仅应在单线程调用 InstallServer 前设置。
-        /// <summary>服务端最大堆内存（-Xmx），默认 2G</summary>
         public static string ServerMaxMemory { get; set; } = "2G";
-        /// <summary>服务端初始堆内存（-Xms），默认 1G</summary>
         public static string ServerMinMemory { get; set; } = "1G";
 
         // ===================== 状态 =====================
@@ -52,6 +49,12 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         private static IWebProxy _cachedProxy;
         private static bool _proxyInitialized;
         private static readonly object _proxyLock = new object();
+
+        // ===================== 统一异常日志 =====================
+        private static void LogEx(string context, Exception ex, LogLevel level = LogLevel.Error)
+        {
+            recordLog(level, context + " -> " + (ex == null ? "null" : ex.ToString()));
+        }
 
         // ===================== 主入口（客户端） =====================
         public static void InstallClient(string version, string minecraftDir, string localManifestDir)
@@ -160,7 +163,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             }
             finally
             {
-                try { if (File.Exists(tempJsonPath)) File.Delete(tempJsonPath); } catch { }
+                try { if (File.Exists(tempJsonPath)) File.Delete(tempJsonPath); }
+                catch (Exception ex) { LogEx($"[Vanilla] 清理临时 JSON 失败(不致命): {tempJsonPath}", ex, LogLevel.Warn); }
             }
 
             recordLog(LogLevel.Info, $"[Vanilla] Minecraft 服务端 {version} 下载完成");
@@ -174,7 +178,15 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             {
                 if (!_proxyInitialized)
                 {
-                    _cachedProxy = BuildProxyFromEnv();
+                    try
+                    {
+                        _cachedProxy = BuildProxyFromEnv();
+                    }
+                    catch (Exception ex)
+                    {
+                        LogEx("[Vanilla] 构建代理失败，降级直连", ex, LogLevel.Warn);
+                        _cachedProxy = null;
+                    }
                     _proxyInitialized = true;
                 }
                 return _cachedProxy;
@@ -212,19 +224,21 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                         proxy.Credentials = new NetworkCredential(user, pass);
                     }
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    LogEx($"[Vanilla] 解析代理凭据失败（忽略凭据继续）: {url}", ex, LogLevel.Warn);
+                }
 
                 return proxy;
             }
-            catch { return null; }
+            catch (Exception ex)
+            {
+                LogEx($"[Vanilla] 解析代理环境变量失败: {p}", ex, LogLevel.Warn);
+                return null;
+            }
         }
 
         // ===================== .tmp 清理（只清 24 小时前的陈旧文件） =====================
-        /// <summary>
-        /// 清理 24 小时前残留的 .tmp。
-        /// 24 小时以内的 .tmp 保留，供跨会话断点续传。
-        /// 只扫 versions / libraries / assets 和根目录一级，避免大资产库上慢。
-        /// </summary>
         private static void CleanupTempFiles(string rootDir)
         {
             try
@@ -245,7 +259,10 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 if (count > 0)
                     recordLog(LogLevel.Info, $"[Vanilla] 清理 {TMP_MAX_AGE_HOURS} 小时前的残留 .tmp: {count} 个");
             }
-            catch { }
+            catch (Exception ex)
+            {
+                LogEx($"[Vanilla] 清理 .tmp 失败(不致命): {rootDir}", ex, LogLevel.Warn);
+            }
         }
 
         private static int CleanupTempInDir(string dir, DateTime cutoff, bool recursive)
@@ -264,10 +281,16 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                             count++;
                         }
                     }
-                    catch { }
+                    catch (Exception ex)
+                    {
+                        LogEx($"[Vanilla] 删除陈旧 .tmp 失败: {f}", ex, LogLevel.Warn);
+                    }
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                LogEx($"[Vanilla] 枚举 .tmp 目录失败: {dir}", ex, LogLevel.Warn);
+            }
             return count;
         }
 
@@ -370,7 +393,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             }
             catch (Exception ex)
             {
-                recordLog(LogLevel.Info, $"[Vanilla] 日志配置下载失败(不致命): {ex.Message}");
+                // 日志配置下载失败不致命（缺失会导致游戏无 log4j 配置，但可启动）
+                LogEx($"[Vanilla] 日志配置下载失败(不致命): {id}", ex, LogLevel.Warn);
             }
         }
 
@@ -501,8 +525,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         /// <summary>
         /// 判断库在 Windows 上是否允许。
         /// 支持 os.name / os.arch / features（features 按精确语义匹配）。
-        /// ★ 注意：本方法假设安装场景下所有 feature（is_demo_user、has_custom_resolution 等）
-        ///   均为 false。若将来用于带自定义分辨率的启动流程，需要把 feature 状态作为参数传入。
+        /// 本方法假设安装场景下所有 feature（is_demo_user、has_custom_resolution 等）
+        /// 均为 false。若将来用于带自定义分辨率的启动流程，需要把 feature 状态作为参数传入。
         /// </summary>
         private static bool IsLibraryAllowedOnWindows(Dictionary<string, object> lib)
         {
@@ -550,7 +574,11 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                         {
                             bool expected;
                             try { expected = Convert.ToBoolean(f.Value); }
-                            catch { expected = false; }
+                            catch (Exception ex)
+                            {
+                                LogEx($"[Vanilla] feature 布尔转换失败，按 false 处理: {f.Key}={f.Value}", ex, LogLevel.Warn);
+                                expected = false;
+                            }
 
                             if (expected) { matches = false; break; }
                         }
@@ -570,7 +598,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             string idxPath = System.IO.Path.Combine(assetsDir, "indexes", assetIndexId + ".json");
             if (!File.Exists(idxPath))
             {
-                recordLog(LogLevel.Info, $"[Vanilla] 未找到资源索引: {idxPath}");
+                recordLog(LogLevel.Warn, $"[Vanilla] 未找到资源索引: {idxPath}");
                 return;
             }
 
@@ -620,11 +648,13 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             bool isMapToResources = false;
             if (idxRoot.ContainsKey("virtual"))
             {
-                try { isVirtual = Convert.ToBoolean(idxRoot["virtual"]); } catch { }
+                try { isVirtual = Convert.ToBoolean(idxRoot["virtual"]); }
+                catch (Exception ex) { LogEx($"[Vanilla] 解析 virtual 字段失败: {assetIndexId}", ex, LogLevel.Warn); }
             }
             if (idxRoot.ContainsKey("map_to_resources"))
             {
-                try { isMapToResources = Convert.ToBoolean(idxRoot["map_to_resources"]); } catch { }
+                try { isMapToResources = Convert.ToBoolean(idxRoot["map_to_resources"]); }
+                catch (Exception ex) { LogEx($"[Vanilla] 解析 map_to_resources 字段失败: {assetIndexId}", ex, LogLevel.Warn); }
             }
 
             if (!isVirtual && !isMapToResources) return;
@@ -643,6 +673,9 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             string objectsDir = System.IO.Path.Combine(assetsDir, "objects");
             int copied = 0;
+            int failedCopies = 0;
+            var failedSamples = new List<string>(5);
+
             foreach (var kv in objects)
             {
                 string origPath = kv.Key;
@@ -659,9 +692,32 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 string dstDir = System.IO.Path.GetDirectoryName(dst);
                 if (!Directory.Exists(dstDir)) Directory.CreateDirectory(dstDir);
 
-                try { File.Copy(src, dst, true); copied++; } catch { }
+                try
+                {
+                    File.Copy(src, dst, true);
+                    copied++;
+                }
+                catch (Exception ex)
+                {
+                    failedCopies++;
+                    if (failedSamples.Count < 5)
+                        failedSamples.Add($"{src} -> {dst}: {ex.Message}");
+                }
             }
             recordLog(LogLevel.Info, $"[Vanilla] assets 映射完成: {copied} 个文件");
+
+            if (failedCopies > 0)
+            {
+                var sb = new StringBuilder();
+                sb.Append($"[Vanilla] assets 映射失败 {failedCopies} 个文件");
+                if (failedSamples.Count > 0)
+                {
+                    sb.Append("\n失败样例:");
+                    foreach (var s in failedSamples)
+                        sb.Append("\n  ").Append(s);
+                }
+                recordLog(LogLevel.Warn, sb.ToString());
+            }
         }
 
         // ===================== 任务去重（保序） =====================
@@ -676,7 +732,11 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 if (string.IsNullOrEmpty(t.Dest)) continue;
                 string key;
                 try { key = System.IO.Path.GetFullPath(t.Dest); }
-                catch { key = t.Dest; }
+                catch (Exception ex)
+                {
+                    LogEx($"[Vanilla] 解析路径失败，使用原值: {t.Dest}", ex, LogLevel.Warn);
+                    key = t.Dest;
+                }
 
                 if (seen.Add(key))
                 {
@@ -698,7 +758,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     else if (!eSha1Empty && !tSha1Empty &&
                              !existing.Sha1.Equals(t.Sha1, StringComparison.OrdinalIgnoreCase))
                     {
-                        recordLog(LogLevel.Info, $"[Vanilla] 警告: 同路径 {t.Dest} 有两个不同 SHA1，保留第一个");
+                        recordLog(LogLevel.Warn, $"[Vanilla] 同路径 {t.Dest} 有两个不同 SHA1，保留第一个");
                     }
                 }
             }
@@ -774,6 +834,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                                 if (failures.Count < 200)
                                     failures.Add($"{task.Name} <- {ex.Message}");
                             }
+                            LogEx($"[Vanilla] 下载失败: {task.Name} ({task.Type})", ex);
                         }
 
                         int now = Environment.TickCount;
@@ -818,6 +879,22 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                         Console.WriteLine($"  ... 还有 {failures.Count - MAX_FAILURE_PRINT} 条未显示");
                 }
             }
+
+            // ★ 有失败就抛异常，避免"文件不全但安装显示成功"，
+            //   从而导致后续 Forge/Fabric/NeoForge processor 失败在远处报错
+            if (failed > 0)
+            {
+                var sb = new StringBuilder();
+                sb.Append($"[Vanilla] 有 {failed}/{total} 个文件下载失败");
+                int n = Math.Min(failures.Count, MAX_FAILURE_PRINT);
+                if (n > 0)
+                {
+                    sb.Append("\n失败清单（前 ").Append(n).Append(" 条）:");
+                    for (int i = 0; i < n; i++)
+                        sb.Append("\n  - ").Append(failures[i]);
+                }
+                throw new Exception(sb.ToString());
+            }
         }
 
         private static void PrintProgressLine(
@@ -831,7 +908,11 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             Console.Write(
                 $"\r[libraries] {doneLib}/{totalLib} | [asset] {doneAsset}/{totalAsset} | " +
                 $"跳过 {skipped} | 失败 {failed} | 总进度 {pct:F1}%  ");
-            try { Console.Out.Flush(); } catch { }
+            try { Console.Out.Flush(); }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("[Vanilla] Console.Flush 失败: " + ex.Message);
+            }
         }
 
         // ===================== 底层下载（严格/宽松 + .tmp 原子替换 + 断点续传） =====================
@@ -841,7 +922,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         {
             outSkipped = false;
 
-            // ★ tmpPath 提前到函数开头，供前面严格模式清理使用
+            // tmpPath 提前到函数开头，供前面严格模式清理使用
             string tmpPath = dest + ".tmp";
 
             if (File.Exists(dest))
@@ -859,7 +940,11 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                                 return;
                             }
                         }
-                        catch { }
+                        catch (Exception ex)
+                        {
+                            // A: 读取已有文件大小失败（可能被占用/无权限）
+                            LogEx($"[Vanilla] 读取已有文件大小失败: {dest}", ex, LogLevel.Warn);
+                        }
                     }
                     else
                     {
@@ -871,12 +956,18 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                                 return;
                             }
                             recordLog(LogLevel.Info, $"[Vanilla] {displayName} 校验失败，重新下载");
-                            try { File.Delete(dest); } catch { }
+                            try { File.Delete(dest); }
+                            catch (Exception ex) { LogEx($"[Vanilla] 删除校验失败文件失败: {dest}", ex, LogLevel.Warn); }
 
-                            // ★ 同时清掉可能存在的 .tmp，避免拿脏残留去续传
-                            try { if (File.Exists(tmpPath)) File.Delete(tmpPath); } catch { }
+                            // 同时清掉可能存在的 .tmp，避免拿脏残留去续传
+                            try { if (File.Exists(tmpPath)) File.Delete(tmpPath); }
+                            catch (Exception ex) { LogEx($"[Vanilla] 删除残留 .tmp 失败: {tmpPath}", ex, LogLevel.Warn); }
                         }
-                        catch { }
+                        catch (Exception ex)
+                        {
+                            // B3: ComputeSha1 自身抛异常（文件被占用 / IO 错误）
+                            LogEx($"[Vanilla] 计算已有文件 SHA1 失败: {dest}", ex, LogLevel.Warn);
+                        }
                     }
                 }
                 else
@@ -889,7 +980,11 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                             return;
                         }
                     }
-                    catch { }
+                    catch (Exception ex)
+                    {
+                        // C: 宽松模式读取已有文件大小失败
+                        LogEx($"[Vanilla] 读取已有文件大小失败: {dest}", ex, LogLevel.Warn);
+                    }
                 }
             }
 
@@ -902,13 +997,18 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             {
                 try
                 {
-                    // ★ 不删除 .tmp：让 SingleStreamDownload 内部处理续传/从头
+                    // 不删除 .tmp：让 SingleStreamDownload 内部处理续传/从头
                     SingleStreamDownload(url, tmpPath, showProgress);
 
                     if (!string.IsNullOrEmpty(sha1))
                     {
                         long fileSize = 0;
-                        try { fileSize = new FileInfo(tmpPath).Length; } catch { }
+                        try { fileSize = new FileInfo(tmpPath).Length; }
+                        catch (Exception ex)
+                        {
+                            // D: 检查 tmp 大小失败
+                            LogEx($"[Vanilla] 读取 .tmp 大小失败: {tmpPath}", ex, LogLevel.Warn);
+                        }
 
                         bool shouldVerify = strictMode || fileSize > SMALL_FILE_SHA1_SKIP;
                         if (shouldVerify)
@@ -917,21 +1017,23 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                             if (!actual.Equals(sha1, StringComparison.OrdinalIgnoreCase))
                             {
                                 // 校验失败 → 删除损坏的 .tmp，下次重试从头
-                                try { File.Delete(tmpPath); } catch { }
+                                try { File.Delete(tmpPath); }
+                                catch (Exception ex) { LogEx($"[Vanilla] 删除 SHA1 校验失败 .tmp 失败: {tmpPath}", ex, LogLevel.Warn); }
                                 throw new Exception($"SHA1 校验失败: 期望 {sha1}, 实际 {actual}");
                             }
                         }
                     }
 
-                    // ★ 原子替换：优先 File.Replace，失败回退 Move
+                    // 原子替换
                     MoveOrReplace(tmpPath, dest);
                     return;
                 }
                 catch (Exception ex)
                 {
                     lastEx = ex;
-                    // ★ 不删 .tmp，下次重试继续续传
-                    //   SHA1 失败已在上面删除；网络中断保留 .tmp
+                    // 不删 .tmp，下次重试继续续传
+                    // SHA1 失败已在上面删除；网络中断保留 .tmp
+                    LogEx($"[Vanilla] 下载 {displayName} 失败（第 {retry + 1}/{RETRY_COUNT} 次）", ex, LogLevel.Warn);
                     if (retry < RETRY_COUNT - 1)
                         Thread.Sleep(500 * (retry + 1));
                 }
@@ -944,9 +1046,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         }
 
         /// <summary>
-        /// 把 src 原子替换为 dst。
-        /// 优先 File.Replace（原子、保留失败时的原文件）；
-        /// 失败则回退到删除 + Move。
+        /// 原子替换文件：优先 File.Replace（保留原文件直到成功），
+        /// 失败回退 File.Delete + File.Move，并带杀软占用 3 次退避。
         /// </summary>
         private static void MoveOrReplace(string src, string dst)
         {
@@ -957,12 +1058,43 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     File.Replace(src, dst, null);
                     return;
                 }
-                catch (IOException) { }
-                catch (PlatformNotSupportedException) { }
-                // 回退
-                try { File.Delete(dst); } catch { }
+                catch (PlatformNotSupportedException ex)
+                {
+                    LogEx($"[Vanilla] File.Replace 平台不支持，回退 Delete+Move: {dst}", ex, LogLevel.Warn);
+                }
+                catch (IOException ex)
+                {
+                    LogEx($"[Vanilla] File.Replace 失败（可能被占用），回退 Delete+Move: {dst}", ex, LogLevel.Warn);
+                }
+
+                for (int attempt = 0; attempt < 3; attempt++)
+                {
+                    try { File.Delete(dst); break; }
+                    catch (IOException ex)
+                    {
+                        if (attempt == 2)
+                            throw new Exception($"[Vanilla] 删除目标文件失败（可能被占用）: {dst}", ex);
+                        LogEx($"[Vanilla] 删除目标文件失败，重试 {attempt + 1}: {dst}", ex, LogLevel.Warn);
+                        Thread.Sleep(200 * (attempt + 1));
+                    }
+                }
             }
-            File.Move(src, dst);
+
+            for (int attempt = 0; attempt < 3; attempt++)
+            {
+                try
+                {
+                    File.Move(src, dst);
+                    return;
+                }
+                catch (IOException ex)
+                {
+                    if (attempt == 2)
+                        throw new Exception($"[Vanilla] 移动临时文件失败（可能被占用）: {src} -> {dst}", ex);
+                    LogEx($"[Vanilla] File.Move 失败，重试 {attempt + 1}: {dst}", ex, LogLevel.Warn);
+                    Thread.Sleep(200 * (attempt + 1));
+                }
+            }
         }
 
         // ===================== 单流下载（断点续传） =====================
@@ -977,12 +1109,16 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         {
             string dir = System.IO.Path.GetDirectoryName(dest);
             if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
-                Directory.CreateDirectory(dir);
+            {
+                try { Directory.CreateDirectory(dir); }
+                catch (Exception ex) { throw new Exception($"[Vanilla] 创建下载目录失败: {dir}", ex); }
+            }
 
             long existingLength = 0;
             if (File.Exists(dest))
             {
-                try { existingLength = new FileInfo(dest).Length; } catch { }
+                try { existingLength = new FileInfo(dest).Length; }
+                catch (Exception ex) { LogEx($"[Vanilla] 读取 .tmp 长度失败: {dest}", ex, LogLevel.Warn); }
             }
 
             HttpWebResponse resp = null;
@@ -995,15 +1131,17 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             }
             catch (WebException ex) when (IsRangeNotSatisfiable(ex))
             {
-                // ★ 释放 416 响应，避免连接泄漏
+                // 释放 416 响应，避免连接泄漏
                 if (ex.Response != null)
                 {
-                    try { ex.Response.Close(); } catch { }
+                    try { ex.Response.Close(); }
+                    catch (Exception closeEx) { LogEx($"[Vanilla] 关闭 416 响应失败: {url}", closeEx, LogLevel.Warn); }
                 }
 
                 if (existingLength > 0)
                 {
-                    try { File.Delete(dest); } catch { }
+                    try { File.Delete(dest); }
+                    catch (Exception delEx) { LogEx($"[Vanilla] 删除 416 .tmp 失败: {dest}", delEx, LogLevel.Warn); }
                     existingLength = 0;
                 }
                 resp = SendDownloadRequest(url, 0);
@@ -1054,7 +1192,11 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                             {
                                 Console.Write($"\r[下载中] {System.IO.Path.GetFileName(dest)} - {pct}% " +
                                               $"({FormatSize(received)}/{FormatSize(totalBytes)})   ");
-                                try { Console.Out.Flush(); } catch { }
+                                try { Console.Out.Flush(); }
+                                catch (Exception flushEx)
+                                {
+                                    System.Diagnostics.Debug.WriteLine("[Vanilla] Console.Flush 失败: " + flushEx.Message);
+                                }
                             }
                         }
                     }
@@ -1064,7 +1206,11 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                         lock (_consoleLock)
                         {
                             Console.Write("\r" + new string(' ', 120) + "\r");
-                            try { Console.Out.Flush(); } catch { }
+                            try { Console.Out.Flush(); }
+                            catch (Exception flushEx)
+                            {
+                                System.Diagnostics.Debug.WriteLine("[Vanilla] Console.Flush 失败: " + flushEx.Message);
+                            }
                         }
                     }
 
@@ -1115,7 +1261,11 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             string full;
             try { full = System.IO.Path.GetFullPath(exePath); }
-            catch { return; }
+            catch (Exception ex)
+            {
+                LogEx($"[Vanilla] 解析 java.exe 绝对路径失败: {exePath}", ex, LogLevel.Warn);
+                return;
+            }
 
             if (seen.Contains(full)) return;
             seen.Add(full);
@@ -1153,7 +1303,10 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     }
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                LogEx($"[Vanilla] 探测 java 版本失败: {javaExePath}", ex, LogLevel.Warn);
+            }
             return 0;
         }
 
@@ -1170,8 +1323,14 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                         return sr.ReadToEnd();
                     }
                 }
-                catch (IOException) when (i < maxRetry - 1)
+                catch (IOException ex) when (i < maxRetry - 1)
                 {
+                    LogEx($"[Vanilla] 读取文件失败（第 {i + 1}/{maxRetry} 次）: {path}", ex, LogLevel.Warn);
+                    Thread.Sleep(100 * (i + 1));
+                }
+                catch (Exception ex) when (i < maxRetry - 1)
+                {
+                    LogEx($"[Vanilla] 读取文件异常（第 {i + 1}/{maxRetry} 次）: {path}", ex, LogLevel.Warn);
                     Thread.Sleep(100 * (i + 1));
                 }
             }
@@ -1206,6 +1365,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 catch (Exception ex)
                 {
                     lastEx = ex;
+                    LogEx($"[Vanilla] 请求失败({url})（第 {i + 1}/{RETRY_COUNT} 次）", ex, LogLevel.Warn);
                     if (i < RETRY_COUNT - 1)
                         Thread.Sleep(500 * (i + 1));
                 }

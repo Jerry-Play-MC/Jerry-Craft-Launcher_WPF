@@ -337,4 +337,7 @@
     <s:String x:Key="Settings.Java.RegisterNeedAdmin">当前实例不是以管理员权限运行，写入注册表需要管理员权限。\n\n【是】申请管理员权限（写入 HKLM）\n【否】写入用户注册表（HKCU，免管理员）\n【取消】放弃写入操作</s:String>
     <s:String x:Key="Settings.Java.RegisterFailed">写入注册表失败：\n{0}</s:String>
 
+    <s:String x:Key="ClientInstall.PageTitle">安装 Minecraft</s:String>
+    <s:String x:Key="ClientInstall.Back">返回</s:String>
+
 </ResourceDictionary>

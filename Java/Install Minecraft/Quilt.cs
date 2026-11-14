@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.IO.Compression;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -14,23 +15,16 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 {
     internal class InstallQuilt
     {
-        // ===================== Quilt 官方源 =====================
         private const string QUILT_META = "https://meta.quiltmc.org/v3";
         private const string QUILT_MAVEN = "https://maven.quiltmc.org/repository/release/";
-
-        // Fabric Maven（Quilt 也依赖部分 Fabric 库）
         private const string FABRIC_MAVEN = "https://maven.fabricmc.net/";
-
-        // ===================== BMCLAPI 镜像 =====================
         private const string BMCL_BASE = "https://bmclapi2.bangbang93.com";
 
-        // ===================== 下载参数 =====================
         private const int MAX_CONCURRENCY = 24;
         private const int RETRY_COUNT = 3;
         private const int BUFFER_SIZE = 256 * 1024;
         private const int PROGRESS_REFRESH_MS = 100;
         private const int HTTP_TIMEOUT_MS = 15000;
-
         private const int FIRST_LAUNCH_TIMEOUT_MS = 15 * 60 * 1000;
 
         private const string UA_STRING =
@@ -40,7 +34,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         private static readonly object _consoleLock = new object();
         private static int _lastProgressTick = 0;
 
-        // ===================== 服务端启动参数 =====================
         private const string SERVER_MAX_MEMORY = "4G";
         private const string SERVER_MIN_MEMORY = "4G";
 
@@ -50,6 +43,11 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             "-Dsun.net.inetaddr.ttl=0 " +
             "-Dsun.net.client.defaultConnectTimeout=3000 " +
             "-Dsun.net.client.defaultReadTimeout=3000";
+
+        private static void LogEx(string context, Exception ex, LogLevel level = LogLevel.Error)
+        {
+            recordLog(level, context + " -> " + (ex == null ? "null" : ex.ToString()));
+        }
 
         // ===================== 客户端 =====================
         public static void InstallClient(string version, string minecraftDir, string loaderParam)
@@ -74,13 +72,14 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             recordLog(LogLevel.Info, $"[Quilt] 获取 profile: {profileUrl}");
             string profileJson = DownloadString(profileUrl);
 
-            string mergedJson = MergeParentJson(profileJson, minecraftDir);
+            string mergedJson = MergeParentJson(profileJson, minecraftDir, versionId);
 
             string versionsDir = Path.Combine(minecraftDir, "versions");
             string versionDir = Path.Combine(versionsDir, versionId);
             Directory.CreateDirectory(versionDir);
             string versionJsonPath = Path.Combine(versionDir, versionId + ".json");
-            File.WriteAllText(versionJsonPath, mergedJson, Encoding.UTF8);
+            try { File.WriteAllText(versionJsonPath, mergedJson, Encoding.UTF8); }
+            catch (Exception ex) { throw new Exception($"[Quilt] 写入版本 JSON 失败: {versionJsonPath}", ex); }
             recordLog(LogLevel.Info, $"[Quilt] 版本 JSON 已保存: {versionJsonPath}");
 
             CopyClientJar(versionsDir, version, versionDir, versionId);
@@ -164,7 +163,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             recordLog(LogLevel.Info, $"[Quilt] 首次启动会提示接受 EULA，请按提示操作");
         }
 
-        // ===================== 验证 quilt-loader jar =====================
         private static void VerifyQuiltLoaderJar(string librariesDir, string loaderVersion)
         {
             string jarPath = Path.Combine(librariesDir,
@@ -184,7 +182,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 $"  https://maven.quiltmc.org/repository/release/org/quiltmc/quilt-loader/{loaderVersion}/quilt-loader-{loaderVersion}.jar");
         }
 
-        // ===================== 生成 start.bat =====================
         private static void GenerateStartBat(string serverDir)
         {
             try
@@ -202,11 +199,10 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             }
             catch (Exception ex)
             {
-                recordLog(LogLevel.Error, $"[Quilt] 生成 start.bat 失败(不致命): {ex.Message}");
+                LogEx($"[Quilt] 生成 start.bat 失败(不致命): {serverDir}", ex);
             }
         }
 
-        // ===================== 首次启动验证 =====================
         private static void VerifyFirstLaunch(string serverDir)
         {
             string javaPath = FindJavaForServer();
@@ -269,7 +265,12 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     lock (outLock) outputBuilder.AppendLine(e.Data);
                 };
 
-                process.Start();
+                try { process.Start(); }
+                catch (Exception ex)
+                {
+                    throw new Exception($"[Quilt] 启动 java 进程失败: {javaPath}", ex);
+                }
+
                 process.BeginOutputReadLine();
                 process.BeginErrorReadLine();
 
@@ -284,12 +285,16 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                         process.StandardInput.WriteLine("stop");
                         process.StandardInput.Flush();
                     }
-                    catch { }
+                    catch (Exception ex)
+                    {
+                        LogEx($"[Quilt] 向服务器发送 stop 失败（可能已退出）", ex, LogLevel.Warn);
+                    }
 
                     if (!process.WaitForExit(30000))
                     {
                         recordLog(LogLevel.Error, $"[Quilt] 服务器未正常退出，强制结束");
-                        try { process.Kill(); } catch { }
+                        try { process.Kill(); }
+                        catch (Exception ex) { LogEx($"[Quilt] Kill 服务器进程失败", ex); }
                         process.WaitForExit(5000);
                     }
                 }
@@ -330,7 +335,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             return text.Substring(0, maxLen) + "\n... (已截断)";
         }
 
-        // ===================== 查找 Java =====================
         private static string FindJavaForServer()
         {
             string javaHome = Environment.GetEnvironmentVariable("JAVA_HOME");
@@ -372,17 +376,19 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             foreach (string root in roots)
             {
                 if (!Directory.Exists(root)) continue;
-                foreach (string sub in Directory.GetDirectories(root))
+                try
                 {
-                    string exe = Path.Combine(sub, "bin", "java.exe");
-                    if (File.Exists(exe)) return exe;
+                    foreach (string sub in Directory.GetDirectories(root))
+                    {
+                        string exe = Path.Combine(sub, "bin", "java.exe");
+                        if (File.Exists(exe)) return exe;
+                    }
                 }
+                catch (Exception ex) { LogEx($"[Quilt] 枚举 Java 目录失败: {root}", ex, LogLevel.Warn); }
             }
-
             return "java";
         }
 
-        // ===================== 版本解析 =====================
         private static string ResolveLoaderVersion(string gameVersion, string loaderParam)
         {
             if (!string.IsNullOrEmpty(loaderParam))
@@ -417,7 +423,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             }
             catch (Exception ex)
             {
-                recordLog(LogLevel.Error, $"[Quilt] 获取最新 Loader 版本失败: {ex.Message}");
+                LogEx($"[Quilt] 获取最新 Loader 版本失败: {gameVersion}", ex);
             }
             return null;
         }
@@ -437,11 +443,13 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                         return first["version"].ToString();
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                LogEx($"[Quilt] 获取 Installer 版本失败，使用默认 0.9.2", ex, LogLevel.Warn);
+            }
             return "0.9.2";
         }
 
-        // ===================== libraries 收集 =====================
         private static List<DownloadTask> CollectLibraryTasks(
             Dictionary<string, object> root, string librariesDir, string type)
         {
@@ -462,7 +470,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
                 string url = null;
 
-                // 优先：downloads.artifact.url
                 if (lib.ContainsKey("downloads"))
                 {
                     var downloads = lib["downloads"] as Dictionary<string, object>;
@@ -474,7 +481,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     }
                 }
 
-                // 其次：url 字段
                 if (string.IsNullOrEmpty(url) && lib.ContainsKey("url"))
                 {
                     string baseUrl = lib["url"].ToString();
@@ -485,7 +491,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     }
                 }
 
-                // 兜底：按 group 猜
                 if (string.IsNullOrEmpty(url))
                 {
                     url = GuessMavenUrl(name) + relPath;
@@ -508,16 +513,13 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         private static string GuessMavenUrl(string name)
         {
             if (string.IsNullOrEmpty(name)) return QUILT_MAVEN;
-
             string group = name.Split(':')[0];
-
             if (group.StartsWith("org.ow2.asm") ||
                 group.StartsWith("net.fabricmc") ||
                 group.StartsWith("org.spongepowered"))
             {
                 return FABRIC_MAVEN;
             }
-
             return QUILT_MAVEN;
         }
 
@@ -547,7 +549,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             return $"{group}/{artifact}/{version}/{fileName}";
         }
 
-        // ===================== 并行下载 =====================
         private static void ParallelDownload(List<DownloadTask> tasks, int maxConcurrency)
         {
             int failed = 0, skipped = 0;
@@ -562,10 +563,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             recordLog(LogLevel.Info, $"[Quilt] 开始并行下载（{maxConcurrency} 线程，共 {total} 个任务）...");
             Interlocked.Exchange(ref _lastProgressTick, 0);
 
-            lock (_consoleLock)
-            {
-                PrintProgressLine(skipped, failed, completed, total);
-            }
+            lock (_consoleLock) { PrintProgressLine(skipped, failed, completed, total); }
 
             var threads = new List<Thread>();
             for (int i = 0; i < maxConcurrency; i++)
@@ -599,11 +597,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                                 if (failures.Count < 50)
                                     failures.Add($"{task.Name} <- {ex.Message}");
                             }
-                            lock (_consoleLock)
-                            {
-                                Console.Write("\r" + new string(' ', 140) + "\r");
-                                Console.WriteLine($"[Quilt] 下载失败: {task.Name} -> {ex.Message}");
-                            }
+                            lock (_consoleLock) { Console.Write("\r" + new string(' ', 140) + "\r"); }
+                            LogEx($"[Quilt] 下载失败: {task.Name}", ex);
                         }
 
                         int now = Environment.TickCount;
@@ -614,16 +609,12 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                         if (isLast || (now - last) >= PROGRESS_REFRESH_MS)
                         {
                             Volatile.Write(ref _lastProgressTick, now);
-                            lock (_consoleLock)
-                            {
-                                PrintProgressLine(skipped, failed, completed, total);
-                            }
+                            lock (_consoleLock) { PrintProgressLine(skipped, failed, completed, total); }
                         }
                     }
                 });
                 worker.IsBackground = true;
                 worker.Name = "QuiltDownloader-" + i;
-                worker.Priority = ThreadPriority.Normal;
                 worker.Start();
                 threads.Add(worker);
             }
@@ -634,7 +625,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             {
                 Console.WriteLine();
                 Console.WriteLine($"[Quilt] 下载完成: 总计 {total}, 跳过 {skipped}, 失败 {failed}");
-
                 if (failed > 0)
                 {
                     Console.WriteLine($"[Quilt] 失败清单（前 {Math.Min(failures.Count, 20)} 条）:");
@@ -656,7 +646,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             try { Console.Out.Flush(); } catch { }
         }
 
-        // ===================== URL 候选 =====================
         private static string[] BuildUrlCandidates(string url)
         {
             var list = new List<string>();
@@ -676,11 +665,9 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             return result.ToArray();
         }
 
-        // ===================== 请求构造 =====================
         private static HttpWebResponse SendRequestIPv4First(string url, int timeoutMs, int readWriteTimeoutMs)
         {
             Uri uri = new Uri(url);
-
             if (IPAddress.TryParse(uri.Host, out _))
                 return SendRaw(url, null, timeoutMs, readWriteTimeoutMs);
 
@@ -693,11 +680,11 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                         ipv4List.Add(a);
                 }
             }
-            catch { }
+            catch (Exception ex) { LogEx($"[Quilt] DNS 解析失败: {uri.Host}", ex, LogLevel.Warn); }
 
             if (ipv4List.Count == 0)
             {
-                recordLog(LogLevel.Info, $"[Quilt] 未解析到 IPv4，退回原 URL: {url}");
+                recordLog(LogLevel.Warn, $"[Quilt] 未解析到 IPv4，退回原 URL: {url}");
                 return SendRaw(url, null, timeoutMs, readWriteTimeoutMs);
             }
 
@@ -709,14 +696,10 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     string ipUrl = $"{uri.Scheme}://{ip}{uri.PathAndQuery}";
                     return SendRaw(ipUrl, uri.Host, timeoutMs, readWriteTimeoutMs);
                 }
-                catch (Exception ex)
-                {
-                    lastEx = ex;
-                }
+                catch (Exception ex) { lastEx = ex; }
             }
 
-            throw new Exception(
-                $"所有 IPv4 都失败（{ipv4List.Count} 个）: {lastEx?.Message}", lastEx);
+            throw new Exception($"所有 IPv4 都失败（{ipv4List.Count} 个）: {lastEx?.Message}", lastEx);
         }
 
         private static HttpWebResponse SendRaw(string url, string hostHeader,
@@ -725,7 +708,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             var req = (HttpWebRequest)WebRequest.Create(url);
             req.UserAgent = UA_STRING;
             req.AllowAutoRedirect = true;
-            req.KeepAlive = false;    // ★ 关闭连接复用，避免僵尸连接卡顿
+            req.KeepAlive = false;
             req.Timeout = timeoutMs;
             req.ReadWriteTimeout = readWriteTimeoutMs;
             req.AutomaticDecompression = DecompressionMethods.None;
@@ -736,22 +719,75 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             return (HttpWebResponse)req.GetResponse();
         }
 
-        // ===================== 底层下载（.tmp 原子替换） =====================
+        private static bool IsJarPath(string path)
+        {
+            return path.EndsWith(".jar", StringComparison.OrdinalIgnoreCase) ||
+                   path.EndsWith(".zip", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static void ValidateJarFile(string path)
+        {
+            using (var fs = File.OpenRead(path))
+            {
+                if (fs.Length < 4)
+                    throw new Exception("文件太小，不是有效 zip/jar");
+
+                byte[] header = new byte[4];
+                int n = fs.Read(header, 0, 4);
+                if (n < 4 || header[0] != 0x50 || header[1] != 0x4B)
+                    throw new Exception("不是有效的 zip/jar 文件（可能是 HTML 错误页）");
+
+                fs.Seek(0, SeekOrigin.Begin);
+                try
+                {
+                    using (var archive = new ZipArchive(fs, ZipArchiveMode.Read))
+                    {
+                        int count = 0;
+                        foreach (var entry in archive.Entries)
+                        {
+                            count++;
+                            if (count > 100000) break;
+                        }
+                        if (count == 0)
+                            throw new Exception("zip/jar 内无任何文件（可能是半截下载）");
+                    }
+                }
+                catch (InvalidDataException ex)
+                {
+                    throw new Exception($"zip/jar 文件损坏: {ex.Message}", ex);
+                }
+            }
+        }
+
         private static bool DownloadFile(string url, string dest, bool showProgress)
         {
+            bool isJar = IsJarPath(dest);
+
             if (File.Exists(dest))
             {
                 try
                 {
                     if (new FileInfo(dest).Length > 0)
-                        return true;
+                    {
+                        if (!isJar) return true;
+                        try { ValidateJarFile(dest); return true; }
+                        catch (Exception ex)
+                        {
+                            LogEx($"[Quilt] 已存在文件校验失败，删除重下: {dest}", ex, LogLevel.Warn);
+                            try { File.Delete(dest); }
+                            catch (Exception delEx) { LogEx($"[Quilt] 删除损坏文件失败: {dest}", delEx); }
+                        }
+                    }
                 }
-                catch { }
+                catch (Exception ex) { LogEx($"[Quilt] 检查文件失败: {dest}", ex, LogLevel.Warn); }
             }
 
             string dir = Path.GetDirectoryName(dest);
             if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
-                Directory.CreateDirectory(dir);
+            {
+                try { Directory.CreateDirectory(dir); }
+                catch (Exception ex) { throw new Exception($"[Quilt] 创建目录失败: {dir}", ex); }
+            }
 
             string tmpPath = dest + ".tmp";
             string[] urls = BuildUrlCandidates(url);
@@ -763,13 +799,23 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 {
                     try
                     {
-                        // 下载到 .tmp
                         SingleDownload(u, tmpPath, showProgress);
 
-                        // 成功后原子替换
+                        if (isJar)
+                        {
+                            try { ValidateJarFile(tmpPath); }
+                            catch (Exception ex)
+                            {
+                                try { File.Delete(tmpPath); }
+                                catch (Exception delEx) { LogEx($"[Quilt] 删除损坏 .tmp 失败: {tmpPath}", delEx, LogLevel.Warn); }
+                                throw new Exception($"[Quilt] jar 校验失败: {tmpPath}", ex);
+                            }
+                        }
+
                         if (File.Exists(dest))
                         {
-                            try { File.Delete(dest); } catch { }
+                            try { File.Delete(dest); }
+                            catch (Exception ex) { LogEx($"[Quilt] 删除旧目标失败: {dest}", ex, LogLevel.Warn); }
                         }
                         File.Move(tmpPath, dest);
                         return false;
@@ -777,9 +823,9 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     catch (Exception ex)
                     {
                         lastEx = ex;
-                        // ★ 失败时清理 .tmp，避免残破文件污染
-                        try { if (File.Exists(tmpPath)) File.Delete(tmpPath); } catch { }
-                        recordLog(LogLevel.Error, $"[Quilt] 下载失败({u}): {ex.Message}");
+                        try { if (File.Exists(tmpPath)) File.Delete(tmpPath); }
+                        catch (Exception delEx) { LogEx($"[Quilt] 清理 .tmp 失败: {tmpPath}", delEx, LogLevel.Warn); }
+                        LogEx($"[Quilt] 下载失败({u})", ex);
                     }
                 }
                 if (retry < RETRY_COUNT - 1)
@@ -791,7 +837,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
         private static void SingleDownload(string url, string dest, bool showProgress)
         {
-            // ★ 读写超时也设为 15 秒（原 60 秒）
             using (var resp = SendRequestIPv4First(url, HTTP_TIMEOUT_MS, HTTP_TIMEOUT_MS))
             using (var netStream = resp.GetResponseStream())
             using (var fs = new FileStream(dest, FileMode.Create, FileAccess.Write,
@@ -857,7 +902,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     catch (Exception ex)
                     {
                         lastEx = ex;
-                        recordLog(LogLevel.Error, $"[Quilt] 请求失败({u}): {ex.Message}");
+                        LogEx($"[Quilt] 请求失败({u})", ex);
                     }
                 }
                 if (retry < RETRY_COUNT - 1)
@@ -882,10 +927,10 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 return new JavaScriptSerializer()
                     .Deserialize<Dictionary<string, object>>(json);
             }
-            catch { return null; }
+            catch (Exception ex) { LogEx("[Quilt] JSON 解析失败", ex); return null; }
         }
 
-        // ===================== 复制原版 jar =====================
+        // ★ 强制失败：原版 jar 缺失 → throw
         private static void CopyClientJar(string versionsDir, string originalVersion,
                                            string versionDir, string versionId)
         {
@@ -895,8 +940,9 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             if (!File.Exists(originalClientJar) || new FileInfo(originalClientJar).Length == 0)
             {
-                recordLog(LogLevel.Warn, $"[Quilt] 警告: 未找到原版 client.jar({originalClientJar})，请先运行 Vanilla.InstallClient");
-                return;
+                throw new Exception(
+                    $"[Quilt] 原版 client.jar 缺失: {originalClientJar}\n" +
+                    "请先执行 Vanilla.InstallClient 完成原版安装。");
             }
 
             try
@@ -914,47 +960,43 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             }
             catch (Exception ex)
             {
-                recordLog(LogLevel.Error, $"[Quilt] 复制原版核心失败(不致命): {ex.Message}");
+                throw new Exception(
+                    $"[Quilt] 复制原版核心失败: {originalClientJar} -> {quiltVersionJar}", ex);
             }
         }
 
-        // ===================== 合并父版本 JSON =====================
-        private static string MergeParentJson(string quiltJson, string minecraftDir)
+        // ★ MergeParentJson 强制 id/jar
+        private static string MergeParentJson(string quiltJson, string minecraftDir, string versionId)
         {
             var quiltRoot = ParseJson(quiltJson);
             if (quiltRoot == null)
-            {
-                recordLog(LogLevel.Error, $"[Quilt] profile JSON 解析失败，跳过合并");
-                return quiltJson;
-            }
+                throw new Exception("[Quilt] profile JSON 解析失败");
+
+            // 无论是否 inheritsFrom，都强制改 id
+            quiltRoot["id"] = versionId;
 
             if (!quiltRoot.ContainsKey("inheritsFrom"))
             {
-                recordLog(LogLevel.Info, $"[Quilt] profile JSON 无 inheritsFrom，无需合并");
-                return quiltJson;
+                recordLog(LogLevel.Info, $"[Quilt] profile JSON 无 inheritsFrom，仅改写 id={versionId}");
+                try { return new JavaScriptSerializer().Serialize(quiltRoot); }
+                catch (Exception ex) { LogEx("[Quilt] 序列化 profile JSON 失败", ex); throw; }
             }
 
             string parentId = quiltRoot["inheritsFrom"].ToString();
             string parentPath = Path.Combine(minecraftDir, "versions", parentId, parentId + ".json");
 
             if (!File.Exists(parentPath))
-            {
-                recordLog(LogLevel.Warn, $"[Quilt] 警告: 未找到父版本 JSON({parentPath})，跳过合并");
-                return quiltJson;
-            }
+                throw new Exception($"[Quilt] 找不到父版本 JSON: {parentPath}\n请先安装原版 Minecraft。");
 
-            var parentRoot = ParseJson(File.ReadAllText(parentPath));
+            Dictionary<string, object> parentRoot;
+            try { parentRoot = ParseJson(File.ReadAllText(parentPath)); }
+            catch (Exception ex) { throw new Exception($"[Quilt] 读取父版本 JSON 失败: {parentPath}", ex); }
             if (parentRoot == null)
-            {
-                recordLog(LogLevel.Error, $"[Quilt] 父版本 JSON 解析失败，跳过合并");
-                return quiltJson;
-            }
+                throw new Exception($"[Quilt] 父版本 JSON 解析失败: {parentPath}");
 
-            string quiltId = quiltRoot.ContainsKey("id") ? quiltRoot["id"].ToString() : "?";
-            recordLog(LogLevel.Info, $"[Quilt] 合并父版本 {parentId} 到 {quiltId}");
+            recordLog(LogLevel.Info, $"[Quilt] 合并父版本 {parentId} 到 {versionId}");
 
             var merged = new Dictionary<string, object>();
-
             foreach (var kv in parentRoot)
                 merged[kv.Key] = kv.Value;
 
@@ -964,6 +1006,10 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 if (kv.Key == "libraries") continue;
                 merged[kv.Key] = kv.Value;
             }
+
+            // ★ 强制锁定
+            merged["id"] = versionId;
+            merged["jar"] = versionId;
 
             merged["libraries"] = MergeLibraries(quiltRoot, parentRoot);
 
@@ -979,8 +1025,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             }
             catch (Exception ex)
             {
-                recordLog(LogLevel.Error, $"[Quilt] 序列化合并结果失败: {ex.Message}，使用原 JSON");
-                return quiltJson;
+                LogEx("[Quilt] 序列化合并结果失败", ex);
+                throw;
             }
         }
 
@@ -1000,8 +1046,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                         var dict = lib as Dictionary<string, object>;
                         if (dict == null || !dict.ContainsKey("name")) continue;
                         string name = dict["name"].ToString();
-                        if (seenNames.Add(name))
-                            result.Add(lib);
+                        if (seenNames.Add(name)) result.Add(lib);
                     }
                 }
             }
@@ -1016,8 +1061,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                         var dict = lib as Dictionary<string, object>;
                         if (dict == null || !dict.ContainsKey("name")) continue;
                         string name = dict["name"].ToString();
-                        if (seenNames.Add(name))
-                            result.Add(lib);
+                        if (seenNames.Add(name)) result.Add(lib);
                     }
                 }
             }
@@ -1034,8 +1078,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             var quiltArgs = quiltRoot.ContainsKey("arguments")
                 ? quiltRoot["arguments"] as Dictionary<string, object> : null;
 
-            if (parentArgs == null && quiltArgs == null)
-                return null;
+            if (parentArgs == null && quiltArgs == null) return null;
 
             var mergedArgs = new Dictionary<string, object>();
 
@@ -1043,38 +1086,31 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             if (parentArgs != null && parentArgs.ContainsKey("jvm"))
             {
                 var l = parentArgs["jvm"] as ArrayList;
-                if (l != null)
-                    foreach (var item in l) jvmList.Add(item);
+                if (l != null) foreach (var item in l) jvmList.Add(item);
             }
             if (quiltArgs != null && quiltArgs.ContainsKey("jvm"))
             {
                 var l = quiltArgs["jvm"] as ArrayList;
-                if (l != null)
-                    foreach (var item in l) jvmList.Add(item);
+                if (l != null) foreach (var item in l) jvmList.Add(item);
             }
-            if (jvmList.Count > 0)
-                mergedArgs["jvm"] = jvmList;
+            if (jvmList.Count > 0) mergedArgs["jvm"] = jvmList;
 
             var gameList = new List<object>();
             if (parentArgs != null && parentArgs.ContainsKey("game"))
             {
                 var l = parentArgs["game"] as ArrayList;
-                if (l != null)
-                    foreach (var item in l) gameList.Add(item);
+                if (l != null) foreach (var item in l) gameList.Add(item);
             }
             if (quiltArgs != null && quiltArgs.ContainsKey("game"))
             {
                 var l = quiltArgs["game"] as ArrayList;
-                if (l != null)
-                    foreach (var item in l) gameList.Add(item);
+                if (l != null) foreach (var item in l) gameList.Add(item);
             }
-            if (gameList.Count > 0)
-                mergedArgs["game"] = gameList;
+            if (gameList.Count > 0) mergedArgs["game"] = gameList;
 
             return mergedArgs;
         }
 
-        // ===================== 内部类 =====================
         private class DownloadTask
         {
             public string Url { get; set; }

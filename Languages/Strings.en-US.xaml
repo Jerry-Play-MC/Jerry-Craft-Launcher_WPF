@@ -317,4 +317,7 @@
     <s:String x:Key="Settings.Language">Language</s:String>
     <s:String x:Key="Settings.LanguageDesc">Switch the launcher UI language. Takes effect immediately.</s:String>
 
+    <s:String x:Key="ClientInstall.PageTitle">Install Minecraft</s:String>
+    <s:String x:Key="ClientInstall.Back">Back</s:String>
+
 </ResourceDictionary>

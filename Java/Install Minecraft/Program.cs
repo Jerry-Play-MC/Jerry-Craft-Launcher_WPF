@@ -38,7 +38,11 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         {
             try
             {
-                try { Console.OutputEncoding = System.Text.Encoding.UTF8; } catch { }
+                try { Console.OutputEncoding = System.Text.Encoding.UTF8; }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine("[Program] 设置 Console.OutputEncoding 失败: " + ex.Message);
+                }
 
                 ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072;
                 ServicePointManager.DefaultConnectionLimit = 64;
@@ -117,13 +121,13 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                         InstallQuilt.InstallClient(version, minecraftPath,
                             spec.QuiltVersion ?? loaderVersionList);
                     }
-                    else if (spec.HasLabyMod)   // ★
+                    else if (spec.HasLabyMod)
                     {
                         // LabyMod 是独立的完整客户端，与其它加载器互斥
                         InstallLabyMod.InstallClient(version, minecraftPath, loaderVersionList);
                     }
 
-                    // ★ LiteLoader 独立处理
+                    // LiteLoader 独立处理
                     if (spec.HasLiteLoader)
                     {
                         if (!string.IsNullOrEmpty(forgeVersionId))
@@ -172,8 +176,18 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             }
             catch (Exception ex)
             {
-                try { Console.Error.WriteLine($"[错误] {ex.GetType().Name}: {ex.Message}"); }
-                catch { }
+                // ★ 关键修复：顶层异常必须落日志文件，带完整堆栈。
+                //   原来只写 Console.Error，WPF 下用户根本看不到。
+                recordLog(LogLevel.Error, "[致命] 安装流程异常终止: " + ex.ToString());
+
+                try
+                {
+                    Console.Error.WriteLine($"[错误] {ex.GetType().Name}: {ex.Message}");
+                }
+                catch (Exception cerrEx)
+                {
+                    System.Diagnostics.Debug.WriteLine("[Program] 写 stderr 失败: " + cerrEx.Message);
+                }
                 return 1;
             }
         }
@@ -208,7 +222,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 result.OptiFineVersion = v;
             });
 
-            // ★ 必须在 Fabric 之前提取，否则 "Fabric" 会先吃掉 "LegacyFabric"
+            // 必须在 Fabric 之前提取，否则 "Fabric" 会先吃掉 "LegacyFabric"
             work = TryExtract(work, "LegacyFabric", v =>
             {
                 result.HasLegacyFabric = true;

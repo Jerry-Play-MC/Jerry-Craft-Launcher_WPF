@@ -53,6 +53,12 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             new Dictionary<string, SemaphoreSlim>(StringComparer.OrdinalIgnoreCase);
         private static readonly object _hostSemsLock = new object();
 
+        // ===================== 统一异常日志 =====================
+        private static void LogEx(string context, Exception ex, LogLevel level = LogLevel.Error)
+        {
+            recordLog(level, context + " -> " + (ex == null ? "null" : ex.ToString()));
+        }
+
         // ===================== 错误分类 =====================
         private enum DownloadErrorKind
         {
@@ -121,7 +127,11 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         {
             string host;
             try { host = new Uri(url).Host; }
-            catch { host = "unknown"; }
+            catch (Exception ex)
+            {
+                LogEx($"[NeoForge] 解析 URL host 失败: {url}", ex, LogLevel.Warn);
+                host = "unknown";
+            }
 
             lock (_hostSemsLock)
             {
@@ -213,7 +223,12 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 lock (_consoleLock)
                 {
                     Console.Write("\r" + new string(' ', 160) + "\r");
-                    try { Console.Out.Flush(); } catch { }
+                    try { Console.Out.Flush(); }
+                    catch (Exception ex)
+                    {
+                        // Console 本身出问题时，只写 Debug 不写日志，避免循环
+                        System.Diagnostics.Debug.WriteLine("[NeoForge] Console.Flush 失败: " + ex.Message);
+                    }
                 }
             }
 
@@ -238,7 +253,11 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 lock (_consoleLock)
                 {
                     Console.Write($"\r[{_label}] {_fileName} - {pct}% ({sizeText}){tail}   ");
-                    try { Console.Out.Flush(); } catch { }
+                    try { Console.Out.Flush(); }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine("[NeoForge] Console.Flush 失败: " + ex.Message);
+                    }
                 }
             }
         }
@@ -279,10 +298,10 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
                 string profilePath = Path.Combine(tempDir, "install_profile.json");
                 if (!File.Exists(profilePath))
-                    throw new Exception("installer 中缺少 install_profile.json");
+                    throw new Exception($"[NeoForge] installer 中缺少 install_profile.json: {profilePath}");
 
                 var profile = ParseJson(File.ReadAllText(profilePath));
-                if (profile == null) throw new Exception("install_profile.json 解析失败");
+                if (profile == null) throw new Exception($"[NeoForge] install_profile.json 解析失败: {profilePath}");
 
                 Dictionary<string, object> versionJson = null;
                 if (profile.ContainsKey("spec"))
@@ -296,7 +315,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     versionJson = profile["versionInfo"] as Dictionary<string, object>;
                 }
 
-                if (versionJson == null) throw new Exception("installer 中缺少 version.json");
+                if (versionJson == null) throw new Exception("[NeoForge] installer 中缺少 version.json（或 versionInfo）");
 
                 string mavenSrc = Path.Combine(tempDir, "maven");
                 if (Directory.Exists(mavenSrc))
@@ -313,37 +332,50 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     ParallelDownload(tasks, MAX_CONCURRENCY);
 
                 // ============================================================
-                // ★ 合并父版本 JSON（展开 inheritsFrom，对标 PCL）
+                // ★ 合并父版本 JSON（展开 inheritsFrom，并锁定 id/jar）
                 // ============================================================
                 if (versionJson.ContainsKey("inheritsFrom"))
                 {
                     string parentId = versionJson["inheritsFrom"].ToString();
                     string parentJsonPath = Path.Combine(versionsDir, parentId, parentId + ".json");
 
-                    if (File.Exists(parentJsonPath))
-                    {
-                        var parentJson = ParseJson(File.ReadAllText(parentJsonPath));
-                        if (parentJson != null)
-                        {
-                            versionJson = MergeParentJson(parentJson, versionJson, versionId);
-                            recordLog(LogLevel.Info, $"[NeoForge] 已合并父版本 {parentId}（inheritsFrom 已展开）");
-                        }
-                        else
-                        {
-                            recordLog(LogLevel.Warn, $"[NeoForge] 警告: 父版本 JSON 解析失败，保留 inheritsFrom: {parentJsonPath}");
-                        }
-                    }
-                    else
-                    {
-                        recordLog(LogLevel.Warn, $"[NeoForge] 警告: 找不到父版本 JSON，保留 inheritsFrom: {parentJsonPath}");
-                    }
+                    if (!File.Exists(parentJsonPath))
+                        throw new Exception(
+                            $"[NeoForge] 找不到父版本 JSON: {parentJsonPath}\n" +
+                            "请先执行 Vanilla.InstallClient 完成原版安装。");
+
+                    var parentJson = ParseJson(File.ReadAllText(parentJsonPath));
+                    if (parentJson == null)
+                        throw new Exception($"[NeoForge] 父版本 JSON 解析失败: {parentJsonPath}");
+
+                    versionJson = MergeParentJson(parentJson, versionJson, versionId);
+                    recordLog(LogLevel.Info, $"[NeoForge] 已合并父版本 {parentId}（inheritsFrom 已展开，id/jar={versionId}）");
+                }
+                else
+                {
+                    // 无 inheritsFrom 也强制锁定 id/jar，保证目录名 == id
+                    versionJson["id"] = versionId;
+                    versionJson["jar"] = versionId;
+                    recordLog(LogLevel.Info, $"[NeoForge] 无 inheritsFrom，强制锁定 id/jar={versionId}");
                 }
 
                 string targetJson = Path.Combine(versionDir, versionId + ".json");
-                File.WriteAllText(targetJson,
-                    new JavaScriptSerializer().Serialize(versionJson), Encoding.UTF8);
+                try
+                {
+                    // 无 BOM 的 UTF-8
+                    File.WriteAllText(targetJson,
+                        new JavaScriptSerializer().Serialize(versionJson),
+                        new UTF8Encoding(false));
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception($"[NeoForge] 写入版本 JSON 失败: {targetJson}", ex);
+                }
                 recordLog(LogLevel.Info, $"[NeoForge] 版本 JSON 已保存: {targetJson}");
 
+                // ============================================================
+                // ★ 执行 processor（失败一律 throw）
+                // ============================================================
                 if (profile.ContainsKey("processors"))
                 {
                     recordLog(LogLevel.Info, $"[NeoForge] 执行 processor（打补丁）...");
@@ -354,23 +386,23 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     recordLog(LogLevel.Info, $"[NeoForge] 无 processor，跳过");
                 }
 
-                string originalClientJar = Path.Combine(versionsDir, version, version + ".jar");
-                string neoVersionJar = Path.Combine(versionDir, versionId + ".jar");
-                if (File.Exists(originalClientJar) && !File.Exists(neoVersionJar))
-                {
-                    try
-                    {
-                        File.Copy(originalClientJar, neoVersionJar, true);
-                        recordLog(LogLevel.Info, $"[NeoForge] 已复制原版核心到: {neoVersionJar}");
-                    }
-                    catch { }
-                }
+                // ============================================================
+                // ★ 复制原版核心 jar 到 NeoForge 版本目录（jar/id 已指向 versionId）
+                // ============================================================
+                CopyOriginalJarOrThrow(versionsDir, version, versionDir, versionId);
 
                 recordLog(LogLevel.Info, $"[NeoForge] 客户端 NeoForge {version} 安装完成");
             }
             finally
             {
-                try { if (Directory.Exists(tempDir)) Directory.Delete(tempDir, true); } catch { }
+                try
+                {
+                    if (Directory.Exists(tempDir)) Directory.Delete(tempDir, true);
+                }
+                catch (Exception ex)
+                {
+                    LogEx($"[NeoForge] 清理临时目录失败(不致命): {tempDir}", ex, LogLevel.Warn);
+                }
             }
         }
 
@@ -406,10 +438,10 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
                 string profilePath = Path.Combine(tempDir, "install_profile.json");
                 if (!File.Exists(profilePath))
-                    throw new Exception("installer 中缺少 install_profile.json");
+                    throw new Exception($"[NeoForge] installer 中缺少 install_profile.json: {profilePath}");
 
                 var profile = ParseJson(File.ReadAllText(profilePath));
-                if (profile == null) throw new Exception("install_profile.json 解析失败");
+                if (profile == null) throw new Exception($"[NeoForge] install_profile.json 解析失败: {profilePath}");
 
                 Dictionary<string, object> versionJson = null;
                 if (profile.ContainsKey("spec"))
@@ -423,7 +455,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     versionJson = profile["versionInfo"] as Dictionary<string, object>;
                 }
 
-                if (versionJson == null) throw new Exception("installer 中缺少 version.json");
+                if (versionJson == null) throw new Exception("[NeoForge] installer 中缺少 version.json（或 versionInfo）");
 
                 string mavenSrc = Path.Combine(tempDir, "maven");
                 if (Directory.Exists(mavenSrc))
@@ -445,42 +477,61 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     RunProcessors(profile, serverDir, tempDir, "server", installerPath);
                 }
 
+                // ============================================================
+                // ★ ServerStarterJar 下载（失败必 throw，这是启动入口）
+                // ============================================================
                 string starterJar = Path.Combine(serverDir, "server.jar");
                 try
                 {
-                    recordLog(LogLevel.Info, $"[NeoForge] 下载 ServerStarterJar...");
+                    recordLog(LogLevel.Info, $"[NeoForge] 下载 ServerStarterJar: {SERVER_STARTER_URL}");
                     DownloadFile(SERVER_STARTER_URL, starterJar, false);
                     recordLog(LogLevel.Info, $"[NeoForge] ServerStarterJar 已就绪: {starterJar}");
                 }
                 catch (Exception ex)
                 {
-                    recordLog(LogLevel.Error, $"[NeoForge] ServerStarterJar 下载失败: {ex.Message}");
+                    throw new Exception(
+                        $"[NeoForge] ServerStarterJar 下载失败（这是服务端启动必需项）: {SERVER_STARTER_URL}", ex);
                 }
 
+                // ============================================================
+                // ★ 校验 run.bat / user_jvm_args.txt（run.bat 缺失必 throw）
+                // ============================================================
                 string runBat = Path.Combine(serverDir, "run.bat");
                 string jvmArgs = Path.Combine(serverDir, "user_jvm_args.txt");
 
                 if (File.Exists(runBat))
                     recordLog(LogLevel.Info, $"[NeoForge] run.bat 已就绪: {runBat}");
                 else
-                    recordLog(LogLevel.Warn, $"[NeoForge] 警告: 未找到 run.bat");
+                    throw new Exception(
+                        $"[NeoForge] 安装失败：未找到 run.bat: {runBat}\n" +
+                        "processor 1（WriteArgs/generateRuntimeConfig）可能未成功。");
 
                 if (File.Exists(jvmArgs))
                     recordLog(LogLevel.Info, $"[NeoForge] user_jvm_args.txt 已就绪，可在此文件里修改内存等 JVM 参数");
+                else
+                    recordLog(LogLevel.Warn, $"[NeoForge] 警告: 未找到 user_jvm_args.txt（可能已被 processor 使用默认值）");
 
                 recordLog(LogLevel.Info, $"[NeoForge] 服务端 NeoForge {version} 安装完成");
-                recordLog(LogLevel.Info, $"[NeoForge] 启动方式：java @user_jvm_args.txt -jar server.jar nogui");
+                recordLog(LogLevel.Info, $"[NeoForge] 启动方式：双击 {runBat}  （或 java @user_jvm_args.txt -jar server.jar nogui）");
                 recordLog(LogLevel.Info, $"[NeoForge] 首次启动前请修改 eula.txt 接受 EULA");
             }
             finally
             {
-                try { if (Directory.Exists(tempDir)) Directory.Delete(tempDir, true); } catch { }
+                try
+                {
+                    if (Directory.Exists(tempDir)) Directory.Delete(tempDir, true);
+                }
+                catch (Exception ex)
+                {
+                    LogEx($"[NeoForge] 清理临时目录失败(不致命): {tempDir}", ex, LogLevel.Warn);
+                }
             }
         }
 
         // ===================== 版本解析 =====================
         private static string McVersionToNeoPrefix(string mcVersion)
         {
+            // 1.21.1 → 21.1；1.20.1 → 20.1
             if (mcVersion.StartsWith("1."))
                 return mcVersion.Substring(2);
             return mcVersion;
@@ -501,6 +552,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             }
             if (!string.IsNullOrEmpty(param))
             {
+                // 形如 "21.1.0" / "1.20.1-47.2.0" 都视为完整 NeoForge 版本
                 if (Regex.IsMatch(param, @"^\d+\.\d+"))
                     return param;
             }
@@ -550,7 +602,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             }
             catch (Exception ex)
             {
-                recordLog(LogLevel.Error, $"[NeoForge] 获取版本列表失败: {ex.Message}");
+                LogEx($"[NeoForge] 获取版本列表失败: {mcVersion}", ex);
                 return null;
             }
         }
@@ -561,7 +613,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             catch { return string.Compare(a, b, StringComparison.Ordinal); }
         }
 
-        // ===================== 下载安装器（★ 多轮重试） =====================
+        // ===================== 下载安装器（多轮重试） =====================
         private static string DownloadInstaller(string neoVersion)
         {
             string launcherDir = AppDomain.CurrentDomain.BaseDirectory;
@@ -574,7 +626,12 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             if (File.Exists(installerPath) && new FileInfo(installerPath).Length > 0)
             {
                 try { ValidateJarFile(installerPath); }
-                catch { try { File.Delete(installerPath); } catch { } }
+                catch (Exception ex)
+                {
+                    LogEx($"[NeoForge] 已有安装器校验失败，删除重下: {installerPath}", ex, LogLevel.Warn);
+                    try { File.Delete(installerPath); }
+                    catch (Exception delEx) { LogEx($"[NeoForge] 删除损坏安装器失败: {installerPath}", delEx, LogLevel.Warn); }
+                }
 
                 if (File.Exists(installerPath))
                 {
@@ -602,7 +659,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 {
                     try
                     {
-                        try { if (File.Exists(installerPath)) File.Delete(installerPath); } catch { }
+                        try { if (File.Exists(installerPath)) File.Delete(installerPath); }
+                        catch (Exception delEx) { LogEx($"[NeoForge] 清理旧安装器失败: {installerPath}", delEx, LogLevel.Warn); }
 
                         DownloadLargeFile(url, installerPath, INSTALLER_CHUNKS);
                         recordLog(LogLevel.Info, $"[NeoForge] 安装器已下载: {installerPath}");
@@ -611,10 +669,12 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     catch (Exception ex)
                     {
                         lastError = ex.Message;
-                        recordLog(LogLevel.Error, $"[NeoForge] 第 {round} 轮源失败({url}): {ex.Message}");
+                        LogEx($"[NeoForge] 第 {round} 轮源失败({url})", ex);
 
-                        try { if (File.Exists(installerPath)) File.Delete(installerPath); } catch { }
-                        try { if (File.Exists(installerPath + ".tmp")) File.Delete(installerPath + ".tmp"); } catch { }
+                        try { if (File.Exists(installerPath)) File.Delete(installerPath); }
+                        catch (Exception delEx) { LogEx($"[NeoForge] 清理失败安装器失败: {installerPath}", delEx, LogLevel.Warn); }
+                        try { if (File.Exists(installerPath + ".tmp")) File.Delete(installerPath + ".tmp"); }
+                        catch (Exception delEx) { LogEx($"[NeoForge] 清理失败安装器 .tmp 失败", delEx, LogLevel.Warn); }
 
                         var dex = ex as DownloadException;
                         if (dex == null || IsRetryable(dex.Kind))
@@ -648,8 +708,19 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             recordLog(LogLevel.Info, $"[NeoForge] 文件大小: {FormatSize(totalSize)}，分 {chunks} 段并行");
 
-            using (var fs = File.Create(dest))
-                fs.SetLength(totalSize);
+            // ★ 预分配文件：失败时明确提示磁盘空间不足
+            try
+            {
+                using (var fs = File.Create(dest))
+                    fs.SetLength(totalSize);
+            }
+            catch (Exception ex)
+            {
+                try { if (File.Exists(dest)) File.Delete(dest); }
+                catch (Exception delEx) { LogEx($"[NeoForge] 删除预分配失败的文件失败: {dest}", delEx, LogLevel.Warn); }
+                throw new Exception(
+                    $"[NeoForge] 预分配安装器文件失败（可能磁盘空间不足）: {dest} ({FormatSize(totalSize)})", ex);
+            }
 
             long chunkSize = totalSize / chunks;
             var threads = new List<Thread>();
@@ -686,7 +757,11 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                         Console.Write($"\r[下载中] {fileName} - {pct}% " +
                                       $"({FormatSize(snapshot)}/{FormatSize(totalSize)}, " +
                                       $"{FormatSize((long)speed)}/s)   ");
-                        try { Console.Out.Flush(); } catch { }
+                        try { Console.Out.Flush(); }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine("[NeoForge] Console.Flush 失败: " + ex.Message);
+                        }
                     }
                 }
             });
@@ -718,10 +793,13 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                                 totalReceived -= progress[segIndex];
                                 progress[segIndex] = 0;
                             }
+                            LogEx($"[NeoForge] 段 {segIndex} 下载失败（第 {retry + 1}/{RETRY_COUNT} 次）", ex, LogLevel.Warn);
                             if (retry < RETRY_COUNT - 1)
                                 Thread.Sleep(800 * (retry + 1));
                         }
                     }
+                    if (lastEx != null)
+                        LogEx($"[NeoForge] 段 {segIndex} 最终失败", lastEx);
                     lock (progressLock) errors.Add(lastEx);
                 });
                 th.IsBackground = true;
@@ -738,13 +816,18 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             lock (_consoleLock)
             {
                 Console.Write("\r" + new string(' ', 140) + "\r");
-                try { Console.Out.Flush(); } catch { }
+                try { Console.Out.Flush(); }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine("[NeoForge] Console.Flush 失败: " + ex.Message);
+                }
             }
 
             if (errors.Count > 0)
             {
-                recordLog(LogLevel.Error, $"[NeoForge] 分段失败（{errors.Count} 段），回退单线程重下");
-                try { if (File.Exists(dest)) File.Delete(dest); } catch { }
+                recordLog(LogLevel.Warn, $"[NeoForge] 分段失败（{errors.Count} 段），回退单线程重下");
+                try { if (File.Exists(dest)) File.Delete(dest); }
+                catch (Exception delEx) { LogEx($"[NeoForge] 删除分段失败文件失败: {dest}", delEx, LogLevel.Warn); }
                 SingleDownloadWithProgress(url, dest, true, GetTimeoutForUrl(url));
                 return;
             }
@@ -755,8 +838,9 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             }
             catch (Exception ex)
             {
-                try { File.Delete(dest); } catch { }
-                throw new Exception($"安装器文件校验失败: {ex.Message}");
+                try { if (File.Exists(dest)) File.Delete(dest); }
+                catch (Exception delEx) { LogEx($"[NeoForge] 删除校验失败文件失败: {dest}", delEx, LogLevel.Warn); }
+                throw new Exception($"安装器文件校验失败: {dest}", ex);
             }
         }
 
@@ -776,7 +860,10 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     if (resp.ContentLength > 0) return resp.ContentLength;
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                LogEx($"[NeoForge] HEAD 探测大小失败，尝试 Range: {url}", ex, LogLevel.Info);
+            }
 
             try
             {
@@ -793,7 +880,10 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     if (total > 0) return total;
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                LogEx($"[NeoForge] Range 探测大小失败: {url}", ex, LogLevel.Info);
+            }
 
             return -1;
         }
@@ -880,22 +970,36 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                                 entryStream.CopyTo(outStream);
                             }
                         }
-                        catch { }
+                        catch (Exception ex)
+                        {
+                            // 单个 entry 失败记录，由下游验证 install_profile.json 完整性
+                            LogEx($"[NeoForge] 解压条目失败: {entry.FullName} -> {target}", ex);
+                        }
                     }
                 }
                 recordLog(LogLevel.Info, $"[NeoForge] 安装器已解压到: {destDir}");
             }
             catch (Exception ex)
             {
-                throw new Exception($"解压安装器失败: {ex.Message}", ex);
+                throw new Exception($"解压安装器失败: {installerPath} -> {destDir}", ex);
             }
         }
 
         private static void CopyDirectory(string src, string dest, bool skipExisting)
         {
+            string[] files;
             try
             {
-                foreach (var file in Directory.GetFiles(src, "*", SearchOption.AllDirectories))
+                files = Directory.GetFiles(src, "*", SearchOption.AllDirectories);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"[NeoForge] 枚举目录失败: {src}", ex);
+            }
+
+            foreach (var file in files)
+            {
+                try
                 {
                     string rel = file.Substring(src.Length).TrimStart('\\', '/');
                     string target = Path.Combine(dest, rel);
@@ -907,13 +1011,51 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                         new FileInfo(target).Length == new FileInfo(file).Length)
                         continue;
 
-                    try { File.Copy(file, target, true); } catch { }
+                    File.Copy(file, target, true);
+                }
+                catch (Exception ex)
+                {
+                    LogEx($"[NeoForge] 复制文件失败: {file} -> {dest}", ex);
                 }
             }
-            catch { }
         }
 
-        // ===================== ★ 合并父版本 JSON =====================
+        // ===================== ★ 复制原版核心 jar（失败必 throw） =====================
+        private static void CopyOriginalJarOrThrow(string versionsDir, string originalVersion,
+                                                     string versionDir, string versionId)
+        {
+            string originalClientJar = Path.Combine(versionsDir, originalVersion,
+                                                     originalVersion + ".jar");
+            string neoVersionJar = Path.Combine(versionDir, versionId + ".jar");
+
+            if (!File.Exists(originalClientJar) || new FileInfo(originalClientJar).Length == 0)
+            {
+                throw new Exception(
+                    $"[NeoForge] 原版 client.jar 缺失: {originalClientJar}\n" +
+                    "请先执行 Vanilla.InstallClient 完成原版安装。");
+            }
+
+            try
+            {
+                long srcLen = new FileInfo(originalClientJar).Length;
+                if (File.Exists(neoVersionJar) &&
+                    new FileInfo(neoVersionJar).Length == srcLen)
+                {
+                    recordLog(LogLevel.Info, $"[NeoForge] 版本核心已存在: {neoVersionJar}");
+                    return;
+                }
+
+                File.Copy(originalClientJar, neoVersionJar, true);
+                recordLog(LogLevel.Info, $"[NeoForge] 已复制原版核心到: {neoVersionJar}");
+            }
+            catch (Exception ex)
+            {
+                throw new Exception(
+                    $"[NeoForge] 复制原版核心失败: {originalClientJar} -> {neoVersionJar}", ex);
+            }
+        }
+
+        // ===================== ★ 合并父版本 JSON（id / jar 双重锁定） =====================
         private static Dictionary<string, object> MergeParentJson(
             Dictionary<string, object> parentRoot,
             Dictionary<string, object> childRoot,
@@ -932,7 +1074,9 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 merged[kv.Key] = kv.Value;
             }
 
+            // ★ id 和 jar 必须与目录名一致
             merged["id"] = versionId;
+            merged["jar"] = versionId;
 
             merged["libraries"] = MergeLibrariesForge(childRoot, parentRoot);
 
@@ -1079,7 +1223,11 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                         url = baseUrl + relPath;
                     }
                 }
-                if (string.IsNullOrEmpty(url)) continue;
+                if (string.IsNullOrEmpty(url))
+                {
+                    recordLog(LogLevel.Warn, $"[NeoForge] 库无 url 字段，无法下载: {name}（side={side}）");
+                    continue;
+                }
 
                 tasks.Add(new DownloadTask
                 {
@@ -1168,13 +1316,14 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 try { key = Path.GetFullPath(t.Dest); }
                 catch { key = t.Dest; }
                 if (seen.Add(key)) result.Add(t);
+                else recordLog(LogLevel.Info, $"[NeoForge] 去重丢弃重复目标: {t.Dest} (URL: {t.Url})");
             }
             if (result.Count != tasks.Count)
                 recordLog(LogLevel.Info, $"[NeoForge] 去重: {tasks.Count} -> {result.Count}");
             return result;
         }
 
-        // ===================== 运行 processors =====================
+        // ===================== ★ 运行 processors（失败必须 throw） =====================
         private static void RunProcessors(
             Dictionary<string, object> profile, string rootDir,
             string installerDir, string side, string installerPathArg)
@@ -1190,16 +1339,21 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             string librariesDir = Path.Combine(rootDir, "libraries");
 
             string installerPath = null;
-            if (profile.ContainsKey("installer_path"))
+            if (profile.ContainsKey("installer_path") && profile["installer_path"] != null)
                 installerPath = profile["installer_path"].ToString();
             if (string.IsNullOrEmpty(installerPath) || !File.Exists(installerPath))
+            {
+                if (string.IsNullOrEmpty(installerPathArg) || !File.Exists(installerPathArg))
+                    throw new Exception(
+                        "[NeoForge] processors 需要 {INSTALLER}，但既无 installer_path 也无 installerPathArg 且文件不存在");
                 installerPath = installerPathArg;
+            }
 
             recordLog(LogLevel.Info, $"[NeoForge] processor 使用的 INSTALLER 路径: {installerPath}");
 
+            string mcVersion = GetMinecraftVersion(profile);
             string mcJar = side == "client"
-                ? Path.Combine(rootDir, "versions", GetMinecraftVersion(profile),
-                    GetMinecraftVersion(profile) + ".jar")
+                ? Path.Combine(rootDir, "versions", mcVersion, mcVersion + ".jar")
                 : Path.Combine(rootDir, "server.jar");
 
             int idx = 0;
@@ -1207,17 +1361,21 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             {
                 idx++;
                 var proc = procObj as Dictionary<string, object>;
-                if (proc == null) continue;
+                if (proc == null)
+                    throw new Exception($"[NeoForge] processor {idx} 结构错误（不是 JSON 对象）");
 
+                // ---- 正常跳过 1：sides 不匹配 ----
                 if (proc.ContainsKey("sides"))
                 {
                     var sides = proc["sides"] as ArrayList;
-                    if (sides != null)
+                    if (sides != null && sides.Count > 0)
                     {
                         bool matched = false;
                         foreach (var s in sides)
-                            if (s.ToString().Equals(side, StringComparison.OrdinalIgnoreCase))
-                                matched = true;
+                        {
+                            if (s != null && s.ToString().Equals(side, StringComparison.OrdinalIgnoreCase))
+                            { matched = true; break; }
+                        }
                         if (!matched)
                         {
                             recordLog(LogLevel.Info, $"[NeoForge] 跳过 processor {idx}（不适用 {side}）");
@@ -1226,10 +1384,11 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     }
                 }
 
+                // ---- 正常跳过 2：outputs 已存在 ----
                 if (proc.ContainsKey("outputs"))
                 {
                     var outputs = proc["outputs"] as Dictionary<string, object>;
-                    if (outputs != null)
+                    if (outputs != null && outputs.Count > 0)
                     {
                         bool allExist = true;
                         foreach (var kv in outputs)
@@ -1247,37 +1406,35 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     }
                 }
 
-                string jarCoord = proc.ContainsKey("jar") ? proc["jar"].ToString() : null;
+                // ---- 以下全部"必须成功"，失败 throw ----
+                string jarCoord = (proc.ContainsKey("jar") && proc["jar"] != null)
+                    ? proc["jar"].ToString() : null;
                 if (string.IsNullOrEmpty(jarCoord))
-                {
-                    recordLog(LogLevel.Info, $"[NeoForge] processor {idx} 无 jar 字段，跳过");
-                    continue;
-                }
+                    throw new Exception($"[NeoForge] processor {idx} 缺少 jar 字段");
 
                 string procJarRel = MavenNameToPath(jarCoord);
+                if (string.IsNullOrEmpty(procJarRel))
+                    throw new Exception($"[NeoForge] processor {idx} jar 坐标无法解析: {jarCoord}");
+
                 string procJar = Path.Combine(librariesDir, procJarRel);
                 if (!File.Exists(procJar))
-                {
-                    recordLog(LogLevel.Error, $"[NeoForge] processor {idx} jar 不存在: {procJar}");
-                    continue;
-                }
+                    throw new Exception(
+                        $"[NeoForge] processor {idx} 的 jar 缺失: {procJar}\n" +
+                        "可能是 libraries 下载不完整或 maven 目录复制失败。");
 
                 try { ValidateJarFile(procJar); }
                 catch (Exception ex)
                 {
-                    recordLog(LogLevel.Error, $"[NeoForge] processor {idx} jar 损坏: {ex.Message}");
-                    continue;
+                    throw new Exception($"[NeoForge] processor {idx} 的 jar 损坏: {procJar}", ex);
                 }
 
-                string mainClass = proc.ContainsKey("mainClass")
+                string mainClass = (proc.ContainsKey("mainClass") && proc["mainClass"] != null)
                     ? proc["mainClass"].ToString() : null;
                 if (string.IsNullOrEmpty(mainClass))
                     mainClass = GetMainClassFromJar(procJar);
                 if (string.IsNullOrEmpty(mainClass))
-                {
-                    recordLog(LogLevel.Info, $"[NeoForge] processor {idx} 无法确定 mainClass，跳过");
-                    continue;
-                }
+                    throw new Exception(
+                        $"[NeoForge] processor {idx} 无法确定 mainClass（JSON 无 mainClass，jar 无 Main-Class）: {procJar}");
 
                 recordLog(LogLevel.Info, $"[NeoForge] processor {idx} mainClass = {mainClass}");
 
@@ -1289,6 +1446,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     {
                         foreach (var cp in cps)
                         {
+                            if (cp == null) continue;
                             string cpRel = MavenNameToPath(cp.ToString());
                             if (string.IsNullOrEmpty(cpRel)) continue;
                             string cpPath = Path.Combine(librariesDir, cpRel);
@@ -1307,7 +1465,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     {
                         foreach (var a in args)
                         {
-                            string raw = a.ToString();
+                            string raw = a?.ToString() ?? "";
                             string resolved = ResolveProcessorArg(raw, dataMap, rootDir,
                                 librariesDir, mcJar, installerPath, side, installerDir);
                             rawArgList.Add(raw);
@@ -1343,8 +1501,10 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 if (val == null) continue;
 
                 string sideVal = null;
-                if (val.ContainsKey(side)) sideVal = val[side].ToString();
-                else if (val.ContainsKey("client")) sideVal = val["client"].ToString();
+                if (val.ContainsKey(side) && val[side] != null)
+                    sideVal = val[side].ToString();
+                else if (val.ContainsKey("client") && val["client"] != null)
+                    sideVal = val["client"].ToString();
 
                 if (!string.IsNullOrEmpty(sideVal))
                     map[kv.Key] = sideVal;
@@ -1426,7 +1586,10 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     }
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                LogEx($"[NeoForge] 读取 jar MANIFEST 失败: {jarPath}", ex, LogLevel.Warn);
+            }
             return null;
         }
 
@@ -1450,9 +1613,14 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             foreach (var p in classpath)
             {
                 try { absClasspath.Add(Path.GetFullPath(p)); }
-                catch { absClasspath.Add(p); }
+                catch (Exception ex)
+                {
+                    LogEx($"[NeoForge] 解析 classpath 绝对路径失败，使用原值: {p}", ex, LogLevel.Warn);
+                    absClasspath.Add(p);
+                }
             }
-            try { workingDir = Path.GetFullPath(workingDir); } catch { }
+            try { workingDir = Path.GetFullPath(workingDir); }
+            catch (Exception ex) { LogEx($"[NeoForge] 解析 WorkingDir 绝对路径失败: {workingDir}", ex, LogLevel.Warn); }
 
             string cp = string.Join(";", absClasspath.ToArray());
             string fullArgs =
@@ -1461,17 +1629,18 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 string.Join(" ", args.ConvertAll(a =>
                     a.Contains(" ") ? "\"" + a + "\"" : a).ToArray());
 
-            recordLog(LogLevel.Info, $"[Processor] Java: {javaPath}");
-            recordLog(LogLevel.Info, $"[Processor] WorkingDir: {workingDir}");
-            recordLog(LogLevel.Info, $"[Processor] MainClass: {mainClass}");
-            recordLog(LogLevel.Info, $"[Processor] Classpath ({absClasspath.Count} 条):");
+            recordLog(LogLevel.Info, $"[NeoForge-Processor] Java: {javaPath}");
+            recordLog(LogLevel.Info, $"[NeoForge-Processor] WorkingDir: {workingDir}");
+            recordLog(LogLevel.Info, $"[NeoForge-Processor] MainClass: {mainClass}");
+            recordLog(LogLevel.Info, $"[NeoForge-Processor] Classpath ({absClasspath.Count} 条):");
             foreach (var p in absClasspath)
             {
                 bool exists = false;
-                try { exists = File.Exists(p); } catch { }
-                recordLog(LogLevel.Info, $"[Processor]   {(exists ? "√" : "×")} {p}");
+                try { exists = File.Exists(p); }
+                catch (Exception ex) { LogEx($"[NeoForge] 检查 classpath 文件失败: {p}", ex, LogLevel.Warn); }
+                recordLog(LogLevel.Info, $"[NeoForge-Processor]   {(exists ? "√" : "×")} {p}");
             }
-            recordLog(LogLevel.Info, $"[Processor] 完整命令行: {fullArgs}");
+            recordLog(LogLevel.Info, $"[NeoForge-Processor] 完整命令行: {fullArgs}");
 
             var psi = new ProcessStartInfo
             {
@@ -1491,34 +1660,47 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 process.OutputDataReceived += (s, e) =>
                 {
                     if (!string.IsNullOrEmpty(e.Data))
-                        recordLog(LogLevel.Info, "[Processor] " + e.Data);
+                        recordLog(LogLevel.Info, "[NeoForge-Processor] " + e.Data);
                 };
                 process.ErrorDataReceived += (s, e) =>
                 {
                     if (!string.IsNullOrEmpty(e.Data))
-                        recordLog(LogLevel.Info, "[Processor ERR] " + e.Data);
+                        recordLog(LogLevel.Info, "[NeoForge-Processor ERR] " + e.Data);
                 };
 
-                process.Start();
+                try
+                {
+                    process.Start();
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception($"[NeoForge] 启动 processor java 进程失败: {javaPath}", ex);
+                }
+
                 process.BeginOutputReadLine();
                 process.BeginErrorReadLine();
 
                 bool exited = process.WaitForExit(PROCESSOR_TIMEOUT_MS);
                 if (!exited)
                 {
-                    try { process.Kill(); } catch { }
+                    try { process.Kill(); }
+                    catch (Exception ex) { LogEx($"[NeoForge] Kill 超时 processor 进程失败", ex, LogLevel.Warn); }
                     process.WaitForExit(5000);
-                    throw new Exception("Processor 超时");
+                    throw new Exception($"Processor 超时（>{PROCESSOR_TIMEOUT_MS / 60000} 分钟）: {mainClass}");
                 }
 
+                process.WaitForExit();
+
                 if (process.ExitCode != 0)
-                    throw new Exception($"Processor 失败，退出码 {process.ExitCode}");
+                    throw new Exception(
+                        $"Processor 失败（退出码 {process.ExitCode}）: {mainClass}\n" +
+                        "请查看上方 [NeoForge-Processor] / [NeoForge-Processor ERR] 日志定位具体原因。");
             }
         }
 
         private static string GetMinecraftVersion(Dictionary<string, object> profile)
         {
-            if (profile.ContainsKey("minecraft"))
+            if (profile.ContainsKey("minecraft") && profile["minecraft"] != null)
             {
                 string v = profile["minecraft"].ToString();
                 if (!string.IsNullOrEmpty(v)) return v;
@@ -1526,15 +1708,15 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             if (profile.ContainsKey("install"))
             {
                 var install = profile["install"] as Dictionary<string, object>;
-                if (install != null && install.ContainsKey("minecraft"))
+                if (install != null && install.ContainsKey("minecraft") && install["minecraft"] != null)
                     return install["minecraft"].ToString();
             }
-            if (profile.ContainsKey("version"))
+            if (profile.ContainsKey("version") && profile["version"] != null)
                 return profile["version"].ToString();
             return "";
         }
 
-        // ===================== 并行下载（★ 多轮重试） =====================
+        // ===================== 并行下载（多轮重试） =====================
         private static void ParallelDownload(List<DownloadTask> tasks, int maxConcurrency)
         {
             var pending = new List<DownloadTask>(tasks);
@@ -1565,10 +1747,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
                 Interlocked.Exchange(ref _lastProgressTick, 0);
 
-                lock (_consoleLock)
-                {
-                    PrintProgressLine(skipped, failed, completed, total);
-                }
+                lock (_consoleLock) { PrintProgressLine(skipped, failed, completed, total); }
 
                 var threads = new List<Thread>();
                 for (int i = 0; i < maxConcurrency; i++)
@@ -1601,6 +1780,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                                     completed++;
                                     roundFailures.Add(task);
                                 }
+                                LogEx($"[NeoForge] 第 {round} 轮下载失败: {task.Name}", ex);
                             }
 
                             int now = Environment.TickCount;
@@ -1611,10 +1791,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                             if (isLast || (now - last) >= PROGRESS_REFRESH_MS)
                             {
                                 Volatile.Write(ref _lastProgressTick, now);
-                                lock (_consoleLock)
-                                {
-                                    PrintProgressLine(skipped, failed, completed, total);
-                                }
+                                lock (_consoleLock) { PrintProgressLine(skipped, failed, completed, total); }
                             }
                         }
                     });
@@ -1656,7 +1833,11 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             double pct = total == 0 ? 100 : (completed * 100.0 / total);
             Console.Write($"\r[NeoForge] 跳过 {skipped} | 失败 {failed} | " +
                           $"总进度 {pct:F1}% ({completed}/{total})  ");
-            try { Console.Out.Flush(); } catch { }
+            try { Console.Out.Flush(); }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("[NeoForge] Console.Flush 失败: " + ex.Message);
+            }
         }
 
         // ===================== 底层下载 =====================
@@ -1670,14 +1851,25 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 if (isJar)
                 {
                     try { ValidateJarFile(dest); return true; }
-                    catch { try { File.Delete(dest); } catch { } }
+                    catch (Exception ex)
+                    {
+                        LogEx($"[NeoForge] 已有文件校验失败，删除重下: {dest}", ex, LogLevel.Warn);
+                        try { File.Delete(dest); }
+                        catch (Exception delEx) { LogEx($"[NeoForge] 删除损坏文件失败: {dest}", delEx, LogLevel.Warn); }
+                    }
                 }
-                else { return true; }
+                else
+                {
+                    return true;
+                }
             }
 
             string dir = Path.GetDirectoryName(dest);
             if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
-                Directory.CreateDirectory(dir);
+            {
+                try { Directory.CreateDirectory(dir); }
+                catch (Exception ex) { throw new Exception($"[NeoForge] 创建目录失败: {dir}", ex); }
+            }
 
             string tmpPath = dest + ".tmp";
             string[] urls = BuildUrlCandidates(url);
@@ -1712,23 +1904,25 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                             try { ValidateJarFile(tmpPath); }
                             catch (Exception ex)
                             {
-                                try { File.Delete(tmpPath); } catch { }
+                                try { File.Delete(tmpPath); }
+                                catch (Exception delEx) { LogEx($"[NeoForge] 删除损坏 .tmp 失败: {tmpPath}", delEx, LogLevel.Warn); }
                                 throw new DownloadException(DownloadErrorKind.ContentType,
                                     "文件校验失败: " + ex.Message, ex);
                             }
                         }
 
-                        if (File.Exists(dest)) { try { File.Delete(dest); } catch { } }
-                        File.Move(tmpPath, dest);
+                        MoveOrReplace(tmpPath, dest);
                         return false;
                     }
                     catch (Exception ex)
                     {
                         var dex = ClassifyException(ex);
+                        LogEx($"[NeoForge] 下载失败({u}) [{dex.Kind}]", ex, LogLevel.Warn);
 
                         if (!IsRetryable(dex.Kind))
                         {
-                            try { if (File.Exists(tmpPath)) File.Delete(tmpPath); } catch { }
+                            try { if (File.Exists(tmpPath)) File.Delete(tmpPath); }
+                            catch (Exception delEx) { LogEx($"[NeoForge] 清理 .tmp 失败: {tmpPath}", delEx, LogLevel.Warn); }
                         }
 
                         urlErrors[u] = dex.Kind;
@@ -1757,6 +1951,54 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             foreach (var kv in urlErrors)
                 sb.Append("\n    [").Append(kv.Value).Append("] ").Append(kv.Key);
             throw new DownloadException(DownloadErrorKind.Unknown, sb.ToString());
+        }
+
+        private static void MoveOrReplace(string src, string dst)
+        {
+            if (File.Exists(dst))
+            {
+                try
+                {
+                    File.Replace(src, dst, null);
+                    return;
+                }
+                catch (PlatformNotSupportedException ex)
+                {
+                    LogEx($"[NeoForge] File.Replace 平台不支持，回退 Delete+Move: {dst}", ex, LogLevel.Warn);
+                }
+                catch (IOException ex)
+                {
+                    LogEx($"[NeoForge] File.Replace 失败（可能被占用），回退 Delete+Move: {dst}", ex, LogLevel.Warn);
+                }
+
+                for (int attempt = 0; attempt < 3; attempt++)
+                {
+                    try { File.Delete(dst); break; }
+                    catch (IOException ex)
+                    {
+                        if (attempt == 2)
+                            throw new Exception($"[NeoForge] 删除目标文件失败（可能被占用）: {dst}", ex);
+                        LogEx($"[NeoForge] 删除目标文件失败，重试 {attempt + 1}: {dst}", ex, LogLevel.Warn);
+                        Thread.Sleep(200 * (attempt + 1));
+                    }
+                }
+            }
+
+            for (int attempt = 0; attempt < 3; attempt++)
+            {
+                try
+                {
+                    File.Move(src, dst);
+                    return;
+                }
+                catch (IOException ex)
+                {
+                    if (attempt == 2)
+                        throw new Exception($"[NeoForge] 移动临时文件失败（可能被占用）: {src} -> {dst}", ex);
+                    LogEx($"[NeoForge] File.Move 失败，重试 {attempt + 1}: {dst}", ex, LogLevel.Warn);
+                    Thread.Sleep(200 * (attempt + 1));
+                }
+            }
         }
 
         private static string[] BuildUrlCandidates(string url)
@@ -1788,14 +2030,16 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             long existingLength = 0;
             if (File.Exists(dest))
             {
-                try { existingLength = new FileInfo(dest).Length; } catch { }
+                try { existingLength = new FileInfo(dest).Length; }
+                catch (Exception ex) { LogEx($"[NeoForge] 读取 .tmp 长度失败: {dest}", ex, LogLevel.Warn); }
             }
 
             if (existingLength > 0)
             {
                 if (TryResumeDownload(url, dest, existingLength, showProgress, timeoutMs))
                     return;
-                try { File.Delete(dest); } catch { }
+                try { File.Delete(dest); }
+                catch (Exception ex) { LogEx($"[NeoForge] 删除续传失败 .tmp 失败: {dest}", ex, LogLevel.Warn); }
                 existingLength = 0;
             }
 
@@ -1902,12 +2146,19 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 var httpResp = wex.Response as HttpWebResponse;
                 if (httpResp != null && (int)httpResp.StatusCode == 416)
                 {
-                    try { httpResp.Close(); } catch { }
+                    try { httpResp.Close(); }
+                    catch (Exception closeEx) { LogEx($"[NeoForge] 关闭 416 响应失败: {tmpPath}", closeEx, LogLevel.Warn); }
+                    LogEx($"[NeoForge] 断点续传 416（.tmp 可能已完整或过期），将从头下载: {tmpPath}", wex, LogLevel.Warn);
                     return false;
                 }
+                LogEx($"[NeoForge] 断点续传失败，将从头下载: {tmpPath}", wex, LogLevel.Warn);
                 return false;
             }
-            catch { return false; }
+            catch (Exception ex)
+            {
+                LogEx($"[NeoForge] 断点续传异常，将从头下载: {tmpPath}", ex, LogLevel.Warn);
+                return false;
+            }
             finally
             {
                 if (tracker != null) tracker.Stop();
@@ -1931,6 +2182,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 catch (Exception ex)
                 {
                     lastEx = ex;
+                    LogEx($"[NeoForge] 请求失败({url})（第 {retry + 1}/{RETRY_COUNT} 次）", ex, LogLevel.Warn);
                     if (retry < RETRY_COUNT - 1) Thread.Sleep(500 * (retry + 1));
                 }
             }
@@ -1953,11 +2205,14 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                         ipv4List.Add(a);
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                LogEx($"[NeoForge] DNS 解析失败: {uri.Host}", ex, LogLevel.Warn);
+            }
 
             if (ipv4List.Count == 0)
             {
-                recordLog(LogLevel.Info, $"[NeoForge] 未解析到 IPv4，退回原 URL: {url}");
+                recordLog(LogLevel.Warn, $"[NeoForge] 未解析到 IPv4，退回原 URL: {url}");
                 return SendRaw(url, null, timeoutMs, readWriteTimeoutMs);
             }
 
@@ -2005,6 +2260,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     path.EndsWith(".gz", StringComparison.OrdinalIgnoreCase) ||
                     path.EndsWith(".bin", StringComparison.OrdinalIgnoreCase);
 
+                // ★ 只拒 text/html，不再拒 application/json
                 if (expectBinary)
                 {
                     string contentType = resp.ContentType ?? "";
@@ -2012,7 +2268,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     {
                         resp.Close();
                         throw new DownloadException(DownloadErrorKind.ContentType,
-                            "服务器返回 HTML（可能是错误页）");
+                            "服务器返回 HTML（可能是错误页）: " + url);
                     }
                 }
                 return resp;
@@ -2025,12 +2281,12 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             using (var fs = File.OpenRead(path))
             {
                 if (fs.Length < 4)
-                    throw new Exception("文件太小，不是有效 zip/jar");
+                    throw new Exception($"文件太小，不是有效 zip/jar: {path}（{fs.Length} B）");
 
                 byte[] header = new byte[4];
                 int n = fs.Read(header, 0, 4);
                 if (n < 4 || header[0] != 0x50 || header[1] != 0x4B)
-                    throw new Exception("不是有效的 zip/jar 文件（可能是 HTML 错误页）");
+                    throw new Exception($"不是有效的 zip/jar 文件（可能是 HTML 错误页）: {path}");
 
                 fs.Seek(0, SeekOrigin.Begin);
                 try
@@ -2044,12 +2300,12 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                             if (count > 100000) break;
                         }
                         if (count == 0)
-                            throw new Exception("zip/jar 内无任何文件（可能是半截下载）");
+                            throw new Exception($"zip/jar 内无任何文件（可能是半截下载）: {path}");
                     }
                 }
                 catch (InvalidDataException ex)
                 {
-                    throw new Exception($"zip/jar 文件损坏: {ex.Message}");
+                    throw new Exception($"zip/jar 文件损坏: {path}", ex);
                 }
             }
         }
@@ -2096,10 +2352,17 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             foreach (string root in roots)
             {
                 if (!Directory.Exists(root)) continue;
-                foreach (string sub in Directory.GetDirectories(root))
+                try
                 {
-                    string exe = Path.Combine(sub, "bin", "java.exe");
-                    if (File.Exists(exe)) return exe;
+                    foreach (string sub in Directory.GetDirectories(root))
+                    {
+                        string exe = Path.Combine(sub, "bin", "java.exe");
+                        if (File.Exists(exe)) return exe;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    LogEx($"[NeoForge] 枚举 Java 目录失败: {root}", ex, LogLevel.Warn);
                 }
             }
             return "java";
@@ -2114,7 +2377,11 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 return new JavaScriptSerializer()
                     .Deserialize<Dictionary<string, object>>(json);
             }
-            catch { return null; }
+            catch (Exception ex)
+            {
+                LogEx("[NeoForge] JSON 解析失败", ex);
+                return null;
+            }
         }
 
         private static string FormatSize(long bytes)

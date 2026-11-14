@@ -1,12 +1,12 @@
 {
-  "version": "1.2.0",
-  "notes": "为Mod下载添加了中文搜索。",
+  "version": "1.2.1",
+  "notes": "健壮了安装逻辑，客户端安装窗口被嵌入进主窗口。",
   "force": false,
   "files": {
     "windows": {
       "url": "https://github.com/Jerry-Play-MC/Jerry-Craft-Launcher_WPF/releases/latest/download/Jerry_Craft_Launcher.exe",
-      "sha256": "2350b63e360ac0f89fa71ef1cc09b6b57118ae8e05c575db8c5aa77715411248",
-      "size": 1338368
+      "sha256": "3ce4989fe638428708aee642a77b8d9915221cc7b973111304335f89f2e419bb",
+      "size": 1384448
     }
   }
 }

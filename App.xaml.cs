@@ -35,7 +35,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         // --------------------------------  常量区  --------------------------------
 
         // =====程序版本信息=====
-        public const string Version = "1.2.0"; // 主程序版本号
+        public const string Version = "1.2.1"; // 主程序版本号
         // =====目录路径=====
         public static readonly string exePath = AppDomain.CurrentDomain.BaseDirectory; // 程序根目录
         public static readonly string minecraftPath = Path.Combine(exePath, ".minecraft"); // 设置目录
@@ -44,6 +44,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         public static readonly string rolePath = Path.Combine(settingPath, "Roles"); // 角色目录
         public static readonly string javaPath = Path.Combine(settingPath, "Java"); // Java 运行时目录
         public static readonly string cachePath = Path.Combine(settingPath, "Cache"); // 缓存目录
+        // =====占位变量=====
         // -------------------------------------------------------------------------
 
         /// <summary>
@@ -309,6 +310,30 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         // 确保launcher_profiles.json存在
         public static void EnsureLauncherProfiles(string minecraftDir)
         {
+            // ★ 参数空检查
+            if (string.IsNullOrEmpty(minecraftDir))
+            {
+                recordLog(LogLevel.Warn, "EnsureLauncherProfiles: minecraftDir 为空，跳过");
+                return;
+            }
+
+            // ★ 第一步：确保 .minecraft 目录存在（修复 DirectoryNotFoundException）
+            try
+            {
+                if (!Directory.Exists(minecraftDir))
+                {
+                    Directory.CreateDirectory(minecraftDir);
+                    recordLog(LogLevel.Info, $"已创建 .minecraft 目录: {minecraftDir}");
+                }
+            }
+            catch (Exception ex)
+            {
+                // 目录创建失败（权限/磁盘满）→ 后续写入必失败，直接退出
+                recordLog(LogLevel.Error,
+                    $"[启动检查] 创建 .minecraft 目录失败（不致命）: {minecraftDir}\n{ex}");
+                return;
+            }
+
             string path = Path.Combine(minecraftDir, "launcher_profiles.json");
 
             // 已存在 → 不动它，OptiFine 安装器会自己往里加版本条目
@@ -322,24 +347,36 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                         return;
                     }
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    recordLog(LogLevel.Warn, $"检查 launcher_profiles.json 大小失败（不致命）: {ex.Message}");
+                }
             }
 
             // 不存在或为空 → 写一个最小可用的
-            var root = new Dictionary<string, object>
+            try
             {
-                { "profiles", new Dictionary<string, object>() },
-                { "settings", new Dictionary<string, object>() },
-                { "version", 3 }
-            };
+                var root = new Dictionary<string, object>
+        {
+            { "profiles", new Dictionary<string, object>() },
+            { "settings", new Dictionary<string, object>() },
+            { "version", 3 }
+        };
 
-            File.WriteAllText(path,
-                new JavaScriptSerializer().Serialize(root),
-                new UTF8Encoding(false));
+                File.WriteAllText(path,
+                    new JavaScriptSerializer().Serialize(root),
+                    new UTF8Encoding(false));
 
-            recordLog(LogLevel.Info, $"已写入 launcher_profiles.json（无 BOM）: {path}");
+                recordLog(LogLevel.Info, $"已写入 launcher_profiles.json（无 BOM）: {path}");
+            }
+            catch (Exception ex)
+            {
+                // ★ 启动前置检查不应该崩溃：失败时记日志，继续启动
+                recordLog(LogLevel.Error,
+                    $"[启动检查] 写入 launcher_profiles.json 失败（不致命）: {path}\n{ex}");
+            }
         }
-    
+
 
         /// <summary>
         /// 全局日志写入器。OnStartup 调一次 CreateLogFile 打开文件，

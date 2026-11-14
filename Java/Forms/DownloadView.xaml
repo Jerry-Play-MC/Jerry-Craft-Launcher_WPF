@@ -17,13 +17,15 @@
         <Border Grid.Column="0" Background="#FAFAFA"
                 BorderBrush="#E0E0E0" BorderThickness="0,0,1,0">
             <StackPanel Margin="8,16,8,0">
-                <RadioButton GroupName="DownloadSubNav"
+                <RadioButton x:Name="SubNavMinecraft"
+                             GroupName="DownloadSubNav"
                              Content="{DynamicResource Download.Minecraft}"
                              Style="{StaticResource SubNavButtonStyle}"
                              IsChecked="True" Tag="Minecraft"
                              Checked="SubNav_Checked"
                              Margin="0,0,0,2"/>
-                <RadioButton GroupName="DownloadSubNav"
+                <RadioButton x:Name="SubNavMod"
+                             GroupName="DownloadSubNav"
                              Content="{DynamicResource Download.Mod}"
                              Style="{StaticResource SubNavButtonStyle}"
                              Tag="Mod"
@@ -37,13 +39,13 @@
 
             <!-- Minecraft 页 -->
             <Grid x:Name="MinecraftPanel" Background="White">
+                <!-- 原有内容不变 -->
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <!-- 标题 + 刷新 -->
                 <Grid Grid.Row="0" Margin="24,20,24,0">
                     <TextBlock Text="{DynamicResource Download.MinecraftTitle}"
                                FontSize="22" FontWeight="SemiBold"
@@ -64,7 +66,6 @@
                     </StackPanel>
                 </Grid>
 
-                <!-- 分类切换 -->
                 <StackPanel Grid.Row="1" Orientation="Horizontal"
                             Margin="24,16,24,0">
                     <RadioButton GroupName="MinecraftCategory"
@@ -90,7 +91,6 @@
                                  Checked="Category_Checked"/>
                 </StackPanel>
 
-                <!-- 版本列表 -->
                 <ListBox Grid.Row="2"
                          x:Name="ManifestVersionList"
                          Margin="24,16,24,24"
@@ -162,6 +162,14 @@
                            FontSize="24" Foreground="#DDDDDD"
                            HorizontalAlignment="Center"
                            VerticalAlignment="Center"/>
+            </Grid>
+
+            <!-- ★ 新增:安装页(覆盖右侧内容区) -->
+            <Grid x:Name="ClientInstallPanel" Background="White" Visibility="Collapsed">
+                <local:ClientInstallView x:Name="ClientInstallViewControl"
+                                          BackRequested="ClientInstallView_BackRequested"
+                                          InstallStarted="ClientInstallView_InstallStarted"
+                                          InstallCompleted="ClientInstallView_InstallCompleted"/>
             </Grid>
         </Grid>
     </Grid>

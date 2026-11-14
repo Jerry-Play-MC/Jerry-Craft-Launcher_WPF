@@ -2,10 +2,12 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Web.Script.Serialization;
 using static Jerry_Craft_Launcher.NET_Framework_4._5_WPF.App.AppLog;
 
@@ -14,39 +16,51 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
     internal class InstallLabyMod
     {
         // ===================== 源 =====================
-        private const string MANIFEST_URL =
-            "https://laby-releases.s3.de.io.cloud.ovh.net/api/v1/manifest/production/latest.json";
+        // R2 (Cloudflare) 和 OVH (S3) 是两个独立 CDN，国内速度常不同 → 都试，取快的
+        private const string HOST_R2 = "releases.r2.labymod.net";
+        private const string HOST_OVH = "laby-releases.s3.de.io.cloud.ovh.net";
 
-        // ★ 完整依赖清单（LabyMod 全部运行时库 + isolated_libraries 隔离列表）
-        private const string LIBS_URL_TEMPLATE =
-            "https://releases.r2.labymod.net/api/v1/libraries/{channel}.json";
+        private static readonly string[] MANIFEST_URLS = {
+            "https://releases.r2.labymod.net/api/v1/manifest/production/latest.json",
+            "https://laby-releases.s3.de.io.cloud.ovh.net/api/v1/manifest/production/latest.json",
+        };
 
-        // 核心 jar 候选源（第一个优先）
+        private static readonly string[] LIBS_URL_TEMPLATES = {
+            "https://releases.r2.labymod.net/api/v1/libraries/{channel}.json",
+            "https://laby-releases.s3.de.io.cloud.ovh.net/api/v1/libraries/{channel}.json",
+        };
+
         private static readonly string[] CORE_JAR_TEMPLATES = {
             "https://releases.r2.labymod.net/api/v1/download/labymod4/{channel}/{commit}.jar",
             "https://laby-releases.s3.de.io.cloud.ovh.net/api/v1/download/labymod4/{channel}/{commit}.jar",
         };
 
-        // 额外 asset 候选源（第一个优先）
         private static readonly string[] ASSET_TEMPLATES = {
             "https://releases.r2.labymod.net/api/v1/download/assets/labymod4/{channel}/{commit}/{name}/{hash}.jar",
             "https://laby-releases.s3.de.io.cloud.ovh.net/api/v1/download/assets/labymod4/{channel}/{commit}/{name}/{hash}.jar",
         };
 
-        // 默认 channel。若你的启动器支持 snapshot 测试版，把这里改成参数传入即可。
         private const string DEFAULT_CHANNEL = "production";
 
         // ===================== 下载参数 =====================
-        private const int MAX_CONCURRENCY = 24;
+        // ★ LabyMod 专用：156 个文件，源只有 2 个 CDN → 24 并发会让国内单连接互相挤兑
+        //   8 并发稳定，总时间几乎不降，进度更平滑
+        private const int MAX_CONCURRENCY = 8;
         private const int RETRY_COUNT = 3;
         private const int BUFFER_SIZE = 256 * 1024;
         private const int PROGRESS_REFRESH_MS = 100;
-        private const int HTTP_TIMEOUT_MS = 30000;
+        private const int HTTP_TIMEOUT_MS = 20000;   // 15~20 秒足够，太快误杀慢源，太慢用户不耐烦
 
         private const string UA_STRING = "Mozilla/5.0";
 
         private static readonly object _consoleLock = new object();
         private static int _lastProgressTick = 0;
+
+        // ===================== 统一异常日志 =====================
+        private static void LogEx(string context, Exception ex, LogLevel level = LogLevel.Error)
+        {
+            recordLog(level, context + " -> " + (ex == null ? "null" : ex.ToString()));
+        }
 
         // ===================== 公开入口 =====================
         public static string InstallClient(string version, string minecraftDir, string loaderParam)
@@ -66,12 +80,14 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             minecraftDir = Path.GetFullPath(minecraftDir);
             recordLog(LogLevel.Info, $"[LabyMod] 开始安装客户端 LabyMod {version}（channel={channel}）");
 
-            // ---------- 1. 拉取 manifest ----------
-            recordLog(LogLevel.Info, $"[LabyMod] 拉取 manifest: {MANIFEST_URL}");
-            string manifestJson = DownloadString(MANIFEST_URL);
+            // ---------- 1. 拉取 manifest（多源并行） ----------
+            recordLog(LogLevel.Info, $"[LabyMod] 步骤 1/15: 拉取 manifest（多源并行）");
+            string manifestJson = DownloadStringMulti(MANIFEST_URLS, "manifest");
+            recordLog(LogLevel.Info, $"[LabyMod] 步骤 1/15: manifest 已下载 ({manifestJson.Length} 字符)");
+
             var manifest = ParseJson(manifestJson);
             if (manifest == null)
-                throw new Exception("manifest 解析失败");
+                throw new Exception("[LabyMod] manifest 解析失败");
 
             string labyModVersion = GetStr(manifest, "labyModVersion");
             string commitRef = GetStr(manifest, "commitReference");
@@ -82,7 +98,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 long.TryParse(coreJarSizeStr, out coreJarSize);
 
             if (string.IsNullOrEmpty(commitRef))
-                throw new Exception("manifest 缺少 commitReference");
+                throw new Exception("[LabyMod] manifest 缺少 commitReference");
 
             recordLog(LogLevel.Info, $"[LabyMod] LabyMod 版本: {labyModVersion}");
             recordLog(LogLevel.Info, $"[LabyMod] commitReference: {commitRef}");
@@ -117,22 +133,36 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             recordLog(LogLevel.Info, $"[LabyMod] 目标 MC tag: {mcTag}");
             recordLog(LogLevel.Info, $"[LabyMod] 基础 JSON URL: {customManifestUrl}");
 
-            // ---------- 3. 下载基础版本 JSON ----------
-            var versionRoot = ParseJson(DownloadString(customManifestUrl));
+            // ---------- 3. 下载基础版本 JSON（派生镜像 + 多源并行） ----------
+            string[] baseJsonUrls = DeriveMirrorUrls(customManifestUrl);
+            recordLog(LogLevel.Info,
+                $"[LabyMod] 步骤 3/15: 下载基础 JSON（{baseJsonUrls.Length} 源并行）");
+            string baseJson = DownloadStringMulti(baseJsonUrls, "基础 JSON");
+            recordLog(LogLevel.Info, $"[LabyMod] 步骤 3/15: 基础 JSON 已下载 ({baseJson.Length} 字符)");
+
+            // ---------- 4. 解析基础 JSON ----------
+            recordLog(LogLevel.Info, $"[LabyMod] 步骤 4/15: 解析基础 JSON");
+            var versionRoot = ParseJson(baseJson);
             if (versionRoot == null)
-                throw new Exception("基础版本 JSON 解析失败");
+                throw new Exception("[LabyMod] 基础版本 JSON 解析失败");
+            recordLog(LogLevel.Info, $"[LabyMod] 步骤 4/15: 解析完成（{versionRoot.Count} 个根字段）");
 
             int baseLibCount = (versionRoot.ContainsKey("libraries")
                 ? versionRoot["libraries"] as ArrayList : null)?.Count ?? 0;
             recordLog(LogLevel.Info, $"[LabyMod] 基础 JSON 库数量: {baseLibCount}");
 
-            // ---------- 4. ★ 下载完整依赖清单 + 隔离列表 ----------
-            string libUrl = LIBS_URL_TEMPLATE.Replace("{channel}", channel);
-            recordLog(LogLevel.Info, $"[LabyMod] 下载完整依赖清单: {libUrl}");
+            // ---------- 5. 下载完整依赖清单 + 隔离列表（多源并行） ----------
+            string[] libUrls = LIBS_URL_TEMPLATES
+                .Select(t => t.Replace("{channel}", channel))
+                .ToArray();
+            recordLog(LogLevel.Info,
+                $"[LabyMod] 步骤 5/15: 下载完整依赖清单（{libUrls.Length} 源并行）");
 
             try
             {
-                string libText = DownloadString(libUrl);
+                string libText = DownloadStringMulti(libUrls, "完整依赖清单");
+                recordLog(LogLevel.Info, $"[LabyMod] 步骤 5/15: 完整依赖清单已下载 ({libText.Length} 字符)");
+
                 var libRoot = ParseJson(libText);
 
                 if (libRoot == null)
@@ -141,21 +171,16 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 }
                 else
                 {
-                    // 4.1 收集隔离列表
                     var isolatedSet = CollectIsolatedLibraries(libRoot, mcTag);
                     recordLog(LogLevel.Info, $"[LabyMod] 需要隔离 {isolatedSet.Count} 个库");
 
-                    // 4.2 过滤基础 JSON 中被隔离的库
                     FilterIsolatedFromBase(versionRoot, isolatedSet);
 
-                    // 4.3 追加完整依赖清单里的全部库
                     int appended = AppendFullLibraries(versionRoot, libRoot);
                     recordLog(LogLevel.Info, $"[LabyMod] 从完整依赖清单追加 {appended} 个库");
 
-                    // 4.4 追加 LabyMod 主 jar
                     AppendLabyModCoreJar(versionRoot, channel, commitRef, coreJarSha1, coreJarSize);
 
-                    // 4.5 写入 labymod_data
                     versionRoot["labymod_data"] = new Dictionary<string, object>
                     {
                         { "channelType", channel },
@@ -167,7 +192,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             }
             catch (Exception ex)
             {
-                recordLog(LogLevel.Warn, $"[LabyMod] ⚠ 完整依赖清单处理失败: {ex.Message}");
+                LogEx("[LabyMod] ⚠ 完整依赖清单处理失败，仅使用基础 JSON（可能启动时缺库）", ex, LogLevel.Warn);
             }
 
             int mergedLibCount = (versionRoot.ContainsKey("libraries")
@@ -177,15 +202,15 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             if (mergedLibCount < 50)
                 recordLog(LogLevel.Warn, $"[LabyMod] ⚠ 警告：库数量偏少（<50），启动时可能报 ClassNotFoundException");
 
-            // ---------- 5. 构建版本 ID ----------
+            // ---------- 6. 构建版本 ID ----------
             string shortCommit = commitRef.Length > 8 ? commitRef.Substring(0, 8) : commitRef;
             string versionId = $"LabyMod-4-{version}-{shortCommit}";
-            recordLog(LogLevel.Info, $"[LabyMod] 版本 ID: {versionId}");
+            recordLog(LogLevel.Info, $"[LabyMod] 步骤 6/15: 版本 ID = {versionId}");
 
             versionRoot["id"] = versionId;
             versionRoot["jar"] = versionId;
 
-            // ---------- 6. 删掉 downloads.client（主 jar 由 LabyMod 核心 jar 提供）----------
+            // ---------- 7. 删掉 downloads.client ----------
             if (versionRoot.ContainsKey("downloads"))
             {
                 var dl = versionRoot["downloads"] as Dictionary<string, object>;
@@ -196,10 +221,10 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 }
             }
 
-            // ---------- 7. 兜底注入 launchwrapper（极少数基础 JSON 缺失时）----------
+            // ---------- 8. 兜底注入 launchwrapper ----------
             EnsureLabyModLibraries(versionRoot);
 
-            // ---------- 8. 准备目录 ----------
+            // ---------- 9. 准备目录 ----------
             string versionsDir = Path.Combine(minecraftDir, "versions");
             string versionDir = Path.Combine(versionsDir, versionId);
             string librariesDir = Path.Combine(minecraftDir, "libraries");
@@ -214,16 +239,17 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             var tasks = new List<DownloadTask>();
 
-            // ---------- 9. LabyMod 核心 jar ----------
+            // ---------- 10. LabyMod 核心 jar（双源） ----------
             string coreJarDest = Path.Combine(versionDir, versionId + ".jar");
-            string coreJarUrl = CORE_JAR_TEMPLATES[0]
-                .Replace("{channel}", channel)
-                .Replace("{commit}", commitRef);
+            string[] coreJarUrls = CORE_JAR_TEMPLATES
+                .Select(t => t.Replace("{channel}", channel).Replace("{commit}", commitRef))
+                .ToArray();
 
-            recordLog(LogLevel.Info, $"[LabyMod] 核心 jar: {coreJarUrl}");
+            recordLog(LogLevel.Info,
+                $"[LabyMod] 步骤 10/15: 核心 jar（{coreJarUrls.Length} 源）");
             tasks.Add(new DownloadTask
             {
-                Url = coreJarUrl,
+                Urls = coreJarUrls,
                 Dest = coreJarDest,
                 Sha1 = coreJarSha1,
                 Name = versionId + ".jar",
@@ -231,25 +257,29 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 ShowProgress = true
             });
 
-            // ---------- 10. assetIndex ----------
+            // ---------- 11. assetIndex（单源，Mojang 域名） ----------
             if (versionRoot.ContainsKey("assetIndex"))
             {
                 var ai = versionRoot["assetIndex"] as Dictionary<string, object>;
                 if (ai != null && ai.ContainsKey("id"))
                 {
                     string assetIndexId = GetStr(ai, "id");
-                    tasks.Add(new DownloadTask
+                    string aiUrl = GetStr(ai, "url");
+                    if (!string.IsNullOrEmpty(aiUrl))
                     {
-                        Url = GetStr(ai, "url"),
-                        Dest = Path.Combine(assetsDir, "indexes", assetIndexId + ".json"),
-                        Sha1 = GetStr(ai, "sha1"),
-                        Name = assetIndexId + ".json",
-                        Type = "asset-index"
-                    });
+                        tasks.Add(new DownloadTask
+                        {
+                            Urls = DeriveMirrorUrls(aiUrl),
+                            Dest = Path.Combine(assetsDir, "indexes", assetIndexId + ".json"),
+                            Sha1 = GetStr(ai, "sha1"),
+                            Name = assetIndexId + ".json",
+                            Type = "asset-index"
+                        });
+                    }
                 }
             }
 
-            // ---------- 11. logging ----------
+            // ---------- 12. logging（单源） ----------
             if (versionRoot.ContainsKey("logging"))
             {
                 var logging = versionRoot["logging"] as Dictionary<string, object>;
@@ -260,21 +290,25 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 if (logFile != null && logFile.ContainsKey("id") && logFile.ContainsKey("url"))
                 {
                     string id = GetStr(logFile, "id");
-                    tasks.Add(new DownloadTask
+                    string logUrl = GetStr(logFile, "url");
+                    if (!string.IsNullOrEmpty(logUrl))
                     {
-                        Url = GetStr(logFile, "url"),
-                        Dest = Path.Combine(assetsDir, "log_configs", id),
-                        Sha1 = GetStr(logFile, "sha1"),
-                        Name = id,
-                        Type = "logging"
-                    });
+                        tasks.Add(new DownloadTask
+                        {
+                            Urls = DeriveMirrorUrls(logUrl),
+                            Dest = Path.Combine(assetsDir, "log_configs", id),
+                            Sha1 = GetStr(logFile, "sha1"),
+                            Name = id,
+                            Type = "logging"
+                        });
+                    }
                 }
             }
 
-            // ---------- 12. libraries ----------
+            // ---------- 13. libraries ----------
             CollectLibraryTasks(versionRoot, librariesDir, tasks);
 
-            // ---------- 13. LabyMod 额外 assets ----------
+            // ---------- 14. LabyMod 额外 assets（双源） ----------
             if (manifest.ContainsKey("assets"))
             {
                 var assets = manifest["assets"] as Dictionary<string, object>;
@@ -286,15 +320,17 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                         string hash = Convert.ToString(kv.Value);
                         if (string.IsNullOrEmpty(hash)) continue;
 
-                        string url = ASSET_TEMPLATES[0]
-                            .Replace("{channel}", channel)
-                            .Replace("{commit}", commitRef)
-                            .Replace("{name}", name)
-                            .Replace("{hash}", hash);
+                        string[] urls = ASSET_TEMPLATES
+                            .Select(t => t
+                                .Replace("{channel}", channel)
+                                .Replace("{commit}", commitRef)
+                                .Replace("{name}", name)
+                                .Replace("{hash}", hash))
+                            .ToArray();
 
                         tasks.Add(new DownloadTask
                         {
-                            Url = url,
+                            Urls = urls,
                             Dest = Path.Combine(labyModNeoDir, "assets", name + ".jar"),
                             Sha1 = null,
                             Name = name + ".jar",
@@ -304,14 +340,22 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 }
             }
 
-            // ---------- 14. 保存版本 JSON ----------
+            // ---------- 15. 保存版本 JSON ----------
             string versionJsonPath = Path.Combine(versionDir, versionId + ".json");
-            File.WriteAllText(versionJsonPath,
-                new JavaScriptSerializer().Serialize(versionRoot), Encoding.UTF8);
-            recordLog(LogLevel.Info, $"[LabyMod] 版本 JSON 已保存: {versionJsonPath}");
+            try
+            {
+                File.WriteAllText(versionJsonPath,
+                    new JavaScriptSerializer().Serialize(versionRoot),
+                    new UTF8Encoding(false));
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"[LabyMod] 写入版本 JSON 失败: {versionJsonPath}", ex);
+            }
+            recordLog(LogLevel.Info, $"[LabyMod] 步骤 15/15: 版本 JSON 已保存: {versionJsonPath}");
 
-            // ---------- 15. 下载 ----------
-            recordLog(LogLevel.Info, $"[LabyMod] 下载任务: {tasks.Count}");
+            // ---------- 开始下载 ----------
+            recordLog(LogLevel.Info, $"[LabyMod] 下载任务: {tasks.Count}（{MAX_CONCURRENCY} 线程并行）");
             ParallelDownload(tasks, MAX_CONCURRENCY);
 
             recordLog(LogLevel.Info, $"[LabyMod] 客户端 LabyMod {version} 安装完成");
@@ -319,12 +363,186 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             return versionId;
         }
 
-        // ===================== 隔离列表处理 =====================
+        // ===================== 派生镜像 URL =====================
         /// <summary>
-        /// 从完整依赖清单里收集当前 MC 版本需要隔离的库名。
-        /// isolated_libraries 里的 name 是简写（如 lwjgl、lwjgl-freetype、thin-lwjgl），
-        /// 需要和基础 JSON 中的 org.lwjgl:lwjgl:... 之类做匹配。
+        /// 如果 URL 里含 R2 或 OVH 域名，派生另一个域名的等价 URL。
+        /// 两个 CDN 内容完全一样，路径结构一致，可直接替换域名。
         /// </summary>
+        private static string[] DeriveMirrorUrls(string url)
+        {
+            if (string.IsNullOrEmpty(url))
+                return new string[] { url };
+
+            var list = new List<string> { url };
+
+            if (url.IndexOf(HOST_R2, StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                list.Add(url.Replace(HOST_R2, HOST_OVH));
+            }
+            else if (url.IndexOf(HOST_OVH, StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                list.Add(url.Replace(HOST_OVH, HOST_R2));
+            }
+
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            return list.Where(u => !string.IsNullOrEmpty(u) && seen.Add(u)).ToArray();
+        }
+
+        // ===================== 多源并行下载字符串 =====================
+        /// <summary>
+        /// 多源并行探测：同时向所有源发请求，第一个成功的胜出，其它源主动放弃。
+        /// 内部带 RETRY_COUNT 轮重试。
+        /// </summary>
+        private static string DownloadStringMulti(string[] urls, string logTag)
+        {
+            if (urls == null || urls.Length == 0)
+                throw new ArgumentException("[LabyMod] DownloadStringMulti: urls 不能为空");
+
+            // 单源直接走简单路径
+            if (urls.Length == 1)
+                return DownloadStringWithRetry(urls[0], logTag);
+
+            Exception lastEx = null;
+            for (int retry = 0; retry < RETRY_COUNT; retry++)
+            {
+                try
+                {
+                    if (retry > 0)
+                    {
+                        recordLog(LogLevel.Info,
+                            $"[LabyMod] {logTag} 第 {retry + 1}/{RETRY_COUNT} 轮（{urls.Length} 源并行）");
+                        Thread.Sleep(1000 * retry);
+                    }
+
+                    return DownloadStringMultiOnce(urls, logTag);
+                }
+                catch (Exception ex)
+                {
+                    lastEx = ex;
+                    LogEx($"[LabyMod] {logTag} 多源探测失败（第 {retry + 1}/{RETRY_COUNT} 轮）", ex, LogLevel.Warn);
+                }
+            }
+            throw new Exception($"[LabyMod] {logTag} 最终失败: {lastEx?.Message}", lastEx);
+        }
+
+        /// <summary>
+        /// 一次并行探测：谁先成功用谁的结果，成功后 cancel 其它源。
+        /// </summary>
+        private static string DownloadStringMultiOnce(string[] urls, string logTag)
+        {
+            var tcs = new TaskCompletionSource<string>();
+            var cts = new CancellationTokenSource();
+            int remaining = urls.Length;
+            object remainingLock = new object();
+
+            foreach (var url in urls)
+            {
+                var u = url;
+                Task.Run(() =>
+                {
+                    string content = null;
+                    try
+                    {
+                        content = DownloadStringSingle(u, cts.Token);
+                    }
+                    catch (OperationCanceledException) { /* 被其它源抢先，正常 */ }
+                    catch (Exception ex)
+                    {
+                        LogEx($"[LabyMod] 源失败: {GetHostSafe(u)}", ex, LogLevel.Info);
+                    }
+
+                    if (content != null)
+                    {
+                        if (tcs.TrySetResult(content))
+                        {
+                            recordLog(LogLevel.Info, $"[LabyMod] {logTag} 胜出源: {GetHostSafe(u)}");
+                            cts.Cancel();
+                        }
+                    }
+                    else
+                    {
+                        bool allDone;
+                        lock (remainingLock) { allDone = (--remaining == 0); }
+                        if (allDone && !tcs.Task.IsCompleted)
+                            tcs.TrySetException(new Exception(
+                                $"{logTag} 所有源都失败: {string.Join(", ", urls.Select(GetHostSafe))}"));
+                    }
+                });
+            }
+
+            // 阻塞等待第一个成功或全部失败
+            return tcs.Task.Result;
+        }
+
+        private static string DownloadStringWithRetry(string url, string logTag)
+        {
+            Exception lastEx = null;
+            for (int i = 0; i < RETRY_COUNT; i++)
+            {
+                try
+                {
+                    return DownloadStringSingle(url, CancellationToken.None);
+                }
+                catch (Exception ex)
+                {
+                    lastEx = ex;
+                    LogEx($"[LabyMod] {logTag} 请求失败（第 {i + 1}/{RETRY_COUNT} 次）: {GetHostSafe(url)}", ex, LogLevel.Warn);
+                    if (i < RETRY_COUNT - 1) Thread.Sleep(1000 * (i + 1));
+                }
+            }
+            throw new Exception($"[LabyMod] {logTag} 失败: {url}: {lastEx?.Message}", lastEx);
+        }
+
+        /// <summary>
+        /// 单源下载字符串。支持 CancellationToken（token.Cancel 时 Abort 请求）。
+        /// ★ 关键：ReadWriteTimeout = HTTP_TIMEOUT_MS，否则 Body 卡住阻塞默认 5 分钟。
+        /// </summary>
+        private static string DownloadStringSingle(string url, CancellationToken token)
+        {
+            if (string.IsNullOrEmpty(url))
+                throw new ArgumentException("url 为空");
+
+            var req = (HttpWebRequest)WebRequest.Create(url);
+            req.UserAgent = UA_STRING;
+            req.Timeout = HTTP_TIMEOUT_MS;
+            req.ReadWriteTimeout = HTTP_TIMEOUT_MS;
+            req.AllowAutoRedirect = true;
+            req.KeepAlive = false;
+
+            // 注册 abort，让其它源抢先时本请求立刻停止
+            token.Register(() => { try { req.Abort(); } catch { } });
+
+            try
+            {
+                using (var resp = (HttpWebResponse)req.GetResponse())
+                using (var stream = resp.GetResponseStream())
+                using (var reader = new StreamReader(stream, Encoding.UTF8))
+                {
+                    if (token.IsCancellationRequested)
+                        throw new OperationCanceledException();
+
+                    // 分块读，每块检查 token
+                    var sb = new StringBuilder();
+                    char[] buf = new char[8192];
+                    int read;
+                    while ((read = reader.Read(buf, 0, buf.Length)) > 0)
+                    {
+                        if (token.IsCancellationRequested)
+                            throw new OperationCanceledException();
+                        sb.Append(buf, 0, read);
+                    }
+                    return sb.ToString();
+                }
+            }
+            catch (WebException wex)
+            {
+                if (token.IsCancellationRequested)
+                    throw new OperationCanceledException();
+                throw new Exception($"HTTP 失败: {url}: {wex.Message}", wex);
+            }
+        }
+
+        // ===================== 隔离列表处理 =====================
         private static HashSet<string> CollectIsolatedLibraries(
             Dictionary<string, object> libRoot, string mcTag)
         {
@@ -357,11 +575,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             return result;
         }
 
-        /// <summary>
-        /// 从基础 JSON 的 libraries 里剔除需要隔离的库。
-        /// 匹配规则：取 name 的第二段（artifact），看是否等于隔离短名；
-        /// 例如 org.lwjgl:lwjgl:3.4.3:natives-windows 的 artifact 是 lwjgl，等于隔离名 lwjgl 就剔除。
-        /// </summary>
         private static void FilterIsolatedFromBase(
             Dictionary<string, object> versionRoot, HashSet<string> isolatedSet)
         {
@@ -392,24 +605,17 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         private static bool ShouldIsolate(string libName, HashSet<string> isolatedSet)
         {
             if (string.IsNullOrEmpty(libName)) return false;
-
-            // 完整匹配
             if (isolatedSet.Contains(libName)) return true;
 
-            // 按 Maven 坐标拆分：group:artifact:version[:classifier]
             var parts = libName.Split(':');
             if (parts.Length >= 2)
             {
                 string artifact = parts[1];
                 if (isolatedSet.Contains(artifact)) return true;
-
-                // 对 org.lwjgl 前缀的做特殊处理：thin-lwjgl 在 net.labymod 下
-                string group = parts[0];
-                string combined = group + ":" + artifact;
+                string combined = parts[0] + ":" + artifact;
                 if (isolatedSet.Contains(combined)) return true;
             }
 
-            // 兜底：名字尾部是否精确等于隔离名
             foreach (var iso in isolatedSet)
             {
                 if (libName.EndsWith(":" + iso, StringComparison.OrdinalIgnoreCase) ||
@@ -420,11 +626,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         }
 
         // ===================== 追加完整依赖 =====================
-        /// <summary>
-        /// 把完整依赖清单里的 libraries 全部追加到版本 JSON。
-        /// 每条 item 形如：{ name, url, sha1, size, ... }，转换成 MC 标准格式：
-        /// { name, downloads: { artifact: { path, sha1, size, url } } }
-        /// </summary>
         private static int AppendFullLibraries(
             Dictionary<string, object> versionRoot, Dictionary<string, object> libRoot)
         {
@@ -440,7 +641,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 versionRoot["libraries"] = merged;
             }
 
-            // 按 name 去重
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var l in merged)
             {
@@ -459,7 +659,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(url)) continue;
                 if (seen.Contains(name)) continue;
 
-                // 从 URL 提取 artifact path
                 string path = ExtractArtifactPath(url);
                 if (string.IsNullOrEmpty(path)) continue;
 
@@ -487,11 +686,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             return added;
         }
 
-        /// <summary>
-        /// 从 LabyMod Maven URL 中提取 artifact 相对路径。
-        /// 例如 https://releases.r2.labymod.net/libraries/org/lwjgl/lwjgl/3.4.3/lwjgl-3.4.3.jar
-        /// 返回 org/lwjgl/lwjgl/3.4.3/lwjgl-3.4.3.jar
-        /// </summary>
         private static string ExtractArtifactPath(string url)
         {
             const string marker = "/libraries/";
@@ -514,7 +708,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 versionRoot["libraries"] = merged;
             }
 
-            // 去重：如果已经存在 net.labymod:LabyMod:4，先移除
             for (int i = merged.Count - 1; i >= 0; i--)
             {
                 var d = merged[i] as Dictionary<string, object>;
@@ -526,7 +719,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 }
             }
 
-            string jarUrl = $"https://releases.r2.labymod.net/api/v1/download/labymod4/{channel}/{commitRef}.jar";
+            string jarUrl = $"https://{HOST_R2}/api/v1/download/labymod4/{channel}/{commitRef}.jar";
 
             merged.Add(new Dictionary<string, object>
             {
@@ -565,13 +758,12 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     seen.Add(Convert.ToString(d["name"]));
             }
 
-            // 仅注入 launchwrapper，log4j 已由完整依赖清单提供，不再手动注入
             var required = new[]
             {
                 new
                 {
                     Name = "net.minecraft:launchwrapper:4.1.3",
-                    Url  = "https://releases.r2.labymod.net/libraries/"
+                    Url  = $"https://{HOST_R2}/libraries/"
                 },
             };
 
@@ -585,6 +777,13 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 };
                 libs.Add(libObj);
                 recordLog(LogLevel.Info, $"[LabyMod] 注入兜底库: {r.Name}");
+            }
+
+            if (libs.Count < 10)
+            {
+                recordLog(LogLevel.Warn,
+                    $"[LabyMod] ⚠ 库总数仅 {libs.Count} 个，远少于正常值（几百个）。\n" +
+                    "  可能原因：完整依赖清单合并失败。启动时可能报 ClassNotFoundException。");
             }
         }
 
@@ -631,14 +830,18 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                             var nat = cls["natives-windows"] as Dictionary<string, object>;
                             if (nat != null && nat.ContainsKey("url") && nat.ContainsKey("path"))
                             {
-                                tasks.Add(new DownloadTask
+                                string natUrl = GetStr(nat, "url");
+                                if (!string.IsNullOrEmpty(natUrl))
                                 {
-                                    Url = GetStr(nat, "url"),
-                                    Dest = Path.Combine(librariesDir, GetStr(nat, "path")),
-                                    Sha1 = GetStr(nat, "sha1"),
-                                    Name = GetStr(nat, "path"),
-                                    Type = "libraries"
-                                });
+                                    tasks.Add(new DownloadTask
+                                    {
+                                        Urls = DeriveMirrorUrls(natUrl),
+                                        Dest = Path.Combine(librariesDir, GetStr(nat, "path")),
+                                        Sha1 = GetStr(nat, "sha1"),
+                                        Name = GetStr(nat, "path"),
+                                        Type = "libraries"
+                                    });
+                                }
                             }
                         }
                     }
@@ -648,7 +851,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 {
                     tasks.Add(new DownloadTask
                     {
-                        Url = url,
+                        Urls = DeriveMirrorUrls(url),
                         Dest = Path.Combine(librariesDir, relPath),
                         Sha1 = sha1,
                         Name = relPath,
@@ -667,13 +870,17 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                         {
                             tasks.Add(new DownloadTask
                             {
-                                Url = baseUrl + rel,
+                                Urls = DeriveMirrorUrls(baseUrl + rel),
                                 Dest = Path.Combine(librariesDir, rel),
                                 Sha1 = null,
                                 Name = rel,
                                 Type = "libraries"
                             });
                         }
+                    }
+                    else
+                    {
+                        recordLog(LogLevel.Warn, $"[LabyMod] 库无 url 字段，无法下载: {name}");
                     }
                 }
             }
@@ -691,6 +898,13 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             string classifier = parts.Length >= 4 ? parts[3] : null;
             string ext = ".jar";
 
+            if (!string.IsNullOrEmpty(version) && version.Contains("@"))
+            {
+                int at = version.IndexOf('@');
+                ext = "." + version.Substring(at + 1);
+                version = version.Substring(0, at);
+            }
+
             if (!string.IsNullOrEmpty(classifier) && classifier.Contains("@"))
             {
                 int at = classifier.IndexOf('@');
@@ -705,7 +919,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             return $"{group}/{artifact}/{version}/{fileName}";
         }
 
-        // ===================== 下载 =====================
+        // ===================== 并行下载 =====================
         private static void ParallelDownload(List<DownloadTask> tasks, int maxConcurrency)
         {
             int failed = 0, skipped = 0, completed = 0;
@@ -713,6 +927,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             int nextIndex = 0;
             object queueLock = new object();
             object statLock = new object();
+            var failures = new List<string>();
 
             recordLog(LogLevel.Info, $"[LabyMod] 开始并行下载（{maxConcurrency} 线程，共 {total} 个任务）...");
             Interlocked.Exchange(ref _lastProgressTick, 0);
@@ -742,12 +957,18 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                         }
                         catch (Exception ex)
                         {
-                            lock (statLock) { failed++; completed++; }
+                            lock (statLock)
+                            {
+                                failed++;
+                                completed++;
+                                if (failures.Count < 50)
+                                    failures.Add($"{task.Name} <- {ex.Message}");
+                            }
                             lock (_consoleLock)
                             {
                                 Console.Write("\r" + new string(' ', 140) + "\r");
-                                Console.WriteLine($"[LabyMod] 下载失败: {task.Name} -> {ex.Message}");
                             }
+                            LogEx($"[LabyMod] 下载失败: {task.Name}", ex);
                         }
 
                         int now = Environment.TickCount;
@@ -760,9 +981,14 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                             lock (_consoleLock)
                             {
                                 double pct = total == 0 ? 100 : (completed * 100.0 / total);
+                                int remaining = total - completed;
                                 Console.Write($"\r[LabyMod] 跳过 {skipped} | 失败 {failed} | " +
-                                              $"总进度 {pct:F1}% ({completed}/{total})  ");
-                                try { Console.Out.Flush(); } catch { }
+                                              $"剩余 {remaining} 个 | 总进度 {pct:F1}% ({completed}/{total})  ");
+                                try { Console.Out.Flush(); }
+                                catch (Exception flushEx)
+                                {
+                                    System.Diagnostics.Debug.WriteLine("[LabyMod] Console.Flush 失败: " + flushEx.Message);
+                                }
                             }
                         }
                     }
@@ -778,24 +1004,52 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             {
                 Console.WriteLine();
                 Console.WriteLine($"[LabyMod] 下载完成: 总计 {total}, 跳过 {skipped}, 失败 {failed}");
+                if (failed > 0 && failures.Count > 0)
+                {
+                    Console.WriteLine($"[LabyMod] 失败清单（前 {Math.Min(failures.Count, 20)} 条）:");
+                    int n = Math.Min(failures.Count, 20);
+                    for (int i = 0; i < n; i++)
+                        Console.WriteLine($"  - {failures[i]}");
+                }
             }
 
             if (failed > 0)
-                throw new Exception($"[LabyMod] 有 {failed}/{total} 个文件下载失败");
+            {
+                var sb = new StringBuilder();
+                sb.Append($"[LabyMod] 有 {failed}/{total} 个文件下载失败");
+                int n = Math.Min(failures.Count, 20);
+                if (n > 0)
+                {
+                    sb.Append("\n失败清单（前 ").Append(n).Append(" 条）:");
+                    for (int i = 0; i < n; i++)
+                        sb.Append("\n  - ").Append(failures[i]);
+                }
+                throw new Exception(sb.ToString());
+            }
         }
 
+        // ===================== 单文件下载（多源 + 断点续传 + SHA1） =====================
         private static bool DownloadFile(DownloadTask task)
         {
+            // ---- 已存在检查 ----
             if (File.Exists(task.Dest) && new FileInfo(task.Dest).Length > 0)
             {
                 if (!string.IsNullOrEmpty(task.Sha1))
                 {
                     try
                     {
-                        if (ComputeSha1(task.Dest).Equals(task.Sha1, StringComparison.OrdinalIgnoreCase))
+                        string existingSha1 = ComputeSha1(task.Dest);
+                        if (existingSha1.Equals(task.Sha1, StringComparison.OrdinalIgnoreCase))
                             return true;
+
+                        recordLog(LogLevel.Warn,
+                            $"[LabyMod] 已有文件 SHA1 不匹配，将重新下载: {task.Name}\n" +
+                            $"  期望: {task.Sha1}\n  实际: {existingSha1}");
                     }
-                    catch { }
+                    catch (Exception ex)
+                    {
+                        LogEx($"[LabyMod] 计算已有文件 SHA1 失败（将重新下载）: {task.Dest}", ex, LogLevel.Warn);
+                    }
                 }
                 else
                 {
@@ -805,40 +1059,175 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             string dir = Path.GetDirectoryName(task.Dest);
             if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
-                Directory.CreateDirectory(dir);
+            {
+                try { Directory.CreateDirectory(dir); }
+                catch (Exception ex) { throw new Exception($"[LabyMod] 创建目录失败: {dir}", ex); }
+            }
 
             string tmpPath = task.Dest + ".tmp";
             Exception lastEx = null;
 
             for (int retry = 0; retry < RETRY_COUNT; retry++)
             {
-                try
+                foreach (string url in task.Urls)
                 {
-                    SingleDownload(task.Url, tmpPath);
-
-                    if (!string.IsNullOrEmpty(task.Sha1))
+                    try
                     {
-                        string actual = ComputeSha1(tmpPath);
-                        if (!actual.Equals(task.Sha1, StringComparison.OrdinalIgnoreCase))
-                            throw new Exception($"SHA1 校验失败: 期望 {task.Sha1}, 实际 {actual}");
-                    }
+                        // ★ 断点续传：.tmp 已存在则尝试 Range 续传
+                        SingleStreamDownloadWithResume(url, tmpPath);
 
-                    if (File.Exists(task.Dest)) { try { File.Delete(task.Dest); } catch { } }
-                    File.Move(tmpPath, task.Dest);
-                    return false;
+                        // SHA1 校验
+                        if (!string.IsNullOrEmpty(task.Sha1))
+                        {
+                            string actual;
+                            try
+                            {
+                                actual = ComputeSha1(tmpPath);
+                            }
+                            catch (Exception ex)
+                            {
+                                try { File.Delete(tmpPath); }
+                                catch (Exception delEx) { LogEx($"[LabyMod] 删除 .tmp 失败: {tmpPath}", delEx, LogLevel.Warn); }
+                                throw new Exception($"[LabyMod] 计算 .tmp SHA1 失败: {tmpPath}", ex);
+                            }
+
+                            if (!actual.Equals(task.Sha1, StringComparison.OrdinalIgnoreCase))
+                            {
+                                // SHA1 失败 = 内容错，删 .tmp 下次从头
+                                try { File.Delete(tmpPath); }
+                                catch (Exception delEx) { LogEx($"[LabyMod] 删除 SHA1 失败 .tmp 失败: {tmpPath}", delEx, LogLevel.Warn); }
+                                throw new Exception($"SHA1 校验失败: 期望 {task.Sha1}, 实际 {actual}");
+                            }
+                        }
+
+                        MoveOrReplace(tmpPath, task.Dest);
+                        return false;
+                    }
+                    catch (Exception ex)
+                    {
+                        lastEx = ex;
+                        // 不删 .tmp：保留供下次续传
+                        LogEx($"[LabyMod] 下载失败({GetHostSafe(url)})（第 {retry + 1}/{RETRY_COUNT} 次）", ex, LogLevel.Warn);
+                    }
                 }
-                catch (Exception ex)
-                {
-                    lastEx = ex;
-                    try { if (File.Exists(tmpPath)) File.Delete(tmpPath); } catch { }
-                    if (retry < RETRY_COUNT - 1) Thread.Sleep(1000 * (retry + 1));
-                }
+                if (retry < RETRY_COUNT - 1) Thread.Sleep(1000 * (retry + 1));
             }
 
-            throw new Exception($"下载 {task.Url} 失败: {lastEx?.Message}", lastEx);
+            throw new Exception($"下载 {task.Name} 失败: {lastEx?.Message}", lastEx);
         }
 
-        private static void SingleDownload(string url, string dest)
+        // ===================== 断点续传核心 =====================
+        /// <summary>
+        /// 单流下载，支持断点续传。
+        /// - .tmp 不存在：从头下
+        /// - .tmp 存在：发 Range 请求
+        ///   · 服务器返回 206 → 从断点 Append
+        ///   · 服务器返回 200 → 忽略 Range，从头覆盖
+        ///   · 服务器返回 416 → .tmp 已完整或损坏，删了从头
+        /// </summary>
+        private static void SingleStreamDownloadWithResume(string url, string tmpPath)
+        {
+            string dir = Path.GetDirectoryName(tmpPath);
+            if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+            {
+                try { Directory.CreateDirectory(dir); }
+                catch (Exception ex) { throw new Exception($"[LabyMod] 创建目录失败: {dir}", ex); }
+            }
+
+            long existingLength = 0;
+            if (File.Exists(tmpPath))
+            {
+                try { existingLength = new FileInfo(tmpPath).Length; }
+                catch (Exception ex) { LogEx($"[LabyMod] 读取 .tmp 长度失败: {tmpPath}", ex, LogLevel.Warn); }
+            }
+
+            HttpWebResponse resp = null;
+            bool isPartial = false;
+
+            try
+            {
+                resp = SendDownloadRequest(url, existingLength);
+                isPartial = resp.StatusCode == HttpStatusCode.PartialContent;
+            }
+            catch (WebException wex) when (IsRangeNotSatisfiable(wex))
+            {
+                // 416：.tmp 可能已完整或过期
+                if (wex.Response != null)
+                {
+                    try { wex.Response.Close(); }
+                    catch (Exception closeEx) { LogEx($"[LabyMod] 关闭 416 响应失败: {url}", closeEx, LogLevel.Warn); }
+                }
+
+                if (existingLength > 0)
+                {
+                    recordLog(LogLevel.Info,
+                        $"[LabyMod] 断点续传 416（.tmp 可能已完整），重新从头: {Path.GetFileName(tmpPath)}");
+                    try { File.Delete(tmpPath); }
+                    catch (Exception delEx) { LogEx($"[LabyMod] 删除 416 .tmp 失败: {tmpPath}", delEx, LogLevel.Warn); }
+                    existingLength = 0;
+                }
+                resp = SendDownloadRequest(url, 0);
+                isPartial = false;
+            }
+
+            using (resp)
+            using (var netStream = resp.GetResponseStream())
+            {
+                // 服务器忽略 Range 返回 200 → 从头覆盖
+                if (existingLength > 0 && !isPartial)
+                {
+                    recordLog(LogLevel.Info,
+                        $"[LabyMod] 服务器不支持续传，从头下载: {Path.GetFileName(tmpPath)}");
+                    existingLength = 0;
+                }
+
+                long totalBytes;
+                if (existingLength > 0 && isPartial)
+                {
+                    totalBytes = ParseContentRangeTotal(resp.Headers["Content-Range"]);
+                    if (totalBytes <= 0) totalBytes = existingLength + resp.ContentLength;
+                }
+                else
+                {
+                    totalBytes = resp.ContentLength;
+                }
+
+                // 已完整
+                if (existingLength > 0 && totalBytes > 0 && existingLength == totalBytes)
+                {
+                    recordLog(LogLevel.Info,
+                        $"[LabyMod] .tmp 已完整 ({existingLength} 字节)，跳过下载: {Path.GetFileName(tmpPath)}");
+                    return;
+                }
+
+                if (existingLength > 0)
+                {
+                    recordLog(LogLevel.Info,
+                        $"[LabyMod] 续传: {Path.GetFileName(tmpPath)} 从 {existingLength}/{totalBytes} 字节");
+                }
+
+                FileMode mode = existingLength > 0 ? FileMode.Append : FileMode.Create;
+
+                using (var fs = new FileStream(tmpPath, mode, FileAccess.Write,
+                                               FileShare.None, BUFFER_SIZE))
+                {
+                    long received = existingLength;
+                    byte[] buffer = new byte[BUFFER_SIZE];
+                    int read;
+
+                    while ((read = netStream.Read(buffer, 0, buffer.Length)) > 0)
+                    {
+                        fs.Write(buffer, 0, read);
+                        received += read;
+                    }
+
+                    if (totalBytes > 0 && received != totalBytes)
+                        throw new Exception($"下载不完整: {received}/{totalBytes}");
+                }
+            }
+        }
+
+        private static HttpWebResponse SendDownloadRequest(string url, long existingLength)
         {
             var req = (HttpWebRequest)WebRequest.Create(url);
             req.UserAgent = UA_STRING;
@@ -847,43 +1236,27 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             req.AllowAutoRedirect = true;
             req.KeepAlive = false;
 
-            using (var resp = (HttpWebResponse)req.GetResponse())
-            using (var netStream = resp.GetResponseStream())
-            using (var fs = new FileStream(dest, FileMode.Create, FileAccess.Write,
-                                           FileShare.None, BUFFER_SIZE))
-            {
-                byte[] buf = new byte[BUFFER_SIZE];
-                int read;
-                while ((read = netStream.Read(buf, 0, buf.Length)) > 0)
-                    fs.Write(buf, 0, read);
-            }
+            if (existingLength > 0)
+                req.AddRange(existingLength);
+
+            return (HttpWebResponse)req.GetResponse();
         }
 
-        private static string DownloadString(string url)
+        private static bool IsRangeNotSatisfiable(WebException ex)
         {
-            Exception lastEx = null;
-            for (int i = 0; i < RETRY_COUNT; i++)
-            {
-                try
-                {
-                    var req = (HttpWebRequest)WebRequest.Create(url);
-                    req.UserAgent = UA_STRING;
-                    req.Timeout = HTTP_TIMEOUT_MS;
-                    req.AllowAutoRedirect = true;
-                    req.KeepAlive = false;
+            return ex.Response is HttpWebResponse r &&
+                   r.StatusCode == HttpStatusCode.RequestedRangeNotSatisfiable;
+        }
 
-                    using (var resp = (HttpWebResponse)req.GetResponse())
-                    using (var s = resp.GetResponseStream())
-                    using (var r = new StreamReader(s, Encoding.UTF8))
-                        return r.ReadToEnd();
-                }
-                catch (Exception ex)
-                {
-                    lastEx = ex;
-                    if (i < RETRY_COUNT - 1) Thread.Sleep(1000 * (i + 1));
-                }
-            }
-            throw new Exception($"下载 {url} 失败: {lastEx?.Message}", lastEx);
+        private static long ParseContentRangeTotal(string contentRange)
+        {
+            if (string.IsNullOrEmpty(contentRange)) return -1;
+            int slash = contentRange.LastIndexOf('/');
+            if (slash < 0) return -1;
+            long total;
+            if (long.TryParse(contentRange.Substring(slash + 1).Trim(), out total))
+                return total;
+            return -1;
         }
 
         private static string ComputeSha1(string path)
@@ -893,6 +1266,55 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             {
                 byte[] hash = sha.ComputeHash(fs);
                 return BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
+            }
+        }
+
+        // ===================== 原子替换 =====================
+        private static void MoveOrReplace(string src, string dst)
+        {
+            if (File.Exists(dst))
+            {
+                try
+                {
+                    File.Replace(src, dst, null);
+                    return;
+                }
+                catch (PlatformNotSupportedException ex)
+                {
+                    LogEx($"[LabyMod] File.Replace 平台不支持，回退 Delete+Move: {dst}", ex, LogLevel.Warn);
+                }
+                catch (IOException ex)
+                {
+                    LogEx($"[LabyMod] File.Replace 失败（可能被占用），回退 Delete+Move: {dst}", ex, LogLevel.Warn);
+                }
+
+                for (int attempt = 0; attempt < 3; attempt++)
+                {
+                    try { File.Delete(dst); break; }
+                    catch (IOException ex)
+                    {
+                        if (attempt == 2)
+                            throw new Exception($"[LabyMod] 删除目标文件失败（可能被占用）: {dst}", ex);
+                        LogEx($"[LabyMod] 删除目标文件失败，重试 {attempt + 1}: {dst}", ex, LogLevel.Warn);
+                        Thread.Sleep(200 * (attempt + 1));
+                    }
+                }
+            }
+
+            for (int attempt = 0; attempt < 3; attempt++)
+            {
+                try
+                {
+                    File.Move(src, dst);
+                    return;
+                }
+                catch (IOException ex)
+                {
+                    if (attempt == 2)
+                        throw new Exception($"[LabyMod] 移动临时文件失败（可能被占用）: {src} -> {dst}", ex);
+                    LogEx($"[LabyMod] File.Move 失败，重试 {attempt + 1}: {dst}", ex, LogLevel.Warn);
+                    Thread.Sleep(200 * (attempt + 1));
+                }
             }
         }
 
@@ -949,6 +1371,12 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             }
         }
 
+        private static string GetHostSafe(string url)
+        {
+            try { return new Uri(url).Host; }
+            catch { return url; }
+        }
+
         // ===================== 工具 =====================
         private static string GetStr(Dictionary<string, object> d, string key)
         {
@@ -964,12 +1392,16 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 return new JavaScriptSerializer()
                     .Deserialize<Dictionary<string, object>>(json);
             }
-            catch { return null; }
+            catch (Exception ex)
+            {
+                LogEx("[LabyMod] JSON 解析失败", ex);
+                return null;
+            }
         }
 
         private class DownloadTask
         {
-            public string Url { get; set; }
+            public string[] Urls { get; set; }
             public string Dest { get; set; }
             public string Sha1 { get; set; }
             public string Name { get; set; }
