@@ -44,8 +44,13 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             _currentVersion = App.Config.CurrentVersion;
             _isVersionIsolated = App.Config.Isolated;
 
-            TitleText.Text = LanguageManager.Get("ModVersions.TitlePrefix")
-                + (string.IsNullOrEmpty(title) ? modId : title);
+            // 优先用本地译名表把 mod 名转成 "中文 (英文)" 展示
+            string display = string.IsNullOrEmpty(title) ? modId : title;
+            string zh = ModTranslationService.GetChineseName(title);
+            if (!string.IsNullOrEmpty(zh) && zh != title)
+                display = zh + " (" + title + ")";
+
+            TitleText.Text = LanguageManager.Get("ModVersions.TitlePrefix") + display;
 
             SortBox.SelectedIndex = 0;
             SortDirBox.SelectedIndex = 0;

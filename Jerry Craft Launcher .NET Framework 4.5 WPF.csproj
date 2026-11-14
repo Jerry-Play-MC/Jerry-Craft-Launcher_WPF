@@ -117,6 +117,7 @@
     <Compile Include="Java\Launch Minecraft\Quilt.cs" />
     <Compile Include="Java\Launch Minecraft\ServerLauncher.cs" />
     <Compile Include="Java\Launch Minecraft\Vanilla.cs" />
+    <Compile Include="Java\Mod\ModTranslationService.cs" />
     <Compile Include="Java\Roles\CreateRoleWindow.xaml.cs">
       <DependentUpon>CreateRoleWindow.xaml</DependentUpon>
     </Compile>
@@ -310,6 +311,7 @@
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
+    <None Include="Java\Mod\mod-translations.json" />
     <None Include="packages.config" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>

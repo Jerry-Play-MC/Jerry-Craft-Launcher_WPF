@@ -8850,8 +8850,7 @@
                    "耗时合成":  "Craft Takes Time",
                    "神秘时代3":  "Thaumcraft 3",
                    "魔法存储":  "Awesome Storage",
-                   "乐音奇旅":  "VocaCraft",
-                   "自然之躯":  "Needs of Nature"
+                   "乐音奇旅":  "VocaCraft"
                },
     "enToZh":  {
                    "Thaumic Bases Mystical Rose Rework":  "神秘基础学玫瑰重制",
@@ -17820,7 +17819,6 @@
                    "Memory Settings":  "内存设置",
                    "Classic Bar Legacy":  "经典状态条 延续版",
                    "More Zombie Villagers":  "更多僵尸村民",
-                   "Dragon Block C":  "龙珠C",
-                   "Needs of Nature":  "自然之躯"
+                   "Dragon Block C":  "龙珠C"
                }
 }

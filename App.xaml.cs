@@ -43,6 +43,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         public static readonly string logPath = Path.Combine(settingPath, "Logs"); // 日志目录
         public static readonly string rolePath = Path.Combine(settingPath, "Roles"); // 角色目录
         public static readonly string javaPath = Path.Combine(settingPath, "Java"); // Java 运行时目录
+        public static readonly string cachePath = Path.Combine(settingPath, "Cache"); // 缓存目录
         // -------------------------------------------------------------------------
 
         /// <summary>
@@ -103,27 +104,31 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             // 1. 原生库
             TryLoadWebPDll();
 
-            // 2. 角色 / 设置
+            // 2. 模组翻译服务
+            ModTranslationService.Initialize();
+            ModTranslationService.StartRefresh();
+
+            // 3. 角色 / 设置
             RoleManager.Initialize();
             SettingsManager.Initialize();
 
-            // 3. 语言和字体必须在创建任何窗口之前初始化
+            // 4. 语言和字体必须在创建任何窗口之前初始化
             LanguageManager.Initialize();
             FontManager.Initialize();
 
-            // 4. 主窗口
+            // 5. 主窗口
             recordLog(LogLevel.Info, "========== 开始渲染主窗体 ==========");
             var main = new MainWindow();
             MainWindow = main;
             main.Show();
 
-            // 5. 后台静默检查更新
+            // 6. 后台静默检查更新
             _ = CheckUpdateAtStartupAsync(main);
 
-            // 6. 后台刷新过期令牌
+            // 7. 后台刷新过期令牌
             _ = RefreshExpiredTokensAsync();
 
-            // 7. 首次启动提示创建角色
+            // 8. 首次启动提示创建角色
             if (!RoleManager.HasAnyRole())
                 PromptCreateRole(main, isFirstUse: true);
         }

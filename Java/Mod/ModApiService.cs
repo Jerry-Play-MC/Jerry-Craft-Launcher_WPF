@@ -142,69 +142,38 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             return result;
         }
 
-        // ---------- 搜索 (Modrinth + MCIM 翻译) ----------
         public static List<ModrinthMod> SearchModsWithTranslation(
-            string keyword, int page, int limit, ModProjectType type, out int totalHits)
+    string keyword, int page, int limit, ModProjectType type, out int totalHits)
         {
-            // 1. 始终以 Modrinth 的搜索结果为准
+            // 1. 搜索仍走 Modrinth 官方
             var mods = SearchModrinth(keyword, "", page, limit, type, out totalHits);
             if (mods == null || mods.Count == 0) return mods;
 
-            // 2. 尝试用 MCIM 补充中文描述（尽力而为，失败不影响结果）
+            // 2. 用本地译名表填 TitleZh（命中率越高，列表越"中文化"）
+            int hit = 0;
             foreach (var mod in mods)
             {
-                if (string.IsNullOrEmpty(mod.Id)) continue;
+                if (string.IsNullOrEmpty(mod.Title)) continue;
                 try
                 {
-                    var translation = GetMcimTranslation(mod.Id);
-                    if (translation != null && !string.IsNullOrEmpty(translation.Translated))
+                    string zh = ModTranslationService.GetChineseName(mod.Title);
+                    if (!string.IsNullOrEmpty(zh))
                     {
-                        mod.DescriptionZh = translation.Translated;
+                        mod.TitleZh = zh;
+                        hit++;
                     }
                 }
                 catch (Exception ex)
                 {
-                    // 单个翻译失败不应中断整个搜索，仅记录日志
                     App.AppLog.recordLog(App.AppLog.LogLevel.Warn,
-                        $"[MCIM] 翻译 {mod.Id} 失败：{ex.Message}");
+                        $"[ModTranslation] 查询 \"{mod.Title}\" 失败: {ex.Message}");
                 }
             }
+
+            App.AppLog.recordLog(App.AppLog.LogLevel.Info,
+                $"[ModTranslation] 搜索 \"{keyword}\" 命中译名 {hit}/{mods.Count}");
+
             return mods;
-        }
-
-        // ---------- MCIM 翻译调用 ----------
-        private static McimTranslation GetMcimTranslation(string projectId)
-        {
-            // MCIM 翻译接口，使用 project_id 精确查询
-            string url = "https://mod.mcimirror.top/translate/modrinth?project_id="
-                       + Uri.EscapeDataString(projectId);
-            try
-            {
-                string json = DownloadJson(url);
-                if (string.IsNullOrEmpty(json)) return null;
-
-                var ser = new JavaScriptSerializer { MaxJsonLength = int.MaxValue };
-                var dict = ser.Deserialize<Dictionary<string, object>>(json);
-                if (dict == null) return null;
-
-                return new McimTranslation
-                {
-                    Original = JsonHelper.GetString(dict, "original"),
-                    Translated = JsonHelper.GetString(dict, "translated")
-                };
-            }
-            catch (Exception)
-            {
-                // 未找到翻译时接口可能返回 404，此处静默处理
-                return null;
-            }
-        }
-
-        // 内部辅助类，仅用于解析 MCIM 返回
-        private class McimTranslation
-        {
-            public string Original { get; set; }
-            public string Translated { get; set; }
         }
 
         // ---------- 版本列表 ----------
