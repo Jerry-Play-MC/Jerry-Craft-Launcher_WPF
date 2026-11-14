@@ -99,8 +99,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 var result = await Task.Run(() =>
                 {
                     int total;
-                    // 修改点：调用 SearchMineKuai (支持中文)
-                    var list = ModApiService.SearchModsWithTranslation(
+                    // 智能搜索：英文直搜，中文走译名表翻译 + 多候选合并
+                    var list = ModApiService.SearchModsSmart(
                         _currentKeyword, _currentPage, PageSize, _currentType, out total);
                     return Tuple.Create(list, total);
                 });

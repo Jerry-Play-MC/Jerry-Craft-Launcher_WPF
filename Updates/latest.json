@@ -1,12 +1,12 @@
 {
-  "version": "1.1.2",
-  "notes": "新增了Java列表和选择默认启动 Minecraft 使用的Java的功能,新增了为Java写入注册表的功能",
+  "version": "1.2.0",
+  "notes": "为Mod下载添加了中文搜索。",
   "force": false,
   "files": {
     "windows": {
       "url": "https://github.com/Jerry-Play-MC/Jerry-Craft-Launcher_WPF/releases/latest/download/Jerry_Craft_Launcher.exe",
-      "sha256": "f0416fa678386c7880e17685c3f84472506a126e0179c5ddd141addb2247f8ec",
-      "size": 1314304
+      "sha256": "0ad9365b8f181b70d7449507bd2259282989d5f4fac78974d3a5e3b9ad40229c",
+      "size": 1338368
     }
   }
 }
