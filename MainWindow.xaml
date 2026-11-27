@@ -63,10 +63,48 @@
                                  Style="{StaticResource TopNavButtonStyle}"
                                  Tag="Settings"
                                  Checked="TopNav_Checked"/>
+                    <RadioButton x:Name="TasksNavButton"
+                                 GroupName="TopNav"
+                                 Content="Tasks"
+                                 Style="{StaticResource TopNavButtonStyle}"
+                                 Tag="Tasks"
+                                 Checked="TopNav_Checked"/>
                 </StackPanel>
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal"
                             VerticalAlignment="Center">
+
+                    <!-- ★ 任务按钮：状态点由 TaskCenter.IsBusy / HasFailure 驱动 -->
+                    <Button x:Name="TaskButton"
+                            Width="Auto" Height="48"
+                            Padding="12,0"
+                            Style="{StaticResource TitleBarButtonStyle}"
+                            Click="TaskButton_Click"
+                            ToolTip="Tasks">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <Path Data="M4,4 L16,4 M4,10 L16,10 M4,16 L16,16"
+                                  Stroke="#666" StrokeThickness="2"
+                                  StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                  VerticalAlignment="Center"/>
+                            <Ellipse Width="8" Height="8" Margin="6,0,0,0"
+                                     DataContext="{x:Static local:TaskCenter.Instance}">
+                                <Ellipse.Style>
+                                    <Style TargetType="Ellipse">
+                                        <Setter Property="Fill" Value="Transparent"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsBusy}" Value="True">
+                                                <Setter Property="Fill" Value="#2196F3"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding HasFailure}" Value="True">
+                                                <Setter Property="Fill" Value="#E53935"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Ellipse.Style>
+                            </Ellipse>
+                        </StackPanel>
+                    </Button>
+
                     <Button Content="—"
                             Width="46" Height="48"
                             Style="{StaticResource TitleBarButtonStyle}"

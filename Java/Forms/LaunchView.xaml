@@ -71,7 +71,6 @@
         <Border Grid.Column="0" Background="#FAFAFA"
                 BorderBrush="#E0E0E0" BorderThickness="0,0,1,0">
             <StackPanel>
-
                 <!-- 头像区 -->
                 <Border Padding="16,20,16,12">
                     <StackPanel>
@@ -123,6 +122,59 @@
 
             <!-- 主页 -->
             <Grid x:Name="HomePanel" Background="White">
+
+                <!-- ★ 新增：实时日志框（占据右侧主区域，位于启动按钮上方） -->
+                <Border x:Name="LaunchLogPanel"
+                        Visibility="Collapsed"
+                        Margin="24,24,24,112" 
+                        Background="#FAFAFA"
+                        BorderBrush="#E0E0E0"
+                        BorderThickness="1"
+                        CornerRadius="8">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="36"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- 标题栏 -->
+                        <Border Grid.Row="0" Background="#F5F5F5" CornerRadius="8,8,0,0" BorderBrush="#E0E0E0" BorderThickness="0,0,0,1">
+                            <Grid Margin="12,0,8,0">
+                                <TextBlock Text="游戏运行日志" 
+                                           Foreground="#333333" 
+                                           FontSize="12" 
+                                           FontWeight="SemiBold" 
+                                           VerticalAlignment="Center"/>
+                                <Button x:Name="CloseLogButton"
+                                        Content="✕"
+                                        Width="24" Height="24"
+                                        HorizontalAlignment="Right"
+                                        Background="Transparent"
+                                        Foreground="#999999"
+                                        BorderThickness="0"
+                                        Cursor="Hand"
+                                        Click="CloseLogButton_Click"/>
+                            </Grid>
+                        </Border>
+
+                        <!-- 日志正文 -->
+                        <TextBox x:Name="LaunchLogBox"
+                                 Grid.Row="1"
+                                 Background="Transparent"
+                                 Foreground="#333333"
+                                 BorderThickness="0"
+                                 IsReadOnly="True"
+                                 IsReadOnlyCaretVisible="False"
+                                 TextWrapping="NoWrap"
+                                 VerticalScrollBarVisibility="Auto"
+                                 HorizontalScrollBarVisibility="Auto"
+                                 FontFamily="Consolas"
+                                 FontSize="12"
+                                 Padding="12,8"/>
+                    </Grid>
+                </Border>
+
+                <!-- 原有的启动按钮 -->
                 <Border HorizontalAlignment="Right"
                         VerticalAlignment="Bottom"
                         Margin="0,0,24,24"

@@ -43,13 +43,26 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         }
 
         // ===================== 客户端 =====================
-        public static void InstallClient(string version, string minecraftDir, string loaderParam)
+        public static void InstallClient(string version, string minecraftDir, string loaderParam,
+    TaskGroup group = null, CancellationToken ct = default(CancellationToken), InstallStages stages = null)
         {
             if (string.IsNullOrEmpty(version))
                 throw new ArgumentException("版本号不能为空", "version");
             if (string.IsNullOrEmpty(minecraftDir))
                 throw new ArgumentException(".minecraft 路径不能为空", "minecraftDir");
 
+            // fallback：老调用没传 stages 但有 group
+            if (stages == null && group != null)
+            {
+                stages = new InstallStages
+                {
+                    FabricProfile = group.AddStage("Fetch LegacyFabric profile", 2),
+                    FabricLibraries = group.AddStage("Download LegacyFabric libraries", 15),
+                    FabricCore = group.AddStage("Copy client.jar", 3),
+                };
+            }
+
+            ct.ThrowIfCancellationRequested();
             recordLog(LogLevel.Info, $"[LegacyFabric] 开始安装客户端 Legacy Fabric {version}");
 
             string loaderVersion = ResolveLoaderVersion(version, loaderParam);
@@ -59,17 +72,20 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             string versionId = $"legacyfabric-loader-{loaderVersion}-{version}";
 
-            // 1. 获取 profile JSON
+            // ═══ 阶段 1：拉 profile + 合并父 JSON + 写文件 ═══
+            if (stages?.FabricProfile != null)
+                group?.UpdateStage(stages.FabricProfile, 0, "Fetching profile");
+
             string profileUrl = $"{LEGACY_META}/v2/versions/loader/" +
                                 $"{Uri.EscapeDataString(version)}/" +
                                 $"{Uri.EscapeDataString(loaderVersion)}/profile/json";
             recordLog(LogLevel.Info, $"[LegacyFabric] 获取 profile: {profileUrl}");
             string profileJson = DownloadString(profileUrl);
+            ct.ThrowIfCancellationRequested();
 
-            // 2. 合并父版本 JSON（去 inheritsFrom，生成独立版本）
             string mergedJson = MergeParentJson(profileJson, minecraftDir, versionId);
+            ct.ThrowIfCancellationRequested();
 
-            // 3. 保存版本 JSON
             string versionsDir = Path.Combine(minecraftDir, "versions");
             string versionDir = Path.Combine(versionsDir, versionId);
             Directory.CreateDirectory(versionDir);
@@ -84,10 +100,15 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             }
             recordLog(LogLevel.Info, $"[LegacyFabric] 版本 JSON 已保存: {versionJsonPath}");
 
-            // 4. 复制原版 client.jar
-            CopyClientJar(versionsDir, version, versionDir, versionId);
+            group?.CompleteStage(stages?.FabricProfile);
 
-            // 5. 解析（已合并的）JSON 收集 libraries
+            // ═══ 阶段 2：复制原版 client.jar ═══
+            if (stages?.FabricCore != null)
+                group?.UpdateStage(stages.FabricCore, 0, "Copying client.jar");
+            CopyClientJar(versionsDir, version, versionDir, versionId);
+            group?.CompleteStage(stages?.FabricCore);
+
+            // ═══ 阶段 3：下载 libraries ═══
             var root = ParseJson(mergedJson);
             if (root == null || !root.ContainsKey("libraries"))
                 throw new Exception("[LegacyFabric] profile JSON 缺少 libraries");
@@ -97,13 +118,15 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             recordLog(LogLevel.Info, $"[LegacyFabric] Libraries 任务: {tasks.Count}");
 
             if (tasks.Count > 0)
-                ParallelDownload(tasks, MAX_CONCURRENCY);
+                ParallelDownload(tasks, MAX_CONCURRENCY, group, stages?.FabricLibraries, ct);
+            group?.CompleteStage(stages?.FabricLibraries);
 
             recordLog(LogLevel.Info, $"[LegacyFabric] 客户端 Legacy Fabric {version} 安装完成");
         }
 
         // ===================== 服务端：不支持 =====================
-        public static void InstallServer(string version, string serverDir, string loaderParam)
+        public static void InstallServer(string version, string serverDir, string loaderParam,
+    CancellationToken ct = default(CancellationToken))
         {
             throw new NotSupportedException(
                 "Legacy Fabric 服务端需要通过官方安装器手动部署，本启动器暂不支持。\n" +
@@ -300,8 +323,17 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         }
 
         // ===================== 并行下载 =====================
-        private static void ParallelDownload(List<DownloadTask> tasks, int maxConcurrency)
+        private static void ParallelDownload(
+    List<DownloadTask> tasks, int maxConcurrency,
+    TaskGroup group = null, SubTaskItem stage = null,
+    CancellationToken ct = default(CancellationToken))
         {
+            if (tasks.Count == 0)
+            {
+                group?.CompleteStage(stage);
+                return;
+            }
+
             int failed = 0, skipped = 0;
             int completed = 0;
             int total = tasks.Count;
@@ -312,10 +344,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             var failures = new List<string>();
 
             recordLog(LogLevel.Info, $"[LegacyFabric] 开始并行下载（{maxConcurrency} 线程，共 {total} 个任务）...");
-            Interlocked.Exchange(ref _lastProgressTick, 0);
 
-            lock (_consoleLock)
-                PrintProgressLine(skipped, failed, completed, total);
+            if (stage != null) stage.State = TaskState.Running;
 
             var threads = new List<Thread>();
             for (int i = 0; i < maxConcurrency; i++)
@@ -324,6 +354,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 {
                     while (true)
                     {
+                        if (ct.IsCancellationRequested) return;
+
                         DownloadTask task;
                         lock (queueLock)
                         {
@@ -333,13 +365,19 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
                         try
                         {
-                            bool wasSkipped = DownloadFile(task);
+                            bool wasSkipped = DownloadFile(task, ct);
+                            int n;
                             lock (statLock)
                             {
                                 if (wasSkipped) skipped++;
-                                completed++;
+                                n = ++completed;
                             }
+
+                            // 每 5 个或最后一个刷新
+                            if (stage != null && (n % 5 == 0 || n == total))
+                                group?.UpdateStage(stage, (double)n / total, $"{n}/{total}");
                         }
+                        catch (OperationCanceledException) { throw; }
                         catch (Exception ex)
                         {
                             lock (statLock)
@@ -349,49 +387,20 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                                 if (failures.Count < 50)
                                     failures.Add($"{task.Name} <- {ex.Message}");
                             }
-                            lock (_consoleLock)
-                            {
-                                Console.Write("\r" + new string(' ', 140) + "\r");
-                            }
                             LogEx($"[LegacyFabric] 下载失败: {task.Name}", ex);
-                        }
-
-                        int now = Environment.TickCount;
-                        int last = Volatile.Read(ref _lastProgressTick);
-                        bool isLast = false;
-                        lock (statLock) isLast = (completed == total);
-
-                        if (isLast || (now - last) >= PROGRESS_REFRESH_MS)
-                        {
-                            Volatile.Write(ref _lastProgressTick, now);
-                            lock (_consoleLock)
-                                PrintProgressLine(skipped, failed, completed, total);
                         }
                     }
                 });
                 worker.IsBackground = true;
                 worker.Name = "LegacyFabricDownloader-" + i;
-                worker.Priority = ThreadPriority.Normal;
                 worker.Start();
                 threads.Add(worker);
             }
 
             foreach (var t in threads) t.Join();
 
-            lock (_consoleLock)
-            {
-                Console.WriteLine();
-                Console.WriteLine($"[LegacyFabric] 下载完成: 总计 {total}, 跳过 {skipped}, 失败 {failed}");
-                if (failed > 0 && failures.Count > 0)
-                {
-                    Console.WriteLine($"[LegacyFabric] 失败清单（前 {Math.Min(failures.Count, 20)} 条）:");
-                    int n = Math.Min(failures.Count, 20);
-                    for (int i = 0; i < n; i++)
-                        Console.WriteLine($"  - {failures[i]}");
-                }
-            }
+            ct.ThrowIfCancellationRequested();
 
-            // ★ 有失败就抛异常，且带失败清单
             if (failed > 0)
             {
                 var sb = new StringBuilder();
@@ -403,8 +412,11 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     for (int i = 0; i < n; i++)
                         sb.Append("\n  - ").Append(failures[i]);
                 }
+                group?.FailStage(stage, $"{failed} failed");
                 throw new Exception(sb.ToString());
             }
+
+            group?.CompleteStage(stage);
         }
 
         private static void PrintProgressLine(int skipped, int failed, int completed, int total)
@@ -420,14 +432,14 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         }
 
         // ===================== 底层下载（.tmp + jar 校验） =====================
-        private static bool DownloadFile(DownloadTask task)
+        private static bool DownloadFile(DownloadTask task,
+                                   CancellationToken ct = default(CancellationToken))
         {
             string url = task.Url;
             string dest = task.Dest;
 
             if (File.Exists(dest) && new FileInfo(dest).Length > 0)
             {
-                // ★ jar/zip 必须通过 ValidateJarFile 才能算有效（原只查长度）
                 bool isJar = dest.EndsWith(".jar", StringComparison.OrdinalIgnoreCase) ||
                              dest.EndsWith(".zip", StringComparison.OrdinalIgnoreCase);
 
@@ -463,11 +475,12 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             for (int retry = 0; retry < RETRY_COUNT; retry++)
             {
+                ct.ThrowIfCancellationRequested();
+
                 try
                 {
-                    SingleDownload(url, tmpPath, task.ShowProgress);
+                    SingleDownload(url, tmpPath, task.ShowProgress, ct);
 
-                    // ★ jar 校验
                     bool isJar = dest.EndsWith(".jar", StringComparison.OrdinalIgnoreCase) ||
                                  dest.EndsWith(".zip", StringComparison.OrdinalIgnoreCase);
                     if (isJar)
@@ -475,8 +488,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                         try { ValidateJarFile(tmpPath); }
                         catch (Exception ex)
                         {
-                            try { File.Delete(tmpPath); }
-                            catch (Exception delEx) { LogEx($"[LegacyFabric] 删除损坏 .tmp 失败: {tmpPath}", delEx, LogLevel.Warn); }
+                            try { File.Delete(tmpPath); } catch { }
                             throw new Exception($"[LegacyFabric] jar 校验失败: {tmpPath}", ex);
                         }
                     }
@@ -484,13 +496,12 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     MoveOrReplace(tmpPath, dest);
                     return false;
                 }
+                catch (OperationCanceledException) { throw; }
                 catch (Exception ex)
                 {
                     lastEx = ex;
-                    try { if (File.Exists(tmpPath)) File.Delete(tmpPath); }
-                    catch (Exception delEx) { LogEx($"[LegacyFabric] 清理 .tmp 失败: {tmpPath}", delEx, LogLevel.Warn); }
+                    try { if (File.Exists(tmpPath)) File.Delete(tmpPath); } catch { }
 
-                    // ★ 正确识别 HTTP 404（不再字符串匹配 msg）
                     bool is404 = Is404Exception(ex);
 
                     if (task.SkipIfNotFound && is404)
@@ -500,7 +511,11 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     }
 
                     LogEx($"[LegacyFabric] 下载失败({url})（第 {retry + 1}/{RETRY_COUNT} 次）", ex, LogLevel.Warn);
-                    if (retry < RETRY_COUNT - 1) Thread.Sleep(500 * (retry + 1));
+                    if (retry < RETRY_COUNT - 1)
+                    {
+                        if (ct.WaitHandle.WaitOne(500 * (retry + 1)))
+                            ct.ThrowIfCancellationRequested();
+                    }
                 }
             }
 
@@ -580,26 +595,39 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             }
         }
 
-        private static void SingleDownload(string url, string dest, bool showProgress)
+        private static void SingleDownload(string url, string dest, bool showProgress,
+                                     CancellationToken ct = default(CancellationToken))
         {
-            using (var resp = SendRequest(url, HTTP_TIMEOUT_MS, 60000))
-            using (var netStream = resp.GetResponseStream())
-            using (var fs = new FileStream(dest, FileMode.Create, FileAccess.Write,
-                                           FileShare.None, BUFFER_SIZE))
+            ct.ThrowIfCancellationRequested();
+
+            // ★ 全局下载许可
+            DownloadGate.Global.Wait(ct);
+            try
             {
-                long total = resp.ContentLength;
-                long received = 0;
-                byte[] buffer = new byte[BUFFER_SIZE];
-                int read;
-
-                while ((read = netStream.Read(buffer, 0, buffer.Length)) > 0)
+                using (var resp = SendRequest(url, HTTP_TIMEOUT_MS, 60000))
+                using (var netStream = resp.GetResponseStream())
+                using (var fs = new FileStream(dest, FileMode.Create, FileAccess.Write,
+                                               FileShare.None, BUFFER_SIZE))
                 {
-                    fs.Write(buffer, 0, read);
-                    received += read;
-                }
+                    long total = resp.ContentLength;
+                    long received = 0;
+                    byte[] buffer = new byte[BUFFER_SIZE];
+                    int read;
 
-                if (total > 0 && received != total)
-                    throw new Exception($"下载不完整: {received}/{total}");
+                    while ((read = netStream.Read(buffer, 0, buffer.Length)) > 0)
+                    {
+                        ct.ThrowIfCancellationRequested();
+                        fs.Write(buffer, 0, read);
+                        received += read;
+                    }
+
+                    if (total > 0 && received != total)
+                        throw new Exception($"下载不完整: {received}/{total}");
+                }
+            }
+            finally
+            {
+                DownloadGate.Global.Release();
             }
         }
 

@@ -94,10 +94,24 @@
     <Compile Include="Java\Forms\ClientInstallWindow.xaml.cs">
       <DependentUpon>ClientInstallWindow.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Java\Forms\View\DownloadGate.cs" />
+    <Compile Include="Java\Forms\View\ObservableObject.cs" />
+    <Compile Include="Java\Forms\View\SubTaskItem.cs" />
+    <Compile Include="Java\Forms\View\TaskCenter.cs" />
+    <Compile Include="Java\Forms\View\TaskGraph.cs" />
+    <Compile Include="Java\Forms\View\TaskGroup.cs" />
+    <Compile Include="Java\Forms\View\TaskProgressView.xaml.cs">
+      <DependentUpon>TaskProgressView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Java\Forms\View\TaskState.cs" />
+    <Compile Include="Java\Forms\View\TaskView.xaml.cs">
+      <DependentUpon>TaskView.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Java\Install Java\JavaRegistryRegistrar.cs" />
     <Compile Include="Java\Install Java\Program.cs" />
     <Compile Include="Java\Install Minecraft\Fabric.cs" />
     <Compile Include="Java\Install Minecraft\Forge.cs" />
+    <Compile Include="Java\Install Minecraft\InstallStages.cs" />
     <Compile Include="Java\Install Minecraft\LabyMod.cs" />
     <Compile Include="Java\Install Minecraft\LegacyFabric.cs" />
     <Compile Include="Java\Install Minecraft\LiteLoader.cs" />
@@ -175,6 +189,14 @@
     <Compile Include="Java\Mod\WebPHelper.cs" />
     <Compile Include="Java\Mod\WebPWrapper.cs" />
     <Page Include="Java\Forms\ClientInstallWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Java\Forms\View\TaskProgressView.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Java\Forms\View\TaskView.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

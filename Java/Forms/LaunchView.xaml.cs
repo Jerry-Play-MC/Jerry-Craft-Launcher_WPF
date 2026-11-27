@@ -285,7 +285,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         }
 
         // ============================================================
-        //   ★ 启动按钮：Java 预检走三层查找（内置 / 指定目录 / 注册表）
+        //   ★ 启动按钮
         // ============================================================
         private async void LaunchButton_Click(object sender, RoutedEventArgs e)
         {
@@ -309,6 +309,10 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             LaunchButton.IsEnabled = false;
             VersionPickerButton.IsEnabled = false;
+
+            // ★ 显示日志面板并清空
+            LaunchLogPanel.Visibility = Visibility.Visible;
+            LaunchLogBox.Clear();
 
             try
             {
@@ -340,6 +344,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                         return;
 
                     CurrentVersionText.Text = $"正在下载 Java {requiredJava}...";
+                    LaunchLogBox.AppendText($"[Launcher] 正在下载 Java {requiredJava}...{Environment.NewLine}");
+                    LaunchLogBox.ScrollToEnd();
 
                     bool ok = await JavaRuntimeHelper.DownloadJavaAsync(requiredJava);
                     if (!ok)
@@ -361,6 +367,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     && MinecraftTokenHelper.IsExpired(role.AccessToken, 60))
                 {
                     CurrentVersionText.Text = LanguageManager.Get("Launch.RefreshingToken");
+                    LaunchLogBox.AppendText($"[Launcher] 正在刷新正版账号令牌...{Environment.NewLine}");
+                    LaunchLogBox.ScrollToEnd();
 
                     bool ok = await Task.Run(() => App.RefreshRoleToken(role));
                     if (!ok)
@@ -418,10 +426,38 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         {
             if (p == null) return;
 
+            // ★ 专门处理游戏原生日志输出（只有这里才向 LaunchLogBox 写入）
+            if (p.Phase == LaunchPhase.LogOutput)
+            {
+                if (LaunchLogPanel.Visibility == Visibility.Visible)
+                {
+                    LaunchLogBox.AppendText(p.Message + Environment.NewLine);
+
+                    // 防止日志超过 3000 行造成卡顿，自动丢弃最早 500 行
+                    if (LaunchLogBox.LineCount > 3000)
+                    {
+                        int index = LaunchLogBox.GetCharacterIndexFromLineIndex(500);
+                        if (index > 0)
+                            LaunchLogBox.Text = LaunchLogBox.Text.Substring(index);
+                    }
+
+                    LaunchLogBox.ScrollToEnd();
+                }
+                return;
+            }
+
+            // 更新启动按钮上的状态文本（不写入日志框）
             CurrentVersionText.Text = p.Message;
 
             if (p.Phase == LaunchPhase.Stopped || p.Phase == LaunchPhase.Failed)
             {
+                // 如果日志框可见，在末尾追加一条简短的退出提示（带 [Launcher] 标识），让你明确它退出了
+                if (LaunchLogPanel.Visibility == Visibility.Visible)
+                {
+                    LaunchLogBox.AppendText($"[Launcher] {p.Message}{Environment.NewLine}");
+                    LaunchLogBox.ScrollToEnd();
+                }
+
                 var timer = new DispatcherTimer
                 {
                     Interval = TimeSpan.FromSeconds(3)
@@ -433,6 +469,12 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 };
                 timer.Start();
             }
+        }
+
+        // ★ 关闭日志面板
+        private void CloseLogButton_Click(object sender, RoutedEventArgs e)
+        {
+            LaunchLogPanel.Visibility = Visibility.Collapsed;
         }
     }
 }

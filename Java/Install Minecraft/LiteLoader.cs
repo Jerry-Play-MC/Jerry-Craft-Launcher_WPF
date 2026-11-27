@@ -65,7 +65,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         // ===================== 公开入口 =====================
 
         /// <summary>独立安装 LiteLoader（不与 Forge 组合）。</summary>
-        public static void InstallClient(string version, string minecraftDir, string loaderParam)
+        public static void InstallClient(string version, string minecraftDir, string loaderParam,
+            TaskGroup group = null, CancellationToken ct = default(CancellationToken), InstallStages stages = null)
         {
             InstallClientInternal(version, minecraftDir, loaderParam, null);
         }

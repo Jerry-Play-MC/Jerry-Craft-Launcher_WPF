@@ -47,15 +47,28 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         }
 
         // ===================== 客户端 =====================
-        public static string InstallClient(string version, string minecraftDir, string loaderParam)
+        public static string InstallClient(string version, string minecraftDir, string loaderParam,
+    TaskGroup group = null, CancellationToken ct = default(CancellationToken), InstallStages stages = null)
         {
             if (string.IsNullOrEmpty(version))
                 throw new ArgumentException("版本号不能为空", "version");
             if (string.IsNullOrEmpty(minecraftDir))
                 throw new ArgumentException(".minecraft 路径不能为空", "minecraftDir");
 
-            minecraftDir = Path.GetFullPath(minecraftDir);
+            // fallback：老调用没传 stages 但有 group
+            if (stages == null && group != null)
+            {
+                stages = new InstallStages
+                {
+                    ForgeInstaller = group.AddStage("Download Forge installer", 10),
+                    ForgeParse = group.AddStage("Parse Forge installer", 2),
+                    ForgeLibraries = group.AddStage("Download Forge libraries", 20),
+                    ForgeProcessors = group.AddStage("Run Forge processors", 15),
+                };
+            }
 
+            ct.ThrowIfCancellationRequested();
+            minecraftDir = Path.GetFullPath(minecraftDir);
             recordLog(LogLevel.Info, $"[Forge] 开始安装客户端 Forge {version}");
 
             string forgeVersion = ResolveForgeVersion(version, loaderParam);
@@ -71,7 +84,9 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             Directory.CreateDirectory(versionDir);
             Directory.CreateDirectory(librariesDir);
 
-            string installerPath = DownloadInstaller(forgeVersion);
+            // ═══ 阶段 1：下载 installer ═══
+            string installerPath = DownloadInstaller(forgeVersion, group, stages?.ForgeInstaller, ct);
+            group?.CompleteStage(stages?.ForgeInstaller);
 
             string tempDir = Path.Combine(Path.GetTempPath(),
                 $"forge_unpack_{forgeVersion.Replace('.', '_')}_{Guid.NewGuid():N}");
@@ -79,7 +94,12 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             try
             {
+                // ═══ 阶段 2：解析 installer ═══
+                if (stages?.ForgeParse != null)
+                    group?.UpdateStage(stages.ForgeParse, 0, "Parsing");
+
                 ExtractInstaller(installerPath, tempDir);
+                ct.ThrowIfCancellationRequested();
 
                 string profilePath = Path.Combine(tempDir, "install_profile.json");
                 if (!File.Exists(profilePath))
@@ -108,6 +128,9 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 if (Directory.Exists(mavenSrc))
                     CopyDirectory(mavenSrc, librariesDir, skipExisting: true);
 
+                group?.CompleteStage(stages?.ForgeParse);
+
+                // ═══ 阶段 3：下载 libraries ═══
                 var tasks = new List<DownloadTask>();
                 CollectLibraryTasks(versionJson, librariesDir, tasks, "client");
                 if (profile.ContainsKey("libraries"))
@@ -117,33 +140,29 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 recordLog(LogLevel.Info, $"[Forge] Libraries 任务: {tasks.Count}");
 
                 if (tasks.Count > 0)
-                    ParallelDownload(tasks, MAX_CONCURRENCY);
+                    ParallelDownload(tasks, MAX_CONCURRENCY, group, stages?.ForgeLibraries, ct);
+                group?.CompleteStage(stages?.ForgeLibraries);
 
-                // ============================================================
-                // ★ 合并父版本 JSON（展开 inheritsFrom，并锁定 id/jar）
-                // ============================================================
+                // ═══ 合并父版本 JSON ═══
                 if (versionJson.ContainsKey("inheritsFrom"))
                 {
                     string parentId = versionJson["inheritsFrom"].ToString();
                     string parentJsonPath = Path.Combine(versionsDir, parentId, parentId + ".json");
 
                     if (!File.Exists(parentJsonPath))
-                    {
                         throw new Exception(
                             $"[Forge] 找不到父版本 JSON: {parentJsonPath}\n" +
                             "请先执行 Vanilla.InstallClient 完成原版安装。");
-                    }
 
                     var parentJson = ParseJson(File.ReadAllText(parentJsonPath));
                     if (parentJson == null)
                         throw new Exception($"[Forge] 父版本 JSON 解析失败: {parentJsonPath}");
 
                     versionJson = MergeParentJson(parentJson, versionJson, versionId);
-                    recordLog(LogLevel.Info, $"[Forge] 已合并父版本 {parentId}（inheritsFrom 已展开，id/jar={versionId}）");
+                    recordLog(LogLevel.Info, $"[Forge] 已合并父版本 {parentId}（id/jar={versionId}）");
                 }
                 else
                 {
-                    // 无 inheritsFrom 也要强制锁定 id/jar，保证目录名 == id
                     versionJson["id"] = versionId;
                     versionJson["jar"] = versionId;
                     recordLog(LogLevel.Info, $"[Forge] 无 inheritsFrom，强制锁定 id/jar={versionId}");
@@ -152,7 +171,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 string targetJson = Path.Combine(versionDir, versionId + ".json");
                 try
                 {
-                    // 用无 BOM 的 UTF-8 写出，避免某些启动器 JSON 解析失败
                     File.WriteAllText(targetJson,
                         new JavaScriptSerializer().Serialize(versionJson),
                         new UTF8Encoding(false));
@@ -163,50 +181,46 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 }
                 recordLog(LogLevel.Info, $"[Forge] 版本 JSON 已保存: {targetJson}");
 
-                // ============================================================
-                // ★ 执行 processor（失败一律 throw）
-                // ============================================================
+                // ═══ 阶段 4：运行 processors ═══
                 if (profile.ContainsKey("processors"))
                 {
-                    recordLog(LogLevel.Info, $"[Forge] 执行 processor（打补丁）...");
-                    RunProcessors(profile, minecraftDir, tempDir, "client", installerPath);
+                    if (stages?.ForgeProcessors != null)
+                        group?.UpdateStage(stages.ForgeProcessors, 0, "Running processors");
+
+                    RunProcessors(profile, minecraftDir, tempDir, "client", installerPath,
+                                  group, stages?.ForgeProcessors, ct);
+
+                    group?.CompleteStage(stages?.ForgeProcessors);
                 }
                 else
                 {
                     recordLog(LogLevel.Info, $"[Forge] 无 processor，跳过");
+                    group?.CompleteStage(stages?.ForgeProcessors);
                 }
 
-                // ============================================================
-                // ★ 复制原版核心 jar 到 Forge 版本目录（jar/id 已指向 versionId，必须存在）
-                // ============================================================
                 CopyOriginalJarOrThrow(versionsDir, version, versionDir, versionId);
 
                 recordLog(LogLevel.Info, $"[Forge] 客户端 Forge {version} 安装完成");
-                return versionId;   // 供 LiteLoader 组合使用
+                return versionId;
             }
             finally
             {
-                try
-                {
-                    if (Directory.Exists(tempDir)) Directory.Delete(tempDir, true);
-                }
-                catch (Exception ex)
-                {
-                    LogEx($"[Forge] 清理临时目录失败(不致命): {tempDir}", ex, LogLevel.Warn);
-                }
+                try { if (Directory.Exists(tempDir)) Directory.Delete(tempDir, true); }
+                catch (Exception ex) { LogEx($"[Forge] 清理临时目录失败(不致命): {tempDir}", ex, LogLevel.Warn); }
             }
         }
 
         // ===================== 服务端 =====================
-        public static void InstallServer(string version, string serverDir, string loaderParam)
+        public static void InstallServer(string version, string serverDir, string loaderParam,
+    CancellationToken ct = default(CancellationToken))
         {
             if (string.IsNullOrEmpty(version))
                 throw new ArgumentException("版本号不能为空", "version");
             if (string.IsNullOrEmpty(serverDir))
                 throw new ArgumentException("服务端路径不能为空", "serverDir");
 
+            ct.ThrowIfCancellationRequested();
             serverDir = Path.GetFullPath(serverDir);
-
             recordLog(LogLevel.Info, $"[Forge] 开始安装服务端 Forge {version}");
 
             string forgeVersion = ResolveForgeVersion(version, loaderParam);
@@ -218,7 +232,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             string librariesDir = Path.Combine(serverDir, "libraries");
             Directory.CreateDirectory(librariesDir);
 
-            string installerPath = DownloadInstaller(forgeVersion);
+            string installerPath = DownloadInstaller(forgeVersion, null, null, ct);
 
             string tempDir = Path.Combine(Path.GetTempPath(),
                 $"forge_unpack_{forgeVersion.Replace('.', '_')}_{Guid.NewGuid():N}");
@@ -227,6 +241,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             try
             {
                 ExtractInstaller(installerPath, tempDir);
+                ct.ThrowIfCancellationRequested();
 
                 string profilePath = Path.Combine(tempDir, "install_profile.json");
                 if (!File.Exists(profilePath))
@@ -264,17 +279,15 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 recordLog(LogLevel.Info, $"[Forge] Libraries 任务: {tasks.Count}");
 
                 if (tasks.Count > 0)
-                    ParallelDownload(tasks, MAX_CONCURRENCY);
+                    ParallelDownload(tasks, MAX_CONCURRENCY, null, null, ct);
 
                 if (profile.ContainsKey("processors"))
                 {
                     recordLog(LogLevel.Info, $"[Forge] 执行 processor（打补丁）...");
-                    RunProcessors(profile, serverDir, tempDir, "server", installerPath);
+                    RunProcessors(profile, serverDir, tempDir, "server", installerPath,
+                                  null, null, ct);
                 }
 
-                // ============================================================
-                // ★ 复制 shim jar 到服务端根目录（Forge 1.17+ 的某些 run.bat 需要）
-                // ============================================================
                 string shimSrc = Path.Combine(serverDir, "libraries", "net",
                     "minecraftforge", "forge", forgeVersion,
                     $"forge-{forgeVersion}-shim.jar");
@@ -289,8 +302,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     }
                     catch (Exception ex)
                     {
-                        // shim 复制失败不致命（大部分 run.bat 引用的仍是 libraries 里的那份），
-                        // 但必须完整记录堆栈
                         LogEx($"[Forge] 复制 shim jar 失败(不致命): {shimSrc} -> {shimDst}", ex, LogLevel.Warn);
                     }
                 }
@@ -299,9 +310,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     recordLog(LogLevel.Warn, $"[Forge] 警告: 未找到 shim jar: {shimSrc}");
                 }
 
-                // ============================================================
-                // ★ 校验官方 run.bat / win_args.txt / user_jvm_args.txt 是否就位
-                // ============================================================
                 string runBat = Path.Combine(serverDir, "run.bat");
                 string winArgs = Path.Combine(serverDir, "libraries", "net",
                     "minecraftforge", "forge", forgeVersion, "win_args.txt");
@@ -322,24 +330,16 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                         "processor 1 可能未成功。");
 
                 if (File.Exists(jvmArgs))
-                    recordLog(LogLevel.Info, $"[Forge] user_jvm_args.txt 已就绪，可在此文件里修改内存等 JVM 参数");
+                    recordLog(LogLevel.Info, $"[Forge] user_jvm_args.txt 已就绪");
                 else
-                    recordLog(LogLevel.Warn, $"[Forge] 警告: 未找到 user_jvm_args.txt（可能已被 processor 使用默认值）");
+                    recordLog(LogLevel.Warn, $"[Forge] 警告: 未找到 user_jvm_args.txt");
 
                 recordLog(LogLevel.Info, $"[Forge] 服务端 Forge {version} 安装完成");
-                recordLog(LogLevel.Info, $"[Forge] 首次启动前请：1) 修改 eula.txt 接受 EULA  2) 编辑 user_jvm_args.txt 设置内存");
-                recordLog(LogLevel.Info, $"[Forge] 启动方式：双击 {runBat}");
             }
             finally
             {
-                try
-                {
-                    if (Directory.Exists(tempDir)) Directory.Delete(tempDir, true);
-                }
-                catch (Exception ex)
-                {
-                    LogEx($"[Forge] 清理临时目录失败(不致命): {tempDir}", ex, LogLevel.Warn);
-                }
+                try { if (Directory.Exists(tempDir)) Directory.Delete(tempDir, true); }
+                catch (Exception ex) { LogEx($"[Forge] 清理临时目录失败(不致命): {tempDir}", ex, LogLevel.Warn); }
             }
         }
 
@@ -376,8 +376,30 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             try
             {
                 recordLog(LogLevel.Info, $"[Forge] 获取版本列表...");
-                string xml = DownloadString(FORGE_METADATA);
-                if (string.IsNullOrEmpty(xml)) return null;
+
+                // ★ 加入 BMCLAPI 镜像
+                string[] urls = {
+            BMCL_BASE + "/maven/net/minecraftforge/forge/maven-metadata.xml",
+            FORGE_METADATA
+        };
+
+                string xml = null;
+                Exception lastEx = null;
+                foreach (var url in urls)
+                {
+                    try
+                    {
+                        xml = DownloadString(url);
+                        if (!string.IsNullOrEmpty(xml)) break;
+                    }
+                    catch (Exception ex)
+                    {
+                        lastEx = ex;
+                        LogEx($"[Forge] 获取版本列表失败({url})，尝试下一个源...", ex, LogLevel.Warn);
+                    }
+                }
+
+                if (string.IsNullOrEmpty(xml)) throw new Exception("所有源均获取失败", lastEx);
 
                 var doc = new XmlDocument();
                 doc.LoadXml(xml);
@@ -423,8 +445,12 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         }
 
         // ===================== 下载安装器 =====================
-        private static string DownloadInstaller(string forgeVersion)
+        private static string DownloadInstaller(string forgeVersion,
+                                          TaskGroup group, SubTaskItem stage,
+                                          CancellationToken ct)
         {
+            ct.ThrowIfCancellationRequested();
+
             string launcherDir = AppDomain.CurrentDomain.BaseDirectory;
             string cacheDir = Path.Combine(launcherDir, "Launcher Setting", "Mode Loader Installer");
             if (!Directory.Exists(cacheDir)) Directory.CreateDirectory(cacheDir);
@@ -445,24 +471,26 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 if (File.Exists(installerPath))
                 {
                     recordLog(LogLevel.Info, $"[Forge] 安装器已存在: {installerPath}");
+                    if (stage != null) group?.UpdateStage(stage, 1, "Cached");
                     return installerPath;
                 }
             }
 
             string[] mirrors =
             {
-                $"{FORGE_MAVEN}net/minecraftforge/forge/{forgeVersion}/{fileName}",
-                $"{BMCL_BASE}/maven/net/minecraftforge/forge/{forgeVersion}/{fileName}",
-            };
+        $"{FORGE_MAVEN}net/minecraftforge/forge/{forgeVersion}/{fileName}",
+        $"{BMCL_BASE}/maven/net/minecraftforge/forge/{forgeVersion}/{fileName}",
+    };
 
             recordLog(LogLevel.Info, $"[Forge] 下载安装器（{INSTALLER_CHUNKS} 段并行）: {fileName}");
 
             string lastError = null;
             foreach (var url in mirrors)
             {
+                ct.ThrowIfCancellationRequested();
                 try
                 {
-                    DownloadLargeFile(url, installerPath, INSTALLER_CHUNKS);
+                    DownloadLargeFile(url, installerPath, INSTALLER_CHUNKS, group, stage, ct);
                     recordLog(LogLevel.Info, $"[Forge] 安装器已下载: {installerPath}");
                     return installerPath;
                 }
@@ -470,12 +498,10 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 {
                     lastError = ex.Message;
                     LogEx($"[Forge] 源失败({url})", ex);
-                    try
-                    {
-                        if (File.Exists(installerPath)) File.Delete(installerPath);
-                    }
+                    try { if (File.Exists(installerPath)) File.Delete(installerPath); }
                     catch (Exception delEx) { LogEx($"[Forge] 清理失败安装器失败: {installerPath}", delEx, LogLevel.Warn); }
-                    Thread.Sleep(1000);
+                    if (ct.WaitHandle.WaitOne(1000))
+                        ct.ThrowIfCancellationRequested();
                 }
             }
 
@@ -483,20 +509,24 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         }
 
         // ===================== 大文件分段下载 =====================
-        private static void DownloadLargeFile(string url, string dest, int chunks)
+        private static void DownloadLargeFile(string url, string dest, int chunks,
+                                        TaskGroup group, SubTaskItem stage,
+                                        CancellationToken ct)
         {
+            ct.ThrowIfCancellationRequested();
+
             long totalSize = GetContentLength(url);
 
             if (totalSize <= 0)
             {
                 recordLog(LogLevel.Info, $"[Forge] 服务器不返回大小，退化为单线程下载");
-                SingleDownloadWithProgress(url, dest, true);
+                SingleDownloadWithProgress(url, dest, true, ct);
+                if (stage != null) group?.UpdateStage(stage, 1, "Done");
                 return;
             }
 
             recordLog(LogLevel.Info, $"[Forge] 文件大小: {FormatSize(totalSize)}，分 {chunks} 段并行");
 
-            // ★ 预分配文件：失败时明确提示磁盘空间不足
             try
             {
                 using (var fs = File.Create(dest))
@@ -504,8 +534,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             }
             catch (Exception ex)
             {
-                try { if (File.Exists(dest)) File.Delete(dest); }
-                catch (Exception delEx) { LogEx($"[Forge] 删除预分配失败的文件失败: {dest}", delEx, LogLevel.Warn); }
+                try { if (File.Exists(dest)) File.Delete(dest); } catch { }
                 throw new Exception(
                     $"[Forge] 预分配安装器文件失败（可能磁盘空间不足）: {dest} ({FormatSize(totalSize)})", ex);
             }
@@ -524,13 +553,26 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             {
                 while (true)
                 {
-                    System.Threading.Thread.Sleep(500);
+                    if (ct.WaitHandle.WaitOne(500))
+                        return;   // 取消时直接退出 reporter
+
                     long snapshot;
+                    bool finished;
                     lock (progressLock)
                     {
                         snapshot = displayedReceived;
-                        if (totalReceived >= totalSize) break;
+                        finished = totalReceived >= totalSize;
                     }
+                    if (finished) return;
+
+                    // ★ 上报到 TaskGroup
+                    if (stage != null && totalSize > 0)
+                    {
+                        double p = (double)snapshot / totalSize;
+                        group?.UpdateStage(stage, p,
+                            $"{FormatSize(snapshot)}/{FormatSize(totalSize)}");
+                    }
+
                     double secs = sw.Elapsed.TotalSeconds;
                     double speed = secs > 0 ? snapshot / secs : 0;
                     int pct = (int)(snapshot * 100 / totalSize);
@@ -557,12 +599,14 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     Exception lastEx = null;
                     for (int retry = 0; retry < RETRY_COUNT; retry++)
                     {
+                        if (ct.IsCancellationRequested) return;
                         try
                         {
                             DownloadRangeSegment(url, dest, start, end, segIndex,
-                                progress, progressLock, ref totalReceived, ref displayedReceived);
+                                progress, progressLock, ref totalReceived, ref displayedReceived, ct);
                             return;
                         }
+                        catch (OperationCanceledException) { throw; }
                         catch (Exception ex)
                         {
                             lastEx = ex;
@@ -573,7 +617,10 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                             }
                             LogEx($"[Forge] 段 {segIndex} 下载失败（第 {retry + 1}/{RETRY_COUNT} 次）", ex, LogLevel.Warn);
                             if (retry < RETRY_COUNT - 1)
-                                Thread.Sleep(1000 * (retry + 1));
+                            {
+                                if (ct.WaitHandle.WaitOne(1000 * (retry + 1)))
+                                    ct.ThrowIfCancellationRequested();
+                            }
                         }
                     }
                     if (lastEx != null)
@@ -589,6 +636,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             foreach (var t in threads) t.Join();
             reporter.Join(2000);
 
+            ct.ThrowIfCancellationRequested();
+
             lock (_consoleLock)
             {
                 Console.Write("\r" + new string(' ', 120) + "\r");
@@ -598,9 +647,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             if (errors.Count > 0)
             {
                 recordLog(LogLevel.Warn, $"[Forge] 分段失败（{errors.Count} 段），回退单线程重下");
-                try { if (File.Exists(dest)) File.Delete(dest); }
-                catch (Exception delEx) { LogEx($"[Forge] 删除分段失败文件失败: {dest}", delEx, LogLevel.Warn); }
-                SingleDownloadWithProgress(url, dest, true);
+                try { if (File.Exists(dest)) File.Delete(dest); } catch { }
+                SingleDownloadWithProgress(url, dest, true, ct);
                 return;
             }
 
@@ -610,8 +658,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             }
             catch (Exception ex)
             {
-                try { if (File.Exists(dest)) File.Delete(dest); }
-                catch (Exception delEx) { LogEx($"[Forge] 删除校验失败文件失败: {dest}", delEx, LogLevel.Warn); }
+                try { if (File.Exists(dest)) File.Delete(dest); } catch { }
                 throw new Exception($"安装器文件校验失败: {dest}", ex);
             }
         }
@@ -639,9 +686,10 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         }
 
         private static void DownloadRangeSegment(
-            string url, string dest, long start, long end, int segmentIndex,
-            long[] progress, object progressLock,
-            ref long totalReceived, ref long displayedReceived)
+    string url, string dest, long start, long end, int segmentIndex,
+    long[] progress, object progressLock,
+    ref long totalReceived, ref long displayedReceived,
+    CancellationToken ct)
         {
             var req = (HttpWebRequest)WebRequest.Create(url);
             req.UserAgent = UA_STRING;
@@ -664,6 +712,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
                 while ((read = netStream.Read(buffer, 0, buffer.Length)) > 0)
                 {
+                    ct.ThrowIfCancellationRequested();
                     fs.Write(buffer, 0, read);
                     received += read;
 
@@ -1098,8 +1147,10 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         /// Java 进程退出码非 0、超时）一律 throw，避免"装完了但启动崩"。
         /// </summary>
         private static void RunProcessors(
-            Dictionary<string, object> profile, string rootDir,
-            string installerDir, string side, string installerPathArg)
+    Dictionary<string, object> profile, string rootDir,
+    string installerDir, string side, string installerPathArg,
+    TaskGroup group = null, SubTaskItem stage = null,
+    CancellationToken ct = default(CancellationToken))
         {
             string binPatchFile = Path.Combine(installerDir, "data",
                 side == "client" ? "client.lzma" : "server.lzma");
@@ -1130,10 +1181,14 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 ? Path.Combine(rootDir, "versions", mcVersion, mcVersion + ".jar")
                 : Path.Combine(rootDir, "server.jar");
 
+            int total = processors.Count;
             int idx = 0;
+
             foreach (var procObj in processors)
             {
+                ct.ThrowIfCancellationRequested();
                 idx++;
+
                 var proc = procObj as Dictionary<string, object>;
                 if (proc == null)
                     throw new Exception($"[Forge] processor {idx} 结构错误（不是 JSON 对象）");
@@ -1153,6 +1208,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                         if (!matched)
                         {
                             recordLog(LogLevel.Info, $"[Forge] 跳过 processor {idx}（不适用 {side}）");
+                            if (stage != null)
+                                group?.UpdateStage(stage, (double)idx / total, $"skip {idx}/{total}");
                             continue;
                         }
                     }
@@ -1175,12 +1232,14 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                         if (allExist)
                         {
                             recordLog(LogLevel.Info, $"[Forge] processor {idx} 输出已存在，跳过");
+                            if (stage != null)
+                                group?.UpdateStage(stage, (double)idx / total, $"skip {idx}/{total}");
                             continue;
                         }
                     }
                 }
 
-                // ---- 以下全部"必须成功"，失败 throw ----
+                // ---- 以下全部"必须成功" ----
                 string jarCoord = (proc.ContainsKey("jar") && proc["jar"] != null)
                     ? proc["jar"].ToString() : null;
                 if (string.IsNullOrEmpty(jarCoord))
@@ -1255,9 +1314,10 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     recordLog(LogLevel.Info, $"[Forge]   [{i}] RAW='{rawArgList[i]}' -> '{argList[i]}'{mark}");
                 }
 
-                recordLog(LogLevel.Info, $"[Forge] 执行 processor {idx}: {jarCoord}");
+                if (stage != null)
+                    group?.UpdateStage(stage, (double)(idx - 1) / total, $"processor {idx}/{total}");
 
-                // ★ RunJavaProcess 抛出的异常直接向上传播，不吞
+                recordLog(LogLevel.Info, $"[Forge] 执行 processor {idx}: {jarCoord}");
                 RunJavaProcess(cpList, mainClass, argList, rootDir);
             }
         }
@@ -1505,8 +1565,17 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         }
 
         // ===================== 并行下载 =====================
-        private static void ParallelDownload(List<DownloadTask> tasks, int maxConcurrency)
+        private static void ParallelDownload(
+    List<DownloadTask> tasks, int maxConcurrency,
+    TaskGroup group = null, SubTaskItem stage = null,
+    CancellationToken ct = default(CancellationToken))
         {
+            if (tasks.Count == 0)
+            {
+                group?.CompleteStage(stage);
+                return;
+            }
+
             int failed = 0, skipped = 0;
             int completed = 0;
             int total = tasks.Count;
@@ -1517,12 +1586,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             var failures = new List<string>();
 
             recordLog(LogLevel.Info, $"[Forge] 开始并行下载（{maxConcurrency} 线程，共 {total} 个任务）...");
-            Interlocked.Exchange(ref _lastProgressTick, 0);
 
-            lock (_consoleLock)
-            {
-                PrintProgressLine(skipped, failed, completed, total);
-            }
+            if (stage != null) stage.State = TaskState.Running;
 
             var threads = new List<Thread>();
             for (int i = 0; i < maxConcurrency; i++)
@@ -1531,6 +1596,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 {
                     while (true)
                     {
+                        if (ct.IsCancellationRequested) return;
+
                         DownloadTask task;
                         lock (queueLock)
                         {
@@ -1540,13 +1607,19 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
                         try
                         {
-                            bool wasSkipped = DownloadFile(task.Url, task.Dest, task.ShowProgress);
+                            bool wasSkipped = DownloadFile(task.Url, task.Dest, task.ShowProgress, ct);
+                            int n;
                             lock (statLock)
                             {
                                 if (wasSkipped) skipped++;
-                                completed++;
+                                n = ++completed;
                             }
+
+                            // 每 5 个或最后一个刷新
+                            if (stage != null && (n % 5 == 0 || n == total))
+                                group?.UpdateStage(stage, (double)n / total, $"{n}/{total}");
                         }
+                        catch (OperationCanceledException) { throw; }
                         catch (Exception ex)
                         {
                             lock (statLock)
@@ -1556,25 +1629,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                                 if (failures.Count < 50)
                                     failures.Add($"{task.Name} <- {ex.Message}");
                             }
-                            lock (_consoleLock)
-                            {
-                                Console.Write("\r" + new string(' ', 140) + "\r");
-                            }
                             LogEx($"[Forge] 下载失败: {task.Name}", ex);
-                        }
-
-                        int now = Environment.TickCount;
-                        int last = Volatile.Read(ref _lastProgressTick);
-                        bool isLast = false;
-                        lock (statLock) isLast = (completed == total);
-
-                        if (isLast || (now - last) >= PROGRESS_REFRESH_MS)
-                        {
-                            Volatile.Write(ref _lastProgressTick, now);
-                            lock (_consoleLock)
-                            {
-                                PrintProgressLine(skipped, failed, completed, total);
-                            }
                         }
                     }
                 });
@@ -1586,19 +1641,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             foreach (var t in threads) t.Join();
 
-            lock (_consoleLock)
-            {
-                Console.WriteLine();
-                Console.WriteLine($"[Forge] 下载完成: 总计 {total}, 跳过 {skipped}, 失败 {failed}");
-
-                if (failed > 0 && failures.Count > 0)
-                {
-                    Console.WriteLine($"[Forge] 失败清单（前 {Math.Min(failures.Count, 20)} 条）:");
-                    int n = Math.Min(failures.Count, 20);
-                    for (int i = 0; i < n; i++)
-                        Console.WriteLine($"  - {failures[i]}");
-                }
-            }
+            ct.ThrowIfCancellationRequested();
 
             if (failed > 0)
             {
@@ -1611,8 +1654,11 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     for (int i = 0; i < n; i++)
                         sb.Append("\n  - ").Append(failures[i]);
                 }
+                group?.FailStage(stage, $"{failed} failed");
                 throw new Exception(sb.ToString());
             }
+
+            group?.CompleteStage(stage);
         }
 
         private static void PrintProgressLine(int skipped, int failed, int completed, int total)
@@ -1624,7 +1670,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         }
 
         // ===================== 底层下载 =====================
-        private static bool DownloadFile(string url, string dest, bool showProgress)
+        private static bool DownloadFile(string url, string dest, bool showProgress,
+                                   CancellationToken ct = default(CancellationToken))
         {
             bool isJar = dest.EndsWith(".jar", StringComparison.OrdinalIgnoreCase) ||
                          dest.EndsWith(".zip", StringComparison.OrdinalIgnoreCase);
@@ -1664,19 +1711,20 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             for (int retry = 0; retry < RETRY_COUNT; retry++)
             {
+                ct.ThrowIfCancellationRequested();
+
                 foreach (string u in urls)
                 {
                     try
                     {
-                        SingleDownloadWithProgress(u, tmpPath, showProgress);
+                        SingleDownloadWithProgress(u, tmpPath, showProgress, ct);
 
                         if (isJar)
                         {
                             try { ValidateJarFile(tmpPath); }
                             catch (Exception ex)
                             {
-                                try { File.Delete(tmpPath); }
-                                catch (Exception delEx) { LogEx($"[Forge] 删除损坏 .tmp 失败: {tmpPath}", delEx, LogLevel.Warn); }
+                                try { File.Delete(tmpPath); } catch { }
                                 throw new Exception($"文件校验失败: {tmpPath}", ex);
                             }
                         }
@@ -1684,16 +1732,20 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                         MoveOrReplace(tmpPath, dest);
                         return false;
                     }
+                    catch (OperationCanceledException) { throw; }
                     catch (Exception ex)
                     {
                         lastEx = ex;
-                        try { if (File.Exists(tmpPath)) File.Delete(tmpPath); }
-                        catch (Exception delEx) { LogEx($"[Forge] 清理 .tmp 失败: {tmpPath}", delEx, LogLevel.Warn); }
+                        try { if (File.Exists(tmpPath)) File.Delete(tmpPath); } catch { }
                         LogEx($"[Forge] 下载失败({u})", ex);
                     }
                 }
+
                 if (retry < RETRY_COUNT - 1)
-                    Thread.Sleep(500 * (retry + 1));
+                {
+                    if (ct.WaitHandle.WaitOne(500 * (retry + 1)))
+                        ct.ThrowIfCancellationRequested();
+                }
             }
 
             throw new Exception($"下载 {dest} 失败: {lastEx?.Message}", lastEx);
@@ -1774,47 +1826,60 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             return result.ToArray();
         }
 
-        private static void SingleDownloadWithProgress(string url, string dest, bool showProgress)
+        private static void SingleDownloadWithProgress(string url, string dest, bool showProgress,
+                                                 CancellationToken ct = default(CancellationToken))
         {
-            using (var resp = SendRequestIPv4First(url, HTTP_TIMEOUT_MS, HTTP_TIMEOUT_MS))
-            using (var netStream = resp.GetResponseStream())
-            using (var fs = new FileStream(dest, FileMode.Create, FileAccess.Write,
-                                           FileShare.None, BUFFER_SIZE))
-            {
-                long total = resp.ContentLength;
-                long received = 0;
-                byte[] buffer = new byte[BUFFER_SIZE];
-                int read;
-                bool displayProgress = showProgress && total > 1024 * 1024;
+            ct.ThrowIfCancellationRequested();
 
-                while ((read = netStream.Read(buffer, 0, buffer.Length)) > 0)
+            // ★ 全局下载许可（防止多任务并发过载）
+            DownloadGate.Global.Wait(ct);
+            try
+            {
+                using (var resp = SendRequestIPv4First(url, HTTP_TIMEOUT_MS, HTTP_TIMEOUT_MS))
+                using (var netStream = resp.GetResponseStream())
+                using (var fs = new FileStream(dest, FileMode.Create, FileAccess.Write,
+                                               FileShare.None, BUFFER_SIZE))
                 {
-                    fs.Write(buffer, 0, read);
-                    received += read;
+                    long total = resp.ContentLength;
+                    long received = 0;
+                    byte[] buffer = new byte[BUFFER_SIZE];
+                    int read;
+                    bool displayProgress = showProgress && total > 1024 * 1024;
+
+                    while ((read = netStream.Read(buffer, 0, buffer.Length)) > 0)
+                    {
+                        ct.ThrowIfCancellationRequested();
+                        fs.Write(buffer, 0, read);
+                        received += read;
+
+                        if (displayProgress)
+                        {
+                            int pct = total > 0 ? (int)(received * 100 / total) : 0;
+                            lock (_consoleLock)
+                            {
+                                Console.Write($"\r[下载中] {Path.GetFileName(dest)} - {pct}% " +
+                                              $"({FormatSize(received)}/{FormatSize(total)})   ");
+                                try { Console.Out.Flush(); } catch { }
+                            }
+                        }
+                    }
 
                     if (displayProgress)
                     {
-                        int pct = total > 0 ? (int)(received * 100 / total) : 0;
                         lock (_consoleLock)
                         {
-                            Console.Write($"\r[下载中] {Path.GetFileName(dest)} - {pct}% " +
-                                          $"({FormatSize(received)}/{FormatSize(total)})   ");
+                            Console.Write("\r" + new string(' ', 120) + "\r");
                             try { Console.Out.Flush(); } catch { }
                         }
                     }
-                }
 
-                if (displayProgress)
-                {
-                    lock (_consoleLock)
-                    {
-                        Console.Write("\r" + new string(' ', 120) + "\r");
-                        try { Console.Out.Flush(); } catch { }
-                    }
+                    if (total > 0 && received != total)
+                        throw new Exception($"下载不完整: {received}/{total}");
                 }
-
-                if (total > 0 && received != total)
-                    throw new Exception($"下载不完整: {received}/{total}");
+            }
+            finally
+            {
+                DownloadGate.Global.Release();
             }
         }
 

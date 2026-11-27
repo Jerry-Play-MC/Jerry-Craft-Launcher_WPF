@@ -19,6 +19,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         private readonly DownloadView _downloadView = new DownloadView();
         private readonly ServerView _serverView = new ServerView();
         private readonly SettingsView _settingsView = new SettingsView();
+        private readonly TaskView _taskView = new TaskView();
 
         public MainWindow()
         {
@@ -34,6 +35,29 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             RootGrid.Clip = new RectangleGeometry(
                 new Rect(0, 0, RootGrid.ActualWidth, RootGrid.ActualHeight),
                 CornerRadiusValue, CornerRadiusValue);
+        }
+
+        private void TaskButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (TasksNavButton != null)
+                TasksNavButton.IsChecked = true;   // 会触发 TopNav_Checked 切页
+            else
+                MainContent.Content = _taskView;
+        }
+
+        private void CloseTaskOverlay(object sender, MouseButtonEventArgs e)
+        {
+            TaskCenter.Instance.IsPanelOpen = false;
+        }
+
+        private void CloseTaskOverlayClick(object sender, RoutedEventArgs e)
+        {
+            TaskCenter.Instance.IsPanelOpen = false;
+        }
+
+        private void ClearFinished_Click(object sender, RoutedEventArgs e)
+        {
+            TaskCenter.Instance.ClearFinished();
         }
 
         private void MainWindow_ContentRendered(object sender, EventArgs e)
@@ -73,6 +97,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 case "Download": MainContent.Content = _downloadView; break;
                 case "Server": MainContent.Content = _serverView; break;
                 case "Settings": MainContent.Content = _settingsView; break;
+                case "Tasks": MainContent.Content = _taskView; break;
             }
         }
 

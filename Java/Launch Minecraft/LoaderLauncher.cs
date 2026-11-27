@@ -25,6 +25,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         Running,
         Stopped,
         Failed,
+        LogOutput
     }
 
     public class LaunchProgress
@@ -159,7 +160,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     if (!string.IsNullOrEmpty(useJava) &&
                         !string.Equals(useJava, "auto", StringComparison.OrdinalIgnoreCase))
                     {
-                        string exe = Path.Combine(useJava.TrimEnd('\\'), "bin", "java.exe");
+                        string exe = Path.Combine(useJava.TrimEnd('\\'), "bin", "javaw.exe");
                         if (File.Exists(exe))
                         {
                             context.JavaPath = exe;
@@ -186,7 +187,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 libs = FilterLibraries(libs, context);
                 recordLog(LogLevel.Info, $"[{LoaderName}] 库数量: {libs.Count}");
 
-                CheckAndDownloadFiles(context, os, libs);
+                string assetIndexId = GetAssetIndexId(root, context.MinecraftDir);
+                CheckAndDownloadFiles(context, os, libs, assetIndexId);
 
                 string nativesDir = null;
                 if (!context.IsServer)
@@ -241,14 +243,17 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         }
 
         // ============================================================
-        //   文件资源完整性检查
+        //   文件资源完整性检查（Libraries + Assets）
         // ============================================================
         protected void CheckAndDownloadFiles(
-            LaunchContext context, string os, List<Dictionary<string, object>> libs)
+            LaunchContext context, string os, List<Dictionary<string, object>> libs, string assetIndexId)
         {
             Report(context, LaunchPhase.CheckingFiles, "检查文件资源完整性...");
             recordLog(LogLevel.Info, $"[{LoaderName}] 检查文件资源完整性...");
 
+            // ────────────────────────────────────────────────────────
+            // 1. 检查 Libraries（原有的逻辑）
+            // ────────────────────────────────────────────────────────
             string libDir = Path.Combine(context.MinecraftDir, "libraries");
             int missing = 0, downloaded = 0, skippedNoUrl = 0, skippedNatives = 0, failed = 0;
             var failedNames = new List<string>();
@@ -292,8 +297,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
                 missing++;
 
-                // natives-only 占位库（同时有 natives 字段或名字带 -platform），
-                // 主 jar 在 Maven 上不存在，缺失是正常现象，不应触发下载
                 bool isNativesOnly =
                     lib.ContainsKey("natives") ||
                     (lib.ContainsKey("name") &&
@@ -302,21 +305,19 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
                 if (isNativesOnly)
                 {
-                    recordLog(LogLevel.Info, $"[{LoaderName}] [Files] 跳过 natives-only 占位库：{relPath}");
                     skippedNatives++;
                     continue;
                 }
 
                 if (string.IsNullOrEmpty(url))
                 {
-                    recordLog(LogLevel.Info, $"[{LoaderName}] [Files] 缺少且无 URL，跳过：{relPath}");
                     skippedNoUrl++;
                     continue;
                 }
 
                 try
                 {
-                    recordLog(LogLevel.Info, $"[{LoaderName}] [Files] 补全：{relPath}");
+                    recordLog(LogLevel.Info, $"[{LoaderName}] [Files] 补全 Lib：{relPath}");
                     DownloadFileSimple(url, full);
                     downloaded++;
                 }
@@ -328,16 +329,96 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 }
             }
 
-            recordLog(LogLevel.Info, $"[{LoaderName}] [Files] 检查完成：缺失 {missing}，" +
-                              $"下载 {downloaded}，无 URL 跳过 {skippedNoUrl}，" +
-                              $"natives 跳过 {skippedNatives}，失败 {failed}");
-
             if (failed > 0)
             {
                 int show = Math.Min(3, failedNames.Count);
                 string names = string.Join("、", failedNames.GetRange(0, show).ToArray());
                 throw new Exception(
                     $"有 {failed} 个文件下载失败（网络原因），请检查网络后重试。\n例如：{names}");
+            }
+
+            // ────────────────────────────────────────────────────────
+            // 2. ★ 新增：检查 Assets（语言、音效、贴图）
+            // ────────────────────────────────────────────────────────
+            CheckAndDownloadAssets(context, assetIndexId);
+        }
+
+        /// <summary>
+        /// 检查并补全 assets 资源文件（贴图、音效、语言文件等）
+        /// </summary>
+        private void CheckAndDownloadAssets(LaunchContext context, string assetIndexId)
+        {
+            if (string.IsNullOrEmpty(assetIndexId) || assetIndexId == "legacy")
+                return;
+
+            string assetsDir = Path.Combine(context.MinecraftDir, "assets");
+            string indexFile = Path.Combine(assetsDir, "indexes", assetIndexId + ".json");
+
+            if (!File.Exists(indexFile))
+            {
+                recordLog(LogLevel.Warn, $"[{LoaderName}] [Assets] 找不到资源索引文件，跳过 Assets 检查：{indexFile}");
+                return;
+            }
+
+            Dictionary<string, object> root;
+            try
+            {
+                string json = File.ReadAllText(indexFile, Encoding.UTF8);
+                root = new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(json);
+            }
+            catch (Exception ex)
+            {
+                recordLog(LogLevel.Warn, $"[{LoaderName}] [Assets] 解析资源索引失败，跳过检查：{ex.Message}");
+                return;
+            }
+
+            if (root == null || !root.ContainsKey("objects")) return;
+            var objects = root["objects"] as Dictionary<string, object>;
+            if (objects == null) return;
+
+            string objectsDir = Path.Combine(assetsDir, "objects");
+            int missing = 0, downloaded = 0, failed = 0;
+
+            foreach (var kv in objects)
+            {
+                var obj = kv.Value as Dictionary<string, object>;
+                if (obj == null || !obj.ContainsKey("hash")) continue;
+
+                string hash = Convert.ToString(obj["hash"]);
+                if (hash.Length < 2) continue;
+
+                string subDir = hash.Substring(0, 2);
+                string full = Path.Combine(objectsDir, subDir, hash);
+
+                // 检查文件是否存在，且大小不为 0
+                bool exists = false;
+                try
+                {
+                    if (File.Exists(full) && new FileInfo(full).Length > 0)
+                        exists = true;
+                }
+                catch { }
+
+                if (exists) continue;
+                missing++;
+
+                string url = $"https://resources.download.minecraft.net/{subDir}/{hash}";
+                try
+                {
+                    DownloadFileSimple(url, full);
+                    downloaded++;
+                }
+                catch (Exception ex)
+                {
+                    // Assets 缺失通常不致命（游戏能跑，只是没声音/没中文），不抛异常阻断启动
+                    recordLog(LogLevel.Warn, $"[{LoaderName}] [Assets] 补全失败：{hash} - {ex.Message}");
+                    failed++;
+                }
+            }
+
+            if (missing > 0)
+            {
+                recordLog(LogLevel.Info, $"[{LoaderName}] [Assets] 检查完成：缺失 {missing}，补全 {downloaded}，失败 {failed}");
             }
         }
 
@@ -1318,6 +1399,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             {
                 if (e.Data == null) return;
                 Console.WriteLine(e.Data);
+                Report(context, LaunchPhase.LogOutput, e.Data);
 
                 if (!windowReported)
                 {
@@ -1334,6 +1416,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             proc.ErrorDataReceived += (s, e) =>
             {
                 if (e.Data != null) Console.Error.WriteLine(e.Data);
+                Report(context, LaunchPhase.LogOutput, e.Data);
             };
 
             try
@@ -1456,14 +1539,14 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             if (string.IsNullOrEmpty(javaBaseDir) || !Directory.Exists(javaBaseDir))
                 return null;
 
-            if (File.Exists(Path.Combine(javaBaseDir, "bin", "java.exe")))
+            if (File.Exists(Path.Combine(javaBaseDir, "bin", "javaw.exe")))
                 return Path.Combine(javaBaseDir, "bin");
 
             try
             {
                 foreach (var sub in Directory.GetDirectories(javaBaseDir))
                 {
-                    if (File.Exists(Path.Combine(sub, "bin", "java.exe")))
+                    if (File.Exists(Path.Combine(sub, "bin", "javaw.exe")))
                         return Path.Combine(sub, "bin");
                 }
             }
@@ -1619,7 +1702,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
     // ============================================================
     internal class JavaSearchResult
     {
-        public string Path;                  // 选中的 java.exe
+        public string Path;                  // 选中的 javaw.exe
         public int ActualMajor;              // 实际主版本
         public bool IsExact;                 // 是否精确匹配 requiredMajor
         public List<int> AllMajors = new List<int>();  // 探测到的所有版本（去重由候选去重保证）
@@ -1640,14 +1723,14 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         }
 
         /// <summary>
-        /// 返回所有可用的 Java 候选（java.exe 路径 + 主版本），用于设置页展示。
+        /// 返回所有可用的 Java 候选（javaw.exe 路径 + 主版本），用于设置页展示。
         /// 来源：内置目录 + 用户指定目录（可选）+ 注册表。
         /// </summary>
         public static List<JavaCandidate> GetAllCandidates(string javaBaseDir = null)
         {
             var candidates = new List<JavaCandidate>();
 
-            // 1) 内置 Java：Launcher Setting\Java\{任意子目录}\bin\java.exe
+            // 1) 内置 Java：Launcher Setting\Java\{任意子目录}\bin\javaw.exe
             try
             {
                 string root = App.javaPath;
@@ -1655,7 +1738,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 {
                     foreach (var sub in Directory.GetDirectories(root))
                     {
-                        string exe = Path.Combine(sub, "bin", "java.exe");
+                        string exe = Path.Combine(sub, "bin", "javaw.exe");
                         if (!File.Exists(exe)) continue;
                         int major = GetJavaMajorVersion(exe);
                         if (major > 0)
@@ -1684,7 +1767,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         /// <summary>
         /// 查找 Java。
         /// 优先级：
-        ///   1) 启动器内置：Launcher Setting\Java\{requiredMajor}\bin\java.exe
+        ///   1) 启动器内置：Launcher Setting\Java\{requiredMajor}\bin\javaw.exe
         ///   2) 用户指定 javaBaseDir 及它的一级子目录
         ///   3) 注册表（各种 JDK 发行版）
         /// 都找不到就抛异常，由 UI 层捕获后引导下载。
@@ -1696,7 +1779,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             // 1) 内置 Java：先查 {requiredMajor} 子目录，再遍历其他子目录
             string builtInRoot = App.javaPath;
             string builtIn = Path.Combine(builtInRoot,
-                                          requiredMajor.ToString(), "bin", "java.exe");
+                                          requiredMajor.ToString(), "bin", "javaw.exe");
             if (File.Exists(builtIn) && GetJavaMajorVersion(builtIn) == requiredMajor)
             {
                 recordLog(LogLevel.Info, $"[Java] 使用内置 Java {requiredMajor}: {builtIn}");
@@ -1709,7 +1792,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 {
                     foreach (var sub in Directory.GetDirectories(builtInRoot))
                     {
-                        string exe = Path.Combine(sub, "bin", "java.exe");
+                        string exe = Path.Combine(sub, "bin", "javaw.exe");
                         if (!File.Exists(exe)) continue;
                         if (GetJavaMajorVersion(exe) != requiredMajor) continue;
                         recordLog(LogLevel.Info, $"[Java] 使用内置 Java {requiredMajor}: {exe}");
@@ -1722,7 +1805,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             // 2) Settings.json 导入的
             foreach (var root in LoadImportedJavaHomes())
             {
-                string exe = Path.Combine(root.TrimEnd('\\'), "bin", "java.exe");
+                string exe = Path.Combine(root.TrimEnd('\\'), "bin", "javaw.exe");
                 if (!File.Exists(exe)) continue;
                 if (GetJavaMajorVersion(exe) != requiredMajor) continue;
                 recordLog(LogLevel.Info, $"[Java] 使用导入的 Java {requiredMajor}: {exe}");
@@ -1757,7 +1840,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     $"未找到任何 Java 运行时（已扫描内置目录 + 指定目录 + 注册表）。\n" +
                     $"请通过启动器下载 Java {requiredMajor}（启动前会弹出提示），\n" +
                     $"或手动放置到：\n" +
-                    $"  {Path.Combine(App.javaPath, requiredMajor.ToString())}\\bin\\java.exe");
+                    $"  {Path.Combine(App.javaPath, requiredMajor.ToString())}\\bin\\javaw.exe");
 
             return PickBest(candidates, requiredMajor);
         }
@@ -1773,7 +1856,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 // 1) 内置 Java：先查 {requiredMajor} 子目录，再遍历其他子目录
                 string builtInRoot = App.javaPath;
                 string builtIn = Path.Combine(builtInRoot,
-                                              requiredMajor.ToString(), "bin", "java.exe");
+                                              requiredMajor.ToString(), "bin", "javaw.exe");
                 if (File.Exists(builtIn) && GetJavaMajorVersion(builtIn) == requiredMajor)
                     return true;
 
@@ -1783,7 +1866,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     {
                         foreach (var sub in Directory.GetDirectories(builtInRoot))
                         {
-                            string exe = Path.Combine(sub, "bin", "java.exe");
+                            string exe = Path.Combine(sub, "bin", "javaw.exe");
                             if (!File.Exists(exe)) continue;
                             if (GetJavaMajorVersion(exe) == requiredMajor) return true;
                         }
@@ -1794,7 +1877,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 // 2) Settings.json 导入的
                 foreach (var root in LoadImportedJavaHomes())
                 {
-                    string exe = Path.Combine(root.TrimEnd('\\'), "bin", "java.exe");
+                    string exe = Path.Combine(root.TrimEnd('\\'), "bin", "javaw.exe");
                     if (File.Exists(exe) && GetJavaMajorVersion(exe) == requiredMajor)
                         return true;
                 }
@@ -1830,7 +1913,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 // 1) 内置 Java：{requiredMajor} 子目录 + 其他子目录
                 string builtInRoot = App.javaPath;
                 string builtIn = Path.Combine(builtInRoot,
-                                              requiredMajor.ToString(), "bin", "java.exe");
+                                              requiredMajor.ToString(), "bin", "javaw.exe");
                 if (File.Exists(builtIn))
                 {
                     int actual = GetJavaMajorVersion(builtIn);
@@ -1844,7 +1927,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     {
                         foreach (var sub in Directory.GetDirectories(builtInRoot))
                         {
-                            string exe = Path.Combine(sub, "bin", "java.exe");
+                            string exe = Path.Combine(sub, "bin", "javaw.exe");
                             if (!File.Exists(exe)) continue;
                             int actual = GetJavaMajorVersion(exe);
                             if (actual > 0)
@@ -2198,9 +2281,9 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             string exe;
             if (Path.GetFileName(javaHome).Equals("bin", StringComparison.OrdinalIgnoreCase))
-                exe = Path.Combine(javaHome, "java.exe");
+                exe = Path.Combine(javaHome, "javaw.exe");
             else
-                exe = Path.Combine(javaHome, "bin", "java.exe");
+                exe = Path.Combine(javaHome, "bin", "javaw.exe");
 
             if (!File.Exists(exe)) return;
 

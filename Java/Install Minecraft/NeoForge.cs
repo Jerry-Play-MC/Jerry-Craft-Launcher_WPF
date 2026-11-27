@@ -263,7 +263,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         }
 
         // ===================== 客户端 =====================
-        public static void InstallClient(string version, string minecraftDir, string loaderParam)
+        public static void InstallClient(string version, string minecraftDir, string loaderParam, 
+            TaskGroup group = null, CancellationToken ct = default(CancellationToken), InstallStages stages = null)
         {
             if (string.IsNullOrEmpty(version))
                 throw new ArgumentException("版本号不能为空", "version");
@@ -561,9 +562,56 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
         private static string GetLatestNeoForgeVersion(string mcVersion)
         {
+            // 1. 优先使用 BMCLAPI 的专用 JSON 接口
             try
             {
-                recordLog(LogLevel.Info, $"[NeoForge] 获取版本列表...");
+                recordLog(LogLevel.Info, $"[NeoForge] 尝试从 BMCLAPI 获取版本列表...");
+                string bmclUrl = $"{BMCL_BASE}/neoforge/list/{mcVersion}";
+                string json = DownloadString(bmclUrl);
+
+                if (!string.IsNullOrEmpty(json))
+                {
+                    var arr = new JavaScriptSerializer().Deserialize<ArrayList>(json);
+                    var candidates = new List<string>();
+
+                    if (arr != null)
+                    {
+                        foreach (var item in arr)
+                        {
+                            var dict = item as Dictionary<string, object>;
+                            if (dict == null || !dict.ContainsKey("version")) continue;
+
+                            string v = Convert.ToString(dict["version"]); // e.g. "21.11.48"
+                            if (!string.IsNullOrEmpty(v) && !v.Contains("-pre") && !v.Contains("-alpha"))
+                                candidates.Add(v);
+                        }
+                    }
+
+                    if (candidates.Count > 0)
+                    {
+                        // 降序排序
+                        candidates.Sort((a, b) =>
+                        {
+                            bool aBeta = a.Contains("-beta");
+                            bool bBeta = b.Contains("-beta");
+                            if (aBeta != bBeta) return aBeta ? 1 : -1;
+                            return CompareVersions(b.Split('-')[0], a.Split('-')[0]);
+                        });
+
+                        recordLog(LogLevel.Info, $"[NeoForge] BMCLAPI 获取成功，最新版本: {candidates[0]}");
+                        return candidates[0];
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                LogEx($"[NeoForge] BMCLAPI 获取版本失败，将回退官方源", ex, LogLevel.Warn);
+            }
+
+            // 2. 回退：从官方 Maven 获取 XML
+            try
+            {
+                recordLog(LogLevel.Info, $"[NeoForge] 从官方 Maven 获取版本列表...");
                 string xml = DownloadString(NEOFORGE_METADATA);
                 if (string.IsNullOrEmpty(xml)) return null;
 
@@ -572,37 +620,35 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 var nodes = doc.SelectNodes("//metadata/versioning/versions/version");
                 if (nodes == null) return null;
 
-                string prefix = McVersionToNeoPrefix(mcVersion) + ".";
+                // 注意：官方 XML 里的版本是带 mc 前缀的，如 1.21.11-21.11.48
+                string prefix = mcVersion + "-";
                 var candidates = new List<string>();
                 foreach (XmlNode node in nodes)
                 {
                     string v = node.InnerText.Trim();
                     if (v.StartsWith(prefix) && !v.Contains("-pre") && !v.Contains("-alpha"))
-                        candidates.Add(v);
+                    {
+                        // 去掉 mc 前缀，只保留 21.11.48
+                        candidates.Add(v.Substring(prefix.Length));
+                    }
                 }
 
-                if (candidates.Count == 0)
-                {
-                    recordLog(LogLevel.Info, $"[NeoForge] 未找到匹配前缀 {prefix} 的版本");
-                    return null;
-                }
+                if (candidates.Count == 0) return null;
 
                 candidates.Sort((a, b) =>
                 {
                     bool aBeta = a.Contains("-beta");
                     bool bBeta = b.Contains("-beta");
                     if (aBeta != bBeta) return aBeta ? 1 : -1;
-                    string va = a.Split('-')[0];
-                    string vb = b.Split('-')[0];
-                    return CompareVersions(vb, va);
+                    return CompareVersions(b.Split('-')[0], a.Split('-')[0]);
                 });
 
-                recordLog(LogLevel.Info, $"[NeoForge] 最新版本: {candidates[0]}");
+                recordLog(LogLevel.Info, $"[NeoForge] 官方源获取成功，最新版本: {candidates[0]}");
                 return candidates[0];
             }
             catch (Exception ex)
             {
-                LogEx($"[NeoForge] 获取版本列表失败: {mcVersion}", ex);
+                LogEx($"[NeoForge] 官方源获取版本列表失败: {mcVersion}", ex);
                 return null;
             }
         }
@@ -642,8 +688,14 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             string[] mirrors =
             {
+                // 1. BMCLAPI 优先（虽然有时 403，但国内部分网络还是快）
                 $"{BMCL_BASE}/maven/net/neoforged/neoforge/{neoVersion}/{fileName}",
-                $"{NEOFORGE_MAVEN}net/neoforged/neoforge/{neoVersion}/{fileName}",
+    
+                // 2. ★ ForgeCDN 兜底（官方 CDN，国内可通，速度稳定）
+                $"https://neoforged.forgecdn.net/releases/net/neoforged/neoforge/{neoVersion}/{fileName}",
+    
+                // 3. 官方源（放在最后，因为国内直连经常超时）
+                $"{NEOFORGE_MAVEN}net/neoforged/neoforge/{neoVersion}/{fileName}"
             };
 
             recordLog(LogLevel.Info, $"[NeoForge] 下载安装器（{INSTALLER_CHUNKS} 段并行，最多 {INSTALLER_ROUNDS} 轮）: {fileName}");
@@ -2007,19 +2059,32 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             if (!string.IsNullOrEmpty(url))
             {
+                // 如果是官方 Maven 的库，生成 BMCLAPI 和 ForgeCDN 的替代地址
                 if (url.StartsWith(NEOFORGE_MAVEN, StringComparison.OrdinalIgnoreCase))
                 {
                     string rest = url.Substring(NEOFORGE_MAVEN.Length);
+
+                    // BMCLAPI
                     list.Add(BMCL_BASE + "/maven/" + rest);
+
+                    // ForgeCDN
+                    list.Add("https://neoforged.forgecdn.net/releases/" + rest);
+
+                    // 官方原地址
                     list.Add(url);
                 }
-                else { list.Add(url); }
+                else
+                {
+                    list.Add(url);
+                }
             }
 
+            // 去重并返回
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var result = new List<string>();
             foreach (var u in list)
                 if (!string.IsNullOrEmpty(u) && seen.Add(u)) result.Add(u);
+
             return result.ToArray();
         }
 

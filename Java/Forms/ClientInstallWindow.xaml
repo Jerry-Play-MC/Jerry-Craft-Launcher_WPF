@@ -11,7 +11,7 @@
             <RowDefinition Height="Auto"/>
             <!-- 标题栏 -->
             <RowDefinition Height="*"/>
-            <!-- 主体 -->
+            <!-- 表单 -->
             <RowDefinition Height="Auto"/>
             <!-- 按钮栏 -->
         </Grid.RowDefinitions>
@@ -39,127 +39,83 @@
             </Grid>
         </Border>
 
-        <!-- 主体 -->
-        <Grid Grid.Row="1">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="3*"/>
-                <!-- 表单区 -->
-                <RowDefinition Height="2*"/>
-                <!-- 日志区 -->
-            </Grid.RowDefinitions>
+        <!-- 表单 -->
+        <ScrollViewer Grid.Row="1"
+                      VerticalScrollBarVisibility="Auto"
+                      Margin="24,16,24,16">
+            <StackPanel>
+                <!-- 游戏版本（只读） -->
+                <TextBlock Text="{DynamicResource ClientInstall.GameVersion}"
+                           FontSize="12" Foreground="#666666" Margin="0,0,0,4"/>
+                <TextBox x:Name="GameVersionBox"
+                         Style="{StaticResource InputTextBoxStyle}"
+                         IsReadOnly="True"/>
 
-            <!-- 表单区：去掉 MaxHeight，加 MinHeight 兜底 -->
-            <ScrollViewer Grid.Row="0"
-                          MinHeight="120"
-                          VerticalScrollBarVisibility="Auto"
-                          Margin="24,16,24,0">
-                <StackPanel>
-                    <!-- 游戏版本（只读） -->
-                    <TextBlock Text="{DynamicResource ClientInstall.GameVersion}"
-                               FontSize="12" Foreground="#666666" Margin="0,0,0,4"/>
-                    <TextBox x:Name="GameVersionBox"
-                             Style="{StaticResource InputTextBoxStyle}"
-                             IsReadOnly="True"/>
+                <!-- 加载器 -->
+                <TextBlock Text="{DynamicResource ClientInstall.Loader}"
+                           FontSize="12" Foreground="#666666"
+                           Margin="0,14,0,4"/>
+                <ComboBox x:Name="LoaderBox"
+                          Style="{StaticResource ModernComboBoxStyle}"
+                          SelectionChanged="LoaderBox_SelectionChanged"/>
 
-                    <!-- 加载器 -->
-                    <TextBlock Text="{DynamicResource ClientInstall.Loader}"
-                               FontSize="12" Foreground="#666666"
-                               Margin="0,14,0,4"/>
-                    <ComboBox x:Name="LoaderBox"
-                              Style="{StaticResource ModernComboBoxStyle}"
-                              SelectionChanged="LoaderBox_SelectionChanged"/>
+                <!-- 加载器版本 -->
+                <TextBlock Text="{DynamicResource ClientInstall.LoaderVersion}"
+                           FontSize="12" Foreground="#666666"
+                           Margin="0,14,0,4"/>
+                <ComboBox x:Name="LoaderVersionBox"
+                          Style="{StaticResource ModernComboBoxStyle}"
+                          SelectionChanged="LoaderVersionBox_SelectionChanged"/>
+                <TextBlock x:Name="LoaderVersionHint"
+                           Text="{DynamicResource ClientInstall.LoaderVersionHint}"
+                           FontSize="11" Foreground="#999999"
+                           Margin="0,4,0,0"
+                           TextWrapping="Wrap"/>
 
-                    <!-- 加载器版本 -->
-                    <TextBlock Text="{DynamicResource ClientInstall.LoaderVersion}"
-                               FontSize="12" Foreground="#666666"
-                               Margin="0,14,0,4"/>
-                    <ComboBox x:Name="LoaderVersionBox"
-                              Style="{StaticResource ModernComboBoxStyle}"
-                              SelectionChanged="LoaderVersionBox_SelectionChanged"/>
-                    <TextBlock x:Name="LoaderVersionHint"
-                               Text="{DynamicResource ClientInstall.LoaderVersionHint}"
-                               FontSize="11" Foreground="#999999"
-                               Margin="0,4,0,0"
-                               TextWrapping="Wrap"/>
+                <!-- LiteLoader -->
+                <CheckBox x:Name="LiteLoaderCheck"
+                          Content="LiteLoader"
+                          FontSize="13"
+                          Margin="0,18,0,0"
+                          Checked="LiteLoaderCheck_Changed"
+                          Unchecked="LiteLoaderCheck_Changed"/>
+                <TextBlock x:Name="LiteLoaderHint"
+                           Text="仅支持 Minecraft 1.12.2 及以下，可与 Forge 共存"
+                           FontSize="11" Foreground="#999999"
+                           Margin="0,4,0,0"
+                           TextWrapping="Wrap"/>
 
-                    <!-- LiteLoader -->
-                    <CheckBox x:Name="LiteLoaderCheck"
-                              Content="LiteLoader"
-                              FontSize="13"
-                              Margin="0,18,0,0"
-                              Checked="LiteLoaderCheck_Changed"
-                              Unchecked="LiteLoaderCheck_Changed"/>
-                    <TextBlock x:Name="LiteLoaderHint"
-                               Text="仅支持 Minecraft 1.12.2 及以下，可与 Forge 共存"
-                               FontSize="11" Foreground="#999999"
-                               Margin="0,4,0,0"
-                               TextWrapping="Wrap"/>
+                <!-- OptiFine -->
+                <CheckBox x:Name="OptifineCheck"
+                          Content="{DynamicResource ClientInstall.Optifine}"
+                          FontSize="13"
+                          Margin="0,18,0,0"
+                          Checked="OptifineCheck_Changed"
+                          Unchecked="OptifineCheck_Changed"/>
 
-                    <!-- OptiFine -->
-                    <CheckBox x:Name="OptifineCheck"
-                              Content="{DynamicResource ClientInstall.Optifine}"
-                              FontSize="13"
-                              Margin="0,18,0,0"
-                              Checked="OptifineCheck_Changed"
-                              Unchecked="OptifineCheck_Changed"/>
+                <TextBlock Text="{DynamicResource ClientInstall.OptifineVersion}"
+                           FontSize="12" Foreground="#666666"
+                           Margin="0,10,0,4"/>
+                <ComboBox x:Name="OptifineVersionBox"
+                          Style="{StaticResource ModernComboBoxStyle}"
+                          IsEnabled="False"
+                          SelectionChanged="OptifineVersionBox_SelectionChanged"/>
+                <TextBlock x:Name="OptifineHint"
+                           Text="{DynamicResource ClientInstall.OptifineHint}"
+                           FontSize="11" Foreground="#999999"
+                           Margin="0,4,0,0"
+                           TextWrapping="Wrap"/>
 
-                    <TextBlock Text="{DynamicResource ClientInstall.OptifineVersion}"
-                               FontSize="12" Foreground="#666666"
-                               Margin="0,10,0,4"/>
-                    <ComboBox x:Name="OptifineVersionBox"
-                              Style="{StaticResource ModernComboBoxStyle}"
-                              IsEnabled="False"
-                              SelectionChanged="OptifineVersionBox_SelectionChanged"/>
-                    <TextBlock x:Name="OptifineHint"
-                               Text="{DynamicResource ClientInstall.OptifineHint}"
-                               FontSize="11" Foreground="#999999"
-                               Margin="0,4,0,0"
-                               TextWrapping="Wrap"/>
-
-                    <Border Background="#FFF8E1"
-                            CornerRadius="6"
-                            Padding="12,10"
-                            Margin="0,18,0,0">
-                        <TextBlock TextWrapping="Wrap"
-                                   FontSize="11" Foreground="#8D6E00"
-                                   Text="{DynamicResource ClientInstall.Warning}"/>
-                    </Border>
-                </StackPanel>
-            </ScrollViewer>
-
-            <!-- 日志区 -->
-            <Border Grid.Row="1"
-                    Margin="24,14,24,16"
-                    Background="#FAFAFA"
-                    BorderBrush="#E0E0E0"
-                    BorderThickness="1"
-                    CornerRadius="6"
-                    MinHeight="120">
-                <Grid>
-                    <TextBox x:Name="LogBox"
-                             Background="Transparent"
-                             Foreground="#333333"
-                             BorderThickness="0"
-                             FontFamily="{DynamicResource App.MonoFontFamily}"
-                             FontSize="11"
-                             Padding="10,8"
-                             IsReadOnly="True"
-                             IsReadOnlyCaretVisible="False"
-                             TextWrapping="NoWrap"
-                             VerticalScrollBarVisibility="Auto"
-                             HorizontalScrollBarVisibility="Auto"/>
-                    <TextBlock x:Name="LogPlaceholder"
-                               Text="{DynamicResource ClientInstall.LogPlaceholder}"
-                               Foreground="#BBBBBB"
-                               FontFamily="{DynamicResource App.MonoFontFamily}"
-                               FontSize="11"
-                               Margin="12,10,0,0"
-                               VerticalAlignment="Top"
-                               HorizontalAlignment="Left"
-                               IsHitTestVisible="False"/>
-                </Grid>
-            </Border>
-        </Grid>
+                <Border Background="#FFF8E1"
+                        CornerRadius="6"
+                        Padding="12,10"
+                        Margin="0,18,0,0">
+                    <TextBlock TextWrapping="Wrap"
+                               FontSize="11" Foreground="#8D6E00"
+                               Text="{DynamicResource ClientInstall.Warning}"/>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
 
         <!-- 按钮栏 -->
         <Border Grid.Row="2"

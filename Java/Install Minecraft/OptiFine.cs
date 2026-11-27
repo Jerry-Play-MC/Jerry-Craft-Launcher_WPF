@@ -52,7 +52,8 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
         // ===================== 客户端安装入口 =====================
         public static void InstallClient(string version, string minecraftDir,
-                                  string loaderParam, bool forForge = false)
+                                  string loaderParam, bool forForge = false,
+                                  TaskGroup group = null, CancellationToken ct = default(CancellationToken), InstallStages stages = null)
         {
             if (string.IsNullOrEmpty(version))
                 throw new ArgumentException("版本号不能为空", "version");

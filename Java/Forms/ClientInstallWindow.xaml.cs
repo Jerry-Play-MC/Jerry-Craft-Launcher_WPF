@@ -7,6 +7,7 @@ using System.Linq;
 using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Web.Script.Serialization;
 using System.Windows;
@@ -22,13 +23,12 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         public event EventHandler InstallStarted;
         public event EventHandler InstallCompleted;
 
-        // ===================== 日志缓冲（防止 processor 高并发打爆 UI 线程） =====================
+        // ===================== 日志缓冲（防止高并发打爆 UI 线程） =====================
         private readonly object _logBufLock = new object();
         private readonly List<string> _logBuf = new List<string>();
         private bool _logFlushScheduled;
         private DateTime _lastLogFlush = DateTime.MinValue;
         private const int LOG_FLUSH_INTERVAL_MS = 16;
-        private const int LOG_FLUSH_MAX_LINES = 20;
 
         // ===================== 加载器相关常量 =====================
         private static readonly string[] LoaderTypes = {
@@ -118,7 +118,9 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         private TextWriter _originalOut;
         private TextWriter _originalErr;
         private LogWriter _uiWriter;
-        private int _logLineCount;
+
+        // ★ 当前正在执行的 TaskGroup（供日志写入）
+        private TaskGroup _currentTaskGroup;
 
         public bool IsInstalling { get { return _installing; } }
 
@@ -136,11 +138,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         }
 
         // ===================== 公开 API =====================
-        /// <summary>
-        /// 由 DownloadView 在显示本视图时调用。
-        /// 若 gameVersion 与上次相同:只重置 UI,不重新拉 OptiFine 列表(缓存)。
-        /// 若不同:更新版本 + 重新拉 OptiFine 列表。
-        /// </summary>
         public async void SetGameVersion(string gameVersion)
         {
             gameVersion = gameVersion ?? "";
@@ -158,13 +155,12 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             }
             else
             {
-                // 缓存命中:用已有的 _allOptifine 重刷下拉
                 RefreshOptifineDropdown();
                 UpdateHints();
             }
         }
 
-        // ===================== 重置状态（每次进入都重置） =====================
+        // ===================== 重置状态 =====================
         private void ResetState()
         {
             _suppressEvents = true;
@@ -192,10 +188,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                 _suppressEvents = false;
             }
 
-            if (LogBox != null) LogBox.Clear();
-            if (LogPlaceholder != null) LogPlaceholder.Visibility = Visibility.Visible;
             if (InstallStatusText != null) InstallStatusText.Text = "";
-            _logLineCount = 0;
 
             UpdateHints();
         }
@@ -797,7 +790,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             }
             catch (Exception ex)
             {
-                // 不致命:OptiFine 列表加载失败只是禁用 OptiFine 选项
                 System.Diagnostics.Debug.WriteLine(
                     "[ClientInstallView] 加载 OptiFine 列表失败: " + ex);
             }
@@ -917,7 +909,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         }
 
         // ===================== 安装 =====================
-        private async void Install_Click(object sender, RoutedEventArgs e)
+        private void Install_Click(object sender, RoutedEventArgs e)
         {
             if (_installing) return;
 
@@ -972,6 +964,19 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
 
             string gameDir = App.Config.GameDir;
 
+            // ★ 建组
+            string groupName = "Install " + gameVersion;
+            if (!"Vanilla".Equals(loaderName, StringComparison.OrdinalIgnoreCase))
+                groupName += " + " + loaderName;
+
+            var group = TaskCenter.Instance.CreateGroup(groupName);
+            group.State = TaskState.Running;
+            group.IsIndeterminate = true;
+            group.SummaryText = "Running";
+            TaskCenter.Instance.NotifyStateChanged();
+
+            _currentTaskGroup = group;
+
             _installing = true;
             InstallButton.IsEnabled = false;
             CancelButton.IsEnabled = false;
@@ -979,7 +984,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             InstallStatusText.Text = LanguageManager.Get("ClientInstall.Installing");
             SetFormEnabled(false);
 
-            // 通知外层:安装开始(用于禁用 SubNav)
             try { InstallStarted?.Invoke(this, EventArgs.Empty); }
             catch (Exception ex)
             {
@@ -987,94 +991,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     "[ClientInstallView] InstallStarted 事件处理失败: " + ex);
             }
 
-            LogBox.Clear();
-            _logLineCount = 0;
-            LogPlaceholder.Visibility = Visibility.Visible;
-
-            _originalOut = Console.Out;
-            _originalErr = Console.Error;
-            _uiWriter = new LogWriter(AppendLogLines);
-            Console.SetOut(_uiWriter);
-            Console.SetError(_uiWriter);
-
-            bool installSucceeded = false;
-
-            try
-            {
-                AppendLogLines(new List<string> {
-                    "==================================================",
-                    "[Launcher] " + LanguageManager.Get("ClientInstall.BeginInstall"),
-                    "[Launcher] 游戏版本   : " + gameVersion,
-                    "[Launcher] 加载器     : " + loaderName,
-                    "[Launcher] 加载器版本 : " + (isLabyMod
-                        ? "（自动最新）"
-                        : (string.IsNullOrEmpty(loaderVersion) ? "（最新）" : loaderVersion)),
-                    "[Launcher] LiteLoader : " + (withLiteLoader ? "安装" : "不安装"),
-                    "[Launcher] OptiFine   : " + (withOptifine ? (string.IsNullOrEmpty(optifineVersion) ? "（最新）" : optifineVersion) : "不安装"),
-                    "[Launcher] 目标目录   : " + gameDir,
-                    "[Launcher] loaderType : " + loaderType,
-                    "=================================================="
-                });
-
-                int rc = await Task.Run(() =>
-                    VersionInstaller.Run(
-                        "client", loaderType, gameVersion, gameDir, "none"));
-
-                if (_uiWriter != null) { try { _uiWriter.Flush(); } catch { } }
-                await Dispatcher.Yield(DispatcherPriority.Background);
-
-                if (rc == 0)
-                {
-                    installSucceeded = true;
-                    AppendLogLines(new List<string> { "",
-                        "[Launcher] " + LanguageManager.Get("ClientInstall.InstallDoneLog") });
-                    InstallStatusText.Text = LanguageManager.Get("ClientInstall.InstallDone");
-
-                    LanguageManager.ShowInfo("ClientInstall.InstallSuccess", gameVersion);
-                }
-                else
-                {
-                    AppendLogLines(new List<string> { "",
-                        "[Launcher] " + LanguageManager.Get("ClientInstall.InstallFailedLog")
-                        + " rc=" + rc });
-                    InstallStatusText.Text = LanguageManager.Get("ClientInstall.InstallFailed");
-
-                    LanguageManager.ShowError("ClientInstall.InstallFailed");
-                }
-            }
-            catch (Exception ex)
-            {
-                if (_uiWriter != null) { try { _uiWriter.Flush(); } catch { } }
-                AppendLogLines(new List<string> { "",
-                    "[Launcher] " + LanguageManager.Get("ClientInstall.InstallErrorLog")
-                    + " " + ex.Message });
-                InstallStatusText.Text = LanguageManager.Get("ClientInstall.InstallFailed");
-
-                System.Diagnostics.Debug.WriteLine(
-                    "[ClientInstallView] 安装流程异常: " + ex);
-
-                LanguageManager.ShowError("ClientInstall.InstallError", ex.Message);
-            }
-            finally
-            {
-                // 恢复 Console 并释放 LogWriter(含 Timer)
-                if (_uiWriter != null)
-                {
-                    try { _uiWriter.Flush(); } catch { }
-                    try { _uiWriter.Dispose(); } catch { }
-                }
-                if (_originalOut != null) { try { Console.SetOut(_originalOut); } catch { } }
-                if (_originalErr != null) { try { Console.SetError(_originalErr); } catch { } }
-                _uiWriter = null;
-
-                _installing = false;
-                InstallButton.IsEnabled = true;
-                CancelButton.IsEnabled = true;
-                BackButton.IsEnabled = true;
-                SetFormEnabled(true);
-            }
-
-            // 通知外层:安装结束
+            // ★ 立即通知 DownloadView 切回列表
             try { InstallCompleted?.Invoke(this, EventArgs.Empty); }
             catch (Exception ex)
             {
@@ -1082,10 +999,55 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     "[ClientInstallView] InstallCompleted 事件处理失败: " + ex);
             }
 
-            // 若成功,DownloadView 会收到 InstallCompleted 并切回列表。
-            // 若失败,用户可手动点返回。
-            // installSucceeded 变量保留供未来扩展(例如自动选中新版本)。
-            GC.KeepAlive(installSucceeded);
+            // ★ 后台跑（不阻塞 UI）
+            RunInstallAsync(group, loaderType, gameVersion, gameDir);
+        }
+
+        // ★ 后台实际安装流程
+        private async Task RunInstallAsync(TaskGroup group, string loaderType,
+                                   string gameVersion, string gameDir)
+        {
+            bool success = false;
+            var cts = new CancellationTokenSource();
+            // 把 cts 存到 group 上，方便"取消"按钮用
+            // （后面要加取消功能时直接从 group 拿）
+
+            try
+            {
+                group.AppendLogs(new[]
+                {
+            "[Launcher] Begin install",
+            "[Launcher] Version : " + gameVersion,
+            "[Launcher] Loader  : " + loaderType,
+            "[Launcher] Dir     : " + gameDir,
+        });
+
+                int rc = await VersionInstaller.RunAsync(
+                    "client", loaderType, gameVersion, gameDir, "none",
+                    log: line => group.AppendLogs(new[] { line }),
+                    group: group,
+                    cts: cts);
+
+                success = (rc == 0);
+            }
+            catch (Exception ex)
+            {
+                group.AppendLogs(new[] { "[Launcher] Error: " + ex.Message });
+            }
+            finally
+            {
+                group.IsIndeterminate = false;
+                group.OverallProgress = success ? 1 : 0;
+                group.State = success ? TaskState.Success : TaskState.Failed;
+                group.SummaryText = success ? "Done" : "Failed";
+                TaskCenter.Instance.NotifyStateChanged();
+
+                _installing = false;
+                InstallButton.IsEnabled = true;
+                CancelButton.IsEnabled = true;
+                BackButton.IsEnabled = true;
+                SetFormEnabled(true);
+            }
         }
 
         private void SetFormEnabled(bool enabled)
@@ -1152,8 +1114,6 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
         private void FlushLogBuffer()
         {
             List<string> batch;
-            bool hasMore;
-
             lock (_logBufLock)
             {
                 if (_logBuf.Count == 0)
@@ -1162,27 +1122,13 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
                     return;
                 }
 
-                int take = Math.Min(_logBuf.Count, LOG_FLUSH_MAX_LINES);
-                batch = _logBuf.GetRange(0, take);
-                _logBuf.RemoveRange(0, take);
-                hasMore = _logBuf.Count > 0;
-
-                if (!hasMore)
-                    _logFlushScheduled = false;
+                batch = new List<string>(_logBuf);
+                _logBuf.Clear();
+                _logFlushScheduled = false;
             }
 
             _lastLogFlush = DateTime.UtcNow;
             DoAppendLogLines(batch);
-
-            if (hasMore)
-            {
-                var timer = new DispatcherTimer
-                {
-                    Interval = TimeSpan.FromMilliseconds(LOG_FLUSH_INTERVAL_MS)
-                };
-                timer.Tick += (s, e) => { timer.Stop(); FlushLogBuffer(); };
-                timer.Start();
-            }
         }
 
         private void DoAppendLogLines(List<string> lines)
@@ -1193,14 +1139,13 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             {
                 Dispatcher.BeginInvoke(
                     DispatcherPriority.Background,
-                    new Action<List<string>>(AppendLogLines),
+                    new Action<List<string>>(DoAppendLogLines),
                     lines);
                 return;
             }
 
-            // 同时把日志打印到原控制台。
-            // 安装阶段 Console.Out 已被重定向到 _uiWriter，直接 Console.WriteLine
-            // 会再次触发 AppendLogLines，形成死循环。必须写回 _originalOut。
+            // 1) 写回原控制台（调试用）。注意安装期间 Console.Out 已被重定向，
+            //    若仍写 Console.Out 会再次触发 AppendLogLines，形成死循环。
             try
             {
                 var original = _originalOut;
@@ -1213,56 +1158,13 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             }
             catch (Exception ex)
             {
-                // 控制台写失败不影响 UI 日志
                 System.Diagnostics.Debug.WriteLine(
                     "[ClientInstallView] 写回原控制台失败: " + ex.Message);
             }
 
-            LogPlaceholder.Visibility = Visibility.Collapsed;
-
-            const int MaxBatch = 200;
-            if (lines.Count > MaxBatch)
-            {
-                var head = lines.GetRange(0, MaxBatch);
-                var tail = lines.GetRange(MaxBatch, lines.Count - MaxBatch);
-
-                AppendLogLines(head);
-                Dispatcher.BeginInvoke(
-                    DispatcherPriority.Background,
-                    new Action<List<string>>(AppendLogLines),
-                    tail);
-                return;
-            }
-
-            var sb = new StringBuilder(lines.Count * 64);
-            foreach (var l in lines) { sb.Append(l); sb.Append("\r\n"); }
-
-            const int MaxLines = 3000;
-            if (_logLineCount + lines.Count > MaxLines)
-            {
-                string txt = LogBox.Text;
-                int totalLines = _logLineCount + lines.Count;
-                int toDrop = totalLines - MaxLines / 2;
-
-                if (toDrop > 0)
-                {
-                    int dropEnd = 0;
-                    int nl = 0;
-                    for (int i = 0; i < txt.Length && nl < toDrop; i++)
-                    {
-                        if (txt[i] == '\n') { nl++; dropEnd = i + 1; }
-                    }
-                    if (dropEnd > 0)
-                    {
-                        LogBox.Text = txt.Substring(dropEnd);
-                        _logLineCount -= nl;
-                    }
-                }
-            }
-
-            LogBox.AppendText(sb.ToString());
-            _logLineCount += lines.Count;
-            LogBox.ScrollToEnd();
+            // 2) 写入当前 TaskGroup（任务页日志区的数据源）
+            var g = _currentTaskGroup;
+            if (g != null) g.AppendLogs(lines);
         }
 
         // ===================== 返回 / 取消 =====================
@@ -1284,7 +1186,7 @@ namespace Jerry_Craft_Launcher.NET_Framework_4._5_WPF
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine(
-                    "[ClientInstallView] BackRequested 事件处理失败: " + ex);
+                    "[ClientInstallView] CancelRequested 事件处理失败: " + ex);
             }
         }
     }
